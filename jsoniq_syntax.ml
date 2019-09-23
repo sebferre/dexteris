@@ -1,0 +1,507 @@
+
+open Syntax
+open Jsoniq
+open Jsoniq_focus
+
+type word = [`Bool of bool | `Int of int | `Float of float | `String of string | `Var of var | `ContextItem | `ContextEnv | `Order of order | `Func of func ]
+type input = [`Bool | `Int | `Float | `String]
+type syn = (word,input,focus) xml
+
+let syn_args lxml =
+  [Quote ("(", [Enum (", ", lxml)], ")")]
+let syn_pair xml1 xml2 : syn =
+  xml1 @ Kwd ":" :: xml2
+let syn_order xml1 o : syn =
+  xml1 @ [Word (`Order o)]
+			       
+let syn_Flower xml : syn = xml
+let syn_Concat lxml : syn =
+  [Coord ([Kwd ","], lxml)]
+let syn_Exists x xml1 xml2 : syn =
+  Kwd "some" :: Word (`Var x) :: Kwd "in" :: xml1 @ Kwd "satisfies" :: xml2
+let syn_ForAll x xml1 xml2 : syn =
+  Kwd "every" :: Word (`Var x) :: Kwd "in" :: xml1 @ Kwd "satisfies" :: xml2
+let syn_If xml1 xml2 xml3 : syn =
+  [Block [Kwd "if" :: xml1;
+	  Kwd "then" :: xml2;
+	  Kwd "else" :: xml3]]
+let syn_Or lxml : syn =
+  [Coord ([Kwd "or"], lxml)]
+let syn_And lxml : syn =
+  [Coord ([Kwd "and"], lxml)]
+let syn_Not xml : syn =
+  Kwd "not" :: xml
+let syn_Call func lxml : syn =
+  Word (`Func func) :: syn_args lxml
+let syn_Map xml1 xml2 : syn =
+  xml1 @ Kwd "!" :: xml2
+let syn_Pred xml1 xml2 : syn =
+  xml1 @ Quote ("[", xml2, "]") :: []
+let syn_Dot xml1 xml2 : syn =
+  xml1 @ Kwd "." :: xml2
+let syn_ArrayLookup xml1 xml2 : syn =
+  xml1 @ Quote ("[[", xml2, "]]") :: []
+let syn_ArrayUnboxing xml1 : syn =
+  xml1 @ Kwd "[]" :: []
+let syn_Var x : syn =
+  [Word (`Var x)]
+let syn_ContextItem : syn =
+  [Word `ContextItem]
+let syn_ContextEnv : syn =
+  [Word `ContextEnv]
+let syn_EObject xml_pairs : syn =
+  [Quote ("{", [Block xml_pairs], "}")]
+let syn_Objectify xml1 : syn =
+  [Quote ("{|", xml1, "|}")]
+let syn_Arrayify xml1 : syn =
+  [Quote ("[", xml1, "]")]
+let syn_DefVar x xml1 xml2 : syn =
+  [Block [Kwd "def" :: Word (`Var x) :: Kwd "=" :: xml1;
+	  xml2]]
+let syn_DefFunc name args xml1 xml2 : syn =
+  [Block [Kwd "def" :: Word (`Func (Defined (name, List.length args))) ::
+	    syn_args (List.map (fun x -> [Word (`Var x)]) args) @
+	    Kwd "=" :: xml1;
+	  xml2]]
+
+let syn_Return xml1 : syn =
+  Kwd "return" :: xml1
+let syn_For x xml1 opt xml2 : syn =
+  [Block [Kwd "for" :: (if opt then [Kwd "optional"] else []) @ Word (`Var x) :: Kwd "in" :: xml1;
+	  xml2]]
+let syn_ForObject xml1 opt xml2 : syn =
+  [Block [Kwd "for" :: (if opt then [Kwd "optional"] else []) @ Kwd "object" :: Kwd "in" :: xml1;
+	  xml2]]
+let syn_Let x xml1 xml2 : syn =
+  [Block [Kwd "let" :: Word (`Var x) :: Kwd "in" :: xml1;
+	  xml2]]
+let syn_Where xml1 xml2 : syn =
+  [Block [Kwd "where" :: xml1;
+	  xml2]]
+let syn_GroupBy lx xml1 : syn =
+  [Block [Kwd "group" :: Kwd "by" :: Enum (", ", List.map (fun x -> [Word (`Var x)]) lx) :: [];
+	  xml1]]
+let syn_OrderBy xml_orders xml2 : syn =
+  [Block [Kwd "order" :: Kwd "by" :: Enum (", ", xml_orders) :: [];
+	  xml2]]
+let syn_FConcat lxml : syn = syn_Concat lxml
+let syn_FIf xml1 xml2 xml3 : syn = syn_If xml1 xml2 xml3
+
+let syn_susp xml : syn = [Suspended xml]
+					  
+(* DERIVED *)			      
+let rec syn_focus (foc : focus) : syn =
+  match foc with
+  | AtExpr (e,ctx) -> syn_expr_ctx e ctx [Highlight (syn_expr e ctx)]
+  | AtFlower (f,ctx) -> syn_flower_ctx f ctx [Highlight (syn_flower f ctx)]
+and syn_expr e ctx : syn =
+  let xml =
+    match e with
+    | S s -> [Word (`String s)]
+    | Item i -> raise TODO
+    | Empty -> [Kwd "()"]
+    | Data d -> raise TODO
+    | Concat le ->
+       syn_Concat
+	 (List.map
+	    (fun (e,ll_rr) -> syn_expr e (ConcatX (ll_rr,ctx)))
+	    (Focus.ctx_of_list le))
+    | Flower f ->
+       syn_Flower (syn_flower f (Flower1 ctx))
+    | Exists (x,e1,e2) ->
+       syn_Exists x
+		  (syn_expr e1 (Exists1 (x,ctx,e2)))
+		  (syn_expr e2 (Exists2 (x,e1,ctx)))
+    | ForAll (x,e1,e2) ->
+       syn_ForAll x
+		  (syn_expr e1 (ForAll1 (x,ctx,e2)))
+		  (syn_expr e2 (ForAll2 (x,e1,ctx)))
+    | If (e1,e2,e3) ->
+       syn_If (syn_expr e1 (If1 (ctx,e2,e3)))
+	      (syn_expr e2 (If2 (e1,ctx,e3)))
+	      (syn_expr e3 (If3 (e1,e2,ctx)))
+    | Or le ->
+       syn_Or
+	 (List.map
+	    (fun (e,ll_rr) -> syn_expr e (OrX (ll_rr,ctx)))
+	    (Focus.ctx_of_list le))
+    | And le ->
+       syn_And
+	 (List.map
+	    (fun (e,ll_rr) -> syn_expr e (AndX (ll_rr,ctx)))
+	    (Focus.ctx_of_list le))
+    | Not e ->
+       syn_Not (syn_expr e (Not1 ctx))
+    | Call (func,le) ->
+       syn_Call func
+		(List.map
+		   (fun (e,ll_rr) -> syn_expr e (CallX (func,ll_rr,ctx)))
+		   (Focus.ctx_of_list le))
+    | Map (e1,e2) ->
+       syn_Map (syn_expr e1 (Map1 (ctx,e2)))
+	       (syn_expr e2 (Map2 (e1,ctx)))
+    | Pred (e1,e2) ->
+       syn_Pred (syn_expr e1 (Pred1 (ctx,e2)))
+		(syn_expr e2 (Pred2 (e1,ctx)))
+    | Dot (e1,e2) ->
+       syn_Dot (syn_expr e1 (Dot1 (ctx,e2)))
+	       (syn_expr e2 (Dot2 (e1,ctx)))
+    | ArrayLookup (e1,e2) ->
+       syn_ArrayLookup (syn_expr e1 (ArrayLookup1 (ctx,e2)))
+		       (syn_expr e2 (ArrayLookup2 (e1,ctx)))
+    | ArrayUnboxing e1 ->
+       syn_ArrayUnboxing (syn_expr e1 (ArrayUnboxing1 ctx))
+    | Var x -> syn_Var x
+    | ContextItem -> syn_ContextItem
+    | ContextEnv -> syn_ContextEnv
+    | EObject pairs ->
+       syn_EObject
+	 (List.map
+	    (fun ((e1,e2),ll_rr) ->
+	     syn_pair
+	       (syn_expr e1 (EObjectX1 (ll_rr,ctx,e2)))
+	       (syn_expr e2 (EObjectX2 (ll_rr,e1,ctx))))
+	    (Focus.ctx_of_list pairs))
+    | Objectify e1 ->
+       syn_Objectify (syn_expr e1 (Objectify1 ctx))
+    | Arrayify e1 ->
+       syn_Arrayify (syn_expr e1 (Arrayify1 ctx))
+    | DefVar (x,e1,e2) ->
+       syn_DefVar x
+		  (syn_expr e1 (DefVar1 (x,ctx,e2)))
+		  (syn_expr e2 (DefVar2 (x,e1,ctx)))
+    | DefFunc (name,args,e1,e2) ->
+       syn_DefFunc name args
+		   (syn_expr e1 (DefFunc1 (name,args,ctx,e2)))
+		   (syn_expr e2 (DefFunc2 (name,args,e1,ctx)))
+  in
+  [Focus (AtExpr (e,ctx), xml)]
+and syn_flower f ctx : syn =
+  let xml =
+    match f with
+    | Return e1 ->
+       syn_Return (syn_expr e1 (Return1 ctx))
+    | For (x,e1,opt,f1) ->
+       syn_For x
+	       (syn_expr e1 (For1 (x,ctx,opt,f1)))
+	       opt
+	       (syn_flower f1 (For2 (x,e1,opt,ctx)))
+    | ForObject (e1,opt,f1) ->
+       syn_ForObject
+	       (syn_expr e1 (ForObject1 (ctx,opt,f1)))
+	       opt
+	       (syn_flower f1 (ForObject2 (e1,opt,ctx)))
+    | Let (x,e1,f1) ->
+       syn_Let x
+	       (syn_expr e1 (Let1 (x,ctx,f1)))
+	       (syn_flower f1 (Let2 (x,e1,ctx)))
+    | Where (e1,f1) ->
+       syn_Where (syn_expr e1 (Where1 (ctx,f1)))
+		 (syn_flower f1 (Where2 (e1,ctx)))
+    | GroupBy (lx,f1) ->
+       syn_GroupBy lx
+		   (syn_flower f1 (GroupBy1 (lx,ctx)))
+    | OrderBy (leo,f1) ->
+       syn_OrderBy (List.map
+		      (fun ((e,o),ll_rr) ->
+		       syn_order
+			 (syn_expr e (OrderBy1X (ll_rr,ctx,o,f1)))
+			 o)
+		      (Focus.ctx_of_list leo))
+		   (syn_flower f1 (OrderBy2 (leo,ctx)))
+    | FConcat lf ->
+       syn_FConcat (List.map
+		      (fun (f,ll_rr) -> syn_flower f (FConcatX (ll_rr,ctx)))
+		      (Focus.ctx_of_list lf))
+    | FIf (f1,f2,f3) ->
+       syn_FIf (syn_flower f1 (FIf1 (ctx,f2,f3)))
+	       (syn_flower f2 (FIf2 (f1,ctx,f3)))
+	       (syn_flower f3 (FIf3 (f1,f2,ctx)))
+  in
+  [Focus (AtFlower (f,ctx), xml)]
+and syn_expr_ctx e ctx (xml_e : syn) : syn =
+  let xml_e = [Focus (AtExpr (e,ctx), xml_e)] in
+  match ctx with
+  | Root -> xml_e
+  | ConcatX (ll_rr,ctx) ->
+     syn_expr_ctx
+       (Concat (Focus.list_of_ctx e ll_rr)) ctx
+       (syn_Concat
+	  (Syntax.xml_list_ctx
+	     (fun e1 ll_rr1 -> syn_susp (syn_expr e1 (ConcatX (ll_rr1,ctx))))
+	     e ll_rr xml_e))
+  | Exists1 (x,ctx,e2) ->
+     syn_expr_ctx
+       (Exists (x,e,e2)) ctx
+       (syn_Exists x xml_e
+		   (syn_susp (syn_expr e2 (Exists2 (x,e,ctx)))))
+  | Exists2 (x,e1,ctx) ->
+     syn_expr_ctx
+       (Exists (x,e1,e)) ctx
+       (syn_Exists x
+		   (syn_expr e1 (Exists1 (x,ctx,e)))
+		   xml_e)
+  | ForAll1 (x,ctx,e2) ->
+     syn_expr_ctx
+       (ForAll (x,e,e2)) ctx
+       (syn_ForAll x xml_e
+		   (syn_susp (syn_expr e2 (ForAll2 (x,e,ctx)))))
+  | ForAll2 (x,e1,ctx) ->
+     syn_expr_ctx
+       (ForAll (x,e1,e)) ctx
+       (syn_ForAll x
+		   (syn_expr e1 (ForAll1 (x,ctx,e)))
+		   xml_e)
+  | If1 (ctx,e2,e3) ->
+     syn_expr_ctx
+       (If (e,e2,e3)) ctx
+       (syn_If xml_e
+	       (syn_susp (syn_expr e2 (If2 (e,ctx,e3))))
+	       (syn_susp (syn_expr e3 (If3 (e,e2,ctx)))))
+  | If2 (e1,ctx,e3) ->
+     syn_expr_ctx
+       (If (e1,e,e3)) ctx
+       (syn_If (syn_susp (syn_expr e1 (If1 (ctx,e,e3))))
+	       xml_e
+	       (syn_susp (syn_expr e3 (If3 (e1,e,ctx)))))
+  | If3 (e1,e2,ctx) ->
+     syn_expr_ctx
+       (If (e1,e2,e)) ctx
+       (syn_If (syn_susp (syn_expr e1 (If1 (ctx,e2,e))))
+	       (syn_susp (syn_expr e2 (If2 (e1,ctx,e))))
+	       xml_e)
+  | OrX (ll_rr,ctx) ->
+     syn_expr_ctx
+       (Or (Focus.list_of_ctx e ll_rr)) ctx
+       (syn_Or
+	  (Syntax.xml_list_ctx
+	     (fun e1 ll_rr1 -> syn_susp (syn_expr e1 (OrX (ll_rr1,ctx))))
+	     e ll_rr xml_e))
+  | AndX (ll_rr,ctx) ->
+     syn_expr_ctx
+       (And (Focus.list_of_ctx e ll_rr)) ctx
+       (syn_And
+	  (Syntax.xml_list_ctx
+	     (fun e1 ll_rr1 -> syn_susp (syn_expr e1 (AndX (ll_rr1,ctx))))
+	     e ll_rr xml_e))
+  | Not1 ctx ->
+     syn_expr_ctx
+       (Not e) ctx
+       (syn_Not xml_e) (* suspend Not *)
+  | CallX (func,ll_rr,ctx) ->
+     syn_expr_ctx
+       (Call (func, Focus.list_of_ctx e ll_rr)) ctx
+       (syn_Call func
+		 (Syntax.xml_list_ctx
+		    (fun e1 ll_rr1 -> syn_susp (syn_expr e1 (CallX (func,ll_rr1,ctx))))
+		    e ll_rr xml_e))
+  | Map1 (ctx,e2) ->
+     syn_expr_ctx
+       (Map (e,e2)) ctx
+       (syn_Map xml_e
+		(syn_susp (syn_expr e2 (Map2 (e,ctx)))))
+  | Map2 (e1,ctx) ->
+     syn_expr_ctx
+       (Map (e1,e)) ctx
+       (syn_Map (syn_expr e1 (Map1 (ctx,e)))
+		xml_e)
+  | Pred1 (ctx,e2) ->
+     syn_expr_ctx
+       (Pred (e,e2)) ctx
+       (syn_Pred xml_e
+		 (syn_susp (syn_expr e2 (Pred2 (e,ctx)))))
+  | Pred2 (e1,ctx) ->
+     syn_expr_ctx
+       (Pred (e1,e)) ctx
+       (syn_Pred (syn_expr e1 (Pred1 (ctx,e)))
+		 xml_e)
+  | Dot1 (ctx,e2) ->
+     syn_expr_ctx
+       (Dot (e,e2)) ctx
+       (syn_Dot xml_e
+		(syn_susp (syn_expr e2 (Dot2 (e,ctx)))))
+  | Dot2 (e1,ctx) ->
+     syn_expr_ctx
+       (Dot (e1,e)) ctx
+       (syn_Dot (syn_susp (syn_expr e1 (Dot1 (ctx,e))))
+		xml_e)
+  | ArrayLookup1 (ctx,e2) ->
+     syn_expr_ctx
+       (ArrayLookup (e,e2)) ctx
+       (syn_ArrayLookup xml_e
+			(syn_susp (syn_expr e2 (ArrayLookup2 (e,ctx)))))
+  | ArrayLookup2 (e1,ctx) ->
+     syn_expr_ctx
+       (ArrayLookup (e1,e)) ctx
+       (syn_ArrayLookup (syn_susp (syn_expr e1 (ArrayLookup1 (ctx,e))))
+			xml_e)
+  | ArrayUnboxing1 ctx ->
+     syn_expr_ctx
+       (ArrayUnboxing e) ctx
+       (syn_ArrayUnboxing xml_e)
+  | EObjectX1 (ll_rr,ctx,e2) ->
+     syn_expr_ctx
+       (EObject (Focus.list_of_ctx (e,e2) ll_rr)) ctx
+       (syn_EObject
+	  (Syntax.xml_list_ctx
+	     (fun (e1,e2) ll_rr ->
+	      syn_susp (syn_pair
+			  (syn_expr e1 (EObjectX1 (ll_rr,ctx,e2)))
+			  (syn_expr e2 (EObjectX2 (ll_rr,e1,ctx)))))
+	     (e,e2) ll_rr
+	     (syn_pair xml_e
+		       (syn_expr e2 (EObjectX2 (ll_rr,e,ctx))))))
+  | EObjectX2 (ll_rr,e1,ctx) ->
+     syn_expr_ctx
+       (EObject (Focus.list_of_ctx (e1,e) ll_rr)) ctx
+       (syn_EObject
+	  (Syntax.xml_list_ctx
+	     (fun (e1,e2) ll_rr ->
+	      syn_susp (syn_pair
+			  (syn_expr e1 (EObjectX1 (ll_rr,ctx,e2)))
+			  (syn_expr e2 (EObjectX2 (ll_rr,e1,ctx)))))
+	     (e1,e) ll_rr
+	     (syn_pair (syn_expr e1 (EObjectX1 (ll_rr,ctx,e)))
+		       xml_e)))
+  | Objectify1 ctx ->
+     syn_expr_ctx
+       (Objectify e) ctx
+       (syn_Objectify xml_e)
+  | Arrayify1 ctx ->
+     syn_expr_ctx
+       (Arrayify e) ctx
+       (syn_Arrayify xml_e)
+  | DefVar1 (x,ctx,e2) ->
+     syn_expr_ctx
+       (DefVar (x,e,e2)) ctx
+       (syn_DefVar x
+		   xml_e
+		   (syn_susp (syn_expr e2 (DefVar2 (x,e,ctx)))))
+  | DefVar2 (x,e1,ctx) ->
+     syn_expr_ctx
+       (DefVar (x,e1,e)) ctx
+       (syn_DefVar x
+		   (syn_expr e1 (DefVar1 (x,ctx,e)))
+		   xml_e)
+  | DefFunc1 (name,args,ctx,e2) ->
+     syn_expr_ctx
+       (DefFunc (name,args,e,e2)) ctx
+       (syn_DefFunc name args
+		    xml_e
+		    (syn_susp (syn_expr e2 (DefFunc2 (name,args,e,ctx)))))
+  | DefFunc2 (name,args,e1,ctx) ->
+     syn_expr_ctx
+       (DefFunc (name,args,e1,e)) ctx
+       (syn_DefFunc name args
+		    (syn_expr e1 (DefFunc1 (name,args,ctx,e)))
+		    xml_e)
+  | Return1 ctx ->
+     syn_flower_ctx
+       (Return e) ctx
+       (syn_Return xml_e)
+  | For1 (x,ctx,opt,f) ->
+     syn_flower_ctx
+       (For (x,e,opt,f)) ctx
+       (syn_For x
+		xml_e
+		opt
+		(syn_susp (syn_flower f (For2 (x,e,opt,ctx)))))
+  | ForObject1 (ctx,opt,f) ->
+     syn_flower_ctx
+       (ForObject (e,opt,f)) ctx
+       (syn_ForObject xml_e
+		      opt
+		      (syn_susp (syn_flower f (ForObject2 (e,opt,ctx)))))
+  | Let1 (x,ctx,f) ->
+     syn_flower_ctx
+       (Let (x,e,f)) ctx
+       (syn_Let x
+		xml_e
+		(syn_susp (syn_flower f (Let2 (x,e,ctx)))))
+  | Where1 (ctx,f) ->
+     syn_flower_ctx
+       (Where (e,f)) ctx
+       (syn_Where xml_e
+		  (syn_susp (syn_flower f (Where2 (e,ctx)))))
+  | OrderBy1X (ll_rr,ctx,o,f) ->
+     syn_flower_ctx
+       (OrderBy (Focus.list_of_ctx (e,o) ll_rr, f)) ctx
+       (syn_OrderBy (Syntax.xml_list_ctx
+		       (fun (e,o) ll_rr ->
+			syn_susp
+			  (syn_order
+			     (syn_expr e (OrderBy1X (ll_rr,ctx,o,f)))
+			     o))
+		       (e,o) ll_rr
+		       (syn_order xml_e o))
+		    (syn_susp (syn_flower f (OrderBy2 (Focus.list_of_ctx (e,o) ll_rr, ctx)))))
+and syn_flower_ctx f ctx (xml_f : syn) : syn =
+  let xml_f = [Focus (AtFlower (f,ctx), xml_f)] in
+  match ctx with
+  | Flower1 ctx ->
+     syn_expr_ctx
+       (Flower f) ctx
+       (syn_Flower xml_f)
+  | For2 (x,e1,opt,ctx) ->
+     syn_flower_ctx
+       (For (x,e1,opt,f)) ctx
+       (syn_For x
+		(syn_expr e1 (For1 (x,ctx,opt,f)))
+		opt
+		xml_f)
+  | ForObject2 (e1,opt,ctx) ->
+     syn_flower_ctx
+       (ForObject (e1,opt,f)) ctx
+       (syn_ForObject (syn_expr e1 (ForObject1 (ctx,opt,f)))
+		      opt
+		      xml_f)
+  | Let2 (x,e1,ctx) ->
+     syn_flower_ctx
+       (Let (x,e1,f)) ctx
+       (syn_Let x
+		(syn_expr e1 (Let1 (x,ctx,f)))
+		xml_f)
+  | Where2 (e1,ctx) ->
+     syn_flower_ctx
+       (Where (e1,f)) ctx
+       (syn_Where (syn_expr e1 (Where1 (ctx,f)))
+		  xml_f)
+  | GroupBy1 (lx,ctx) ->
+     syn_flower_ctx
+       (GroupBy (lx,f)) ctx
+       (syn_GroupBy lx xml_f)
+  | OrderBy2 (leo,ctx) ->
+     syn_flower_ctx
+       (OrderBy (leo,f)) ctx
+       (syn_OrderBy (List.map
+		       (fun ((e,o),ll_rr) ->
+			syn_order (syn_expr e (OrderBy1X (ll_rr,ctx,o,f)))
+				  o)
+		       (Focus.ctx_of_list leo))
+		    xml_f)
+  | FConcatX (ll_rr,ctx) ->
+     syn_flower_ctx
+       (FConcat (Focus.list_of_ctx f ll_rr)) ctx
+       (syn_FConcat
+	  (Syntax.xml_list_ctx
+	     (fun f1 ll_rr1 -> syn_susp (syn_flower f1 (FConcatX (ll_rr1,ctx))))
+	     f ll_rr xml_f))
+  | FIf1 (ctx,f2,f3) ->
+     syn_flower_ctx
+       (FIf (f,f2,f3)) ctx
+       (syn_FIf xml_f
+	       (syn_susp (syn_flower f2 (FIf2 (f,ctx,f3))))
+	       (syn_susp (syn_flower f3 (FIf3 (f,f2,ctx)))))
+  | FIf2 (f1,ctx,f3) ->
+     syn_flower_ctx
+       (FIf (f1,f,f3)) ctx
+       (syn_FIf (syn_susp (syn_flower f1 (FIf1 (ctx,f,f3))))
+	       xml_f
+	       (syn_susp (syn_flower f3 (FIf3 (f1,f,ctx)))))
+  | FIf3 (f1,f2,ctx) ->
+     syn_flower_ctx
+       (FIf (f1,f2,f)) ctx
+       (syn_FIf (syn_susp (syn_flower f1 (FIf1 (ctx,f2,f))))
+		(syn_susp (syn_flower f2 (FIf2 (f1,ctx,f))))
+	       xml_f)
+
