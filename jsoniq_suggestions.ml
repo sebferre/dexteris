@@ -3,11 +3,9 @@ open Jsoniq
 open Jsoniq_focus
 module Sem = Jsoniq_semantics
 
-module Intset = Intset.Intmap
-	       
 type suggestion = transf * focus
 
-let focus_types_lengths (extent : Sem.extent) : Sem.TypSet.t * Intset.t =
+let focus_types_lengths (extent : Sem.extent) : Sem.TypSet.t * int Bintree.t =
   List.fold_left
     (fun (typs,lens) binding ->
      try
@@ -28,16 +26,16 @@ let focus_types_lengths (extent : Sem.extent) : Sem.TypSet.t * Intset.t =
 		 | Array _ -> Sem.TypSet.add `Array typs in
 	       typs, len+1)
 	      (typs,0) li in
-	  typs, Intset.add len lens
+	  typs, Bintree.add len lens
        | _ -> assert false
      with Not_found -> typs, lens)
-    (Sem.TypSet.empty, Intset.empty) extent.Sem.bindings
+    (Sem.TypSet.empty, Bintree.empty) extent.Sem.bindings
 			     
 let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion list =
   let focus_typs, focus_lens = focus_types_lengths extent in
   let ctx_typs = sem.Sem.annot#typs in
   let allowed_typs = Sem.TypSet.inter ctx_typs focus_typs in
-  let multiple_items = Intset.fold (fun ok n -> ok || n > 1) false focus_lens in
+  let multiple_items = Bintree.fold (fun n ok -> ok || n > 1) focus_lens false in
   let multiple_bindings = List.length extent.Sem.bindings > 1 in
   let transfs = ref [] in
   let add tr = transfs := tr :: !transfs in

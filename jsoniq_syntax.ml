@@ -7,6 +7,16 @@ type word = [`Bool of bool | `Int of int | `Float of float | `String of string |
 type input = [`Bool | `Int | `Float | `String]
 type syn = (word,input,focus) xml
 
+let syn_item = function
+  | Bool b -> [Word (`Bool b)]
+  | Int i -> [Word (`Int i)]
+  | Float f -> [Word (`Float f)]
+  | String s -> [Word (`String s)]
+  | Null -> [Kwd "null"]
+  | Object pairs -> raise TODO
+  | Array li -> raise TODO
+		     
+			      
 let syn_args lxml =
   [Quote ("(", [Enum (", ", lxml)], ")")]
 let syn_pair xml1 xml2 : syn =
@@ -92,13 +102,13 @@ let syn_susp xml : syn = [Suspended xml]
 (* DERIVED *)			      
 let rec syn_focus (foc : focus) : syn =
   match foc with
-  | AtExpr (e,ctx) -> syn_expr_ctx e ctx [Highlight (syn_expr e ctx)]
-  | AtFlower (f,ctx) -> syn_flower_ctx f ctx [Highlight (syn_flower f ctx)]
+  | AtExpr (e,ctx) -> syn_expr_ctx e ctx [Highlight (syn_expr e ctx); DeleteCurrentFocus]
+  | AtFlower (f,ctx) -> syn_flower_ctx f ctx [Highlight (syn_flower f ctx); DeleteCurrentFocus]
 and syn_expr e ctx : syn =
   let xml =
     match e with
     | S s -> [Word (`String s)]
-    | Item i -> raise TODO
+    | Item i -> syn_item i
     | Empty -> [Kwd "()"]
     | Data d -> raise TODO
     | Concat le ->

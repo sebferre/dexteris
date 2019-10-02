@@ -192,7 +192,14 @@ let rec delete (foc : focus) : focus option =
 			  
 (* focus transformations and navigation paths *)
 			   
-let initial_focus = AtExpr (Empty, Root)
+let initial_focus = (*AtExpr (Empty, Root)*)
+  let e =
+    Flower
+      (For ("x", Call (Range, [Item (Int 0); Item (Int 100)]), false,
+	    Let ("y", Call (Times, [Var "x"; Item (Int 2)]),
+		 Return (Var "y"))))
+  in
+  AtExpr (e, Root)
 
 (* TODO: explicit when user input is required *)
 

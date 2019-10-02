@@ -203,7 +203,8 @@ let extent (sem : sem) : extent =
 	  let vars, binding =
 	    List.fold_left
 	      (fun (vars,binding) (k,i) ->
-	       Bintree.add k vars, (k,i)::binding)
+	       let vars = Bintree.add k vars in
+	       vars, (k,i)::binding)
 	      (vars,[]) pairs in
 	  vars, binding::bindings
        | _ -> assert false)
