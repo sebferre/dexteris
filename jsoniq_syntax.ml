@@ -27,7 +27,9 @@ let rec syn_item : item -> syn = function
 	     "]")]
 	      
 let syn_data (d : data) : syn =
-  [Block (Seq.to_list (Seq.map syn_item d))]
+  if Seq.is_empty d
+  then [Kwd "()"]
+  else [Enum (", ", Seq.to_list (Seq.map syn_item d))]
 			      
 let syn_args lxml =
   [Quote ("(", [Enum (", ", lxml)], ")")]

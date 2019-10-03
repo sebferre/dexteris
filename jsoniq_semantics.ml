@@ -64,6 +64,7 @@ let expr_bind_in x e1 e = Flower (For (x,e1,false, flower_of_expr e))
 				 
 let rec sem_focus (foc : focus) : sem =
   let annot = new annot in
+  annot#add_var field_focus;
   match foc with
   | AtExpr (e,ctx) ->
      let e' = Objectify (Concat [ContextEnv; EObject [S field_focus, Arrayify e]]) in
@@ -194,20 +195,20 @@ and sem_flower_ctx annot f : flower_ctx -> sem = function
 type extent = { vars : var list; bindings : (var * item) list list }
 
 let extent (sem : sem) : extent =
+  let vars = sem.annot#env in
   let d = eval_expr [] [] sem.expr in
-  let vars, bindings =
+  let bindings =
     Seq.fold_left
-      (fun (vars,bindings) i ->
+      (fun bindings i ->
        match i with
        | Object pairs ->
-	  let vars, binding =
+	  let binding =
 	    List.fold_left
-	      (fun (vars,binding) (k,i) ->
-	       let vars = Bintree.add k vars in
-	       vars, (k,i)::binding)
-	      (vars,[]) pairs in
-	  vars, binding::bindings
+	      (fun binding (k,i) ->
+	       (k,i)::binding)
+	      [] pairs in
+	  binding::bindings
        | _ -> assert false)
-      (Bintree.empty, []) d in
-  let vars = Bintree.elements vars in
+      [] d in
+  let bindings = List.rev bindings in
   { vars; bindings }

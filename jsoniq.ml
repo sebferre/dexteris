@@ -32,6 +32,13 @@ type item = (* JSON *)
 			      
 type data = item Seq.t
 
+let pack (d : data) : item = Array (Seq.to_list d)
+let unpack (i : item) : data =
+  match i with
+  | Array li -> Seq.from_list li
+  | _ -> failwith "Jsoniq.unpack" (* should not happen *)
+				   
+		 
 type var = string
 type order = DESC | ASC
 type func =
@@ -285,11 +292,7 @@ type funcs = (string * (env * var list * expr)) list
 let item_of_env (env : env) : item =
   let pairs =
     List.fold_left
-      (fun pairs (x,d) ->
-       match Seq.to_list d with
-       | [] -> pairs
-       | [i] -> (x,i)::pairs
-       | li -> (x, Array li)::pairs)
+      (fun pairs (x,d) -> (x, pack d)::pairs)
       [] env in
   Object pairs
 
