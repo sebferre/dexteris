@@ -302,7 +302,7 @@ let is_true (d : data) : bool =
      | Int n -> n <> 0
      | String s -> s <> ""
      | Null -> false
-     | _ -> raise TODO
+     | _ -> true (* TODO: ?? *)
 
 let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
   | S s -> Seq.return (String s)

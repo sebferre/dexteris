@@ -7,15 +7,27 @@ type word = [`Bool of bool | `Int of int | `Float of float | `String of string |
 type input = [`Bool | `Int | `Float | `String]
 type syn = (word,input,focus) xml
 
-let syn_item = function
+let rec syn_item : item -> syn = function
   | Bool b -> [Word (`Bool b)]
   | Int i -> [Word (`Int i)]
   | Float f -> [Word (`Float f)]
   | String s -> [Word (`String s)]
   | Null -> [Kwd "null"]
-  | Object pairs -> raise TODO
-  | Array li -> raise TODO
-		     
+  | Object pairs ->
+     [Quote ("{",
+	     [Block
+		(List.map
+		   (fun (k,i) -> Word (`String k) :: syn_item i @ Kwd ";" :: [])
+		   pairs)],
+	     "}")]
+  | Array li ->
+     [Quote ("[",
+	     [Enum (", ",
+		    List.map syn_item li)],
+	     "]")]
+	      
+let syn_data (d : data) : syn =
+  [Block (Seq.to_list (Seq.map syn_item d))]
 			      
 let syn_args lxml =
   [Quote ("(", [Enum (", ", lxml)], ")")]
@@ -110,7 +122,7 @@ and syn_expr e ctx : syn =
     | S s -> [Word (`String s)]
     | Item i -> syn_item i
     | Empty -> [Kwd "()"]
-    | Data d -> raise TODO
+    | Data d -> syn_data d
     | Concat le ->
        syn_Concat
 	 (List.map
