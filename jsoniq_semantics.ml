@@ -57,7 +57,7 @@ class annot =
 
 type sem = { annot : annot; expr : expr }
 
-let field_focus = "_focus"
+let field_focus = "@focus"
 
 let expr_bind_in x e1 e = Flower (For (x,e1,false, flower_of_expr e))
 

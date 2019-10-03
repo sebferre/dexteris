@@ -1,6 +1,6 @@
 
 CORE=focus.cmo syntax.cmo lis.cmo
-WEBAPP=jsutils.cmo webapp.cmo html.cmo widget_focus.cmo
+WEBAPP=jsutils.cmo webapp.cmo html.cmo widget_focus.cmo widget_table.cmo
 JSONIQ=bintree.cmo seq.cmo jsoniq.cmo jsoniq_focus.cmo jsoniq_semantics.cmo jsoniq_syntax.cmo jsoniq_suggestions.cmo jsoniq_lis.cmo
 
 FLAGS= -I ../../core -I ../../core/webapp

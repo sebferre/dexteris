@@ -41,12 +41,23 @@ let html_of_word : Jsoniq_syntax.word -> Html.t = function
   | `Order Jsoniq.DESC -> "DESC"
   | `Func func -> html_of_func func
 			    
-						   
     
 let w_focus =
   new Widget_focus.widget
       ~id:"lis-focus"
       ~html_of_word
+
+let w_results : (Jsoniq.var, Jsoniq.item) Widget_table.widget =
+  let dico = new Html.dico "lis-results-focus" in
+  let html_of_input input =
+    failwith "unexpected input in extent" in
+  new Widget_table.widget
+      ~id:"lis-results"
+      ~html_of_column:(fun x -> x)
+      ~html_of_cell:(fun i ->
+		     Html.syntax ~dico ~html_of_word ~html_of_input
+				 (Jsoniq_syntax.syn_item i))
+      
       
 let render_place place k =
   let xml = Jsoniq_syntax.syn_focus place#focus in
@@ -62,7 +73,13 @@ let render_place place k =
      | Some foc ->
 	let p = new Jsoniq_lis.place place#lis foc in
 	k ~push_in_history:true p
-     | None -> ())
+     | None -> ());
+  place#eval
+    (fun ext ->
+     w_results#set_contents
+       ext.Jsoniq_semantics.vars
+       ext.Jsoniq_semantics.bindings)
+    (fun suggestions -> ()) (* TODO *)
     
 let _ =
   Webapp.start
