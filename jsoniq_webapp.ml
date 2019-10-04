@@ -54,9 +54,11 @@ let w_results : (Jsoniq.var, Jsoniq.item) Widget_table.widget =
   new Widget_table.widget
       ~id:"lis-results"
       ~html_of_column:(fun x ->
-		       if x = Jsoniq_semantics.field_focus
-		       then Html.span ~classe:"highlighted" x
-		       else x)
+		       let classe_opt =
+			 if x = Jsoniq_semantics.field_focus
+			 then Some "highlighted"
+			 else None in
+		       None, classe_opt, None, x)
       ~html_of_cell:(fun i ->
 		     let d = Jsoniq.unpack i in
 		     Html.syntax ~dico ~html_of_word ~html_of_input
