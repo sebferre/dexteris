@@ -40,7 +40,6 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
   let transfs = ref [] in
   let add tr = transfs := tr :: !transfs in
   let () =
-    add Delete;
     if Sem.TypSet.mem `Bool ctx_typs then add (InputBool None);
     if Sem.TypSet.mem `Int ctx_typs then add (InputInt None);
     if Sem.TypSet.mem `Float ctx_typs then add (InputFloat None);

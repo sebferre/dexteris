@@ -317,11 +317,11 @@ let rec apply_transf (transf : transf) (foc : focus) : focus option =
      | AtExpr (e,ctx) -> apply_transf_expr (transf, e, ctx)
      | AtFlower (f,ctx) -> apply_transf_flower (transf, f, ctx)
 and apply_transf_expr = function
-  | InputBool (Some b), Empty, ctx -> Some (AtExpr (Item (Bool b), ctx))
-  | InputInt (Some n), Empty, ctx -> Some (AtExpr (Item (Int n), ctx))
-  | InputFloat (Some f), Empty, ctx -> Some (AtExpr (Item (Float f), ctx))
-  | InputString (Some s), Empty, ctx -> Some (AtExpr (Item (String s), ctx))
-  | InsertNull, Empty, ctx -> Some (AtExpr (Item Null, ctx))
+  | InputBool (Some b), _, ctx -> Some (AtExpr (Item (Bool b), ctx))
+  | InputInt (Some n), _, ctx -> Some (AtExpr (Item (Int n), ctx))
+  | InputFloat (Some f), _, ctx -> Some (AtExpr (Item (Float f), ctx))
+  | InputString (Some s), _, ctx -> Some (AtExpr (Item (String s), ctx))
+  | InsertNull, _, ctx -> Some (AtExpr (Item Null, ctx))
 
   | InsertConcat, Empty, _ -> None
   | InsertConcat, e, ConcatX ((ll,rr), ctx) -> Some (AtExpr (Empty, ConcatX ((e::ll,rr), ctx)))

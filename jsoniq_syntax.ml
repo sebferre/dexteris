@@ -3,8 +3,8 @@ open Syntax
 open Jsoniq
 open Jsoniq_focus
 
-type word = [`Bool of bool | `Int of int | `Float of float | `String of string | `Var of var | `ContextItem | `ContextEnv | `Order of order | `Func of func ]
-type input = [`Bool | `Int | `Float | `String]
+type word = [`Bool of bool | `Int of int | `Float of float | `String of string | `Var of var | `Func of string | `ContextItem | `ContextEnv | `Order of order | `TheFocus | `Ellipsis ]
+type input = [`Bool | `Int | `Float | `String | `Ident]
 type syn = (word,input,focus) xml
 
 let rec syn_item : item -> syn = function
@@ -37,14 +37,38 @@ let syn_pair xml1 xml2 : syn =
   xml1 @ Kwd ":" :: xml2
 let syn_order xml1 o : syn =
   xml1 @ [Word (`Order o)]
+
+let syn_Call func lxml =
+  let classic name lxml = Word (`Func name) :: syn_args lxml in
+  match func, lxml with
+  | EQ, [xml1; xml2] -> xml1 @ Kwd "=" :: xml2
+  | NE, [xml1; xml2] -> xml1 @ Kwd "!=" :: xml2
+  | LE, [xml1; xml2] -> xml1 @ Kwd "<=" :: xml2
+  | LT, [xml1; xml2] -> xml1 @ Kwd "<" :: xml2
+  | GE, [xml1; xml2] -> xml1 @ Kwd ">=" :: xml2
+  | GT, [xml1; xml2] -> xml1 @ Kwd ">" :: xml2
+  | Plus, [xml1; xml2] -> xml1 @ Kwd "+" :: xml2
+  | Minus, [xml1; xml2] -> xml1 @ Kwd "-" :: xml2
+  | Times, [xml1; xml2] -> xml1 @ Kwd "*" :: xml2
+  | Div, [xml1; xml2] -> xml1 @ Kwd "/" :: xml2
+  | IDiv, [xml1; xml2] -> xml1 @ Kwd "div" :: xml2
+  | Mod, [xml1; xml2] -> xml1 @ Kwd "mod" :: xml2
+  | Neg, [xml1] -> Kwd "-" :: xml1
+  | StringConcat, [_] -> classic "concat" lxml
+  | Substring, [_;_;_] -> classic "substr" lxml
+  | Range, [xml1; xml2] -> xml1 @ Kwd "to" :: xml2
+  | Sum, [_] -> classic "sum" lxml
+  | Avg, [_] -> classic "avg" lxml
+  | Defined (name,arity), lxml -> classic name lxml
+  | _ -> failwith "syn_Call: invalid number of arguments"
 			       
 let syn_Flower xml : syn = xml
 let syn_Concat lxml : syn =
-  [Coord ([Kwd ","], lxml)]
-let syn_Exists x xml1 xml2 : syn =
-  Kwd "some" :: Word (`Var x) :: Kwd "in" :: xml1 @ Kwd "satisfies" :: xml2
-let syn_ForAll x xml1 xml2 : syn =
-  Kwd "every" :: Word (`Var x) :: Kwd "in" :: xml1 @ Kwd "satisfies" :: xml2
+  [Enum (", ", lxml)]
+let syn_Exists xmlx xml1 xml2 : syn =
+  Kwd "some" :: xmlx @ Kwd "in" :: xml1 @ Kwd "satisfies" :: xml2
+let syn_ForAll xmlx xml1 xml2 : syn =
+  Kwd "every" :: xmlx @ Kwd "in" :: xml1 @ Kwd "satisfies" :: xml2
 let syn_If xml1 xml2 xml3 : syn =
   [Block [Kwd "if" :: xml1;
 	  Kwd "then" :: xml2;
@@ -55,8 +79,6 @@ let syn_And lxml : syn =
   [Coord ([Kwd "and"], lxml)]
 let syn_Not xml : syn =
   Kwd "not" :: xml
-let syn_Call func lxml : syn =
-  Word (`Func func) :: syn_args lxml
 let syn_Map xml1 xml2 : syn =
   xml1 @ Kwd "!" :: xml2
 let syn_Pred xml1 xml2 : syn =
@@ -79,25 +101,25 @@ let syn_Objectify xml1 : syn =
   [Quote ("{|", xml1, "|}")]
 let syn_Arrayify xml1 : syn =
   [Quote ("[", xml1, "]")]
-let syn_DefVar x xml1 xml2 : syn =
-  [Block [Kwd "def" :: Word (`Var x) :: Kwd "=" :: xml1;
+let syn_DefVar xmlx xml1 xml2 : syn =
+  [Block [Kwd "def" :: xmlx @ Kwd "=" :: xml1;
 	  xml2]]
-let syn_DefFunc name args xml1 xml2 : syn =
-  [Block [Kwd "def" :: Word (`Func (Defined (name, List.length args))) ::
+let syn_DefFunc xml_func args xml1 xml2 : syn =
+  [Block [Kwd "def" :: xml_func @
 	    syn_args (List.map (fun x -> [Word (`Var x)]) args) @
 	    Kwd "=" :: xml1;
 	  xml2]]
 
 let syn_Return xml1 : syn =
   Kwd "return" :: xml1
-let syn_For x xml1 opt xml2 : syn =
-  [Block [Kwd "for" :: (if opt then [Kwd "optional"] else []) @ Word (`Var x) :: Kwd "in" :: xml1;
+let syn_For xmlx xml1 opt xml2 : syn =
+  [Block [Kwd "for" :: (if opt then [Kwd "optional"] else []) @ xmlx @ Kwd "in" :: xml1;
 	  xml2]]
 let syn_ForObject xml1 opt xml2 : syn =
   [Block [Kwd "for" :: (if opt then [Kwd "optional"] else []) @ Kwd "object" :: Kwd "in" :: xml1;
 	  xml2]]
-let syn_Let x xml1 xml2 : syn =
-  [Block [Kwd "let" :: Word (`Var x) :: Kwd "in" :: xml1;
+let syn_Let xmlx xml1 xml2 : syn =
+  [Block [Kwd "let" :: xmlx @ Kwd "in" :: xml1;
 	  xml2]]
 let syn_Where xml1 xml2 : syn =
   [Block [Kwd "where" :: xml1;
@@ -133,11 +155,11 @@ and syn_expr e ctx : syn =
     | Flower f ->
        syn_Flower (syn_flower f (Flower1 ctx))
     | Exists (x,e1,e2) ->
-       syn_Exists x
+       syn_Exists [Word (`Var x)]
 		  (syn_expr e1 (Exists1 (x,ctx,e2)))
 		  (syn_expr e2 (Exists2 (x,e1,ctx)))
     | ForAll (x,e1,e2) ->
-       syn_ForAll x
+       syn_ForAll [Word (`Var x)]
 		  (syn_expr e1 (ForAll1 (x,ctx,e2)))
 		  (syn_expr e2 (ForAll2 (x,e1,ctx)))
     | If (e1,e2,e3) ->
@@ -191,11 +213,11 @@ and syn_expr e ctx : syn =
     | Arrayify e1 ->
        syn_Arrayify (syn_expr e1 (Arrayify1 ctx))
     | DefVar (x,e1,e2) ->
-       syn_DefVar x
+       syn_DefVar [Word (`Var x)]
 		  (syn_expr e1 (DefVar1 (x,ctx,e2)))
 		  (syn_expr e2 (DefVar2 (x,e1,ctx)))
     | DefFunc (name,args,e1,e2) ->
-       syn_DefFunc name args
+       syn_DefFunc [Word (`Func name)] args
 		   (syn_expr e1 (DefFunc1 (name,args,ctx,e2)))
 		   (syn_expr e2 (DefFunc2 (name,args,e1,ctx)))
   in
@@ -206,7 +228,7 @@ and syn_flower f ctx : syn =
     | Return e1 ->
        syn_Return (syn_expr e1 (Return1 ctx))
     | For (x,e1,opt,f1) ->
-       syn_For x
+       syn_For [Word (`Var x)]
 	       (syn_expr e1 (For1 (x,ctx,opt,f1)))
 	       opt
 	       (syn_flower f1 (For2 (x,e1,opt,ctx)))
@@ -216,7 +238,7 @@ and syn_flower f ctx : syn =
 	       opt
 	       (syn_flower f1 (ForObject2 (e1,opt,ctx)))
     | Let (x,e1,f1) ->
-       syn_Let x
+       syn_Let [Word (`Var x)]
 	       (syn_expr e1 (Let1 (x,ctx,f1)))
 	       (syn_flower f1 (Let2 (x,e1,ctx)))
     | Where (e1,f1) ->
@@ -257,23 +279,23 @@ and syn_expr_ctx e ctx (xml_e : syn) : syn =
   | Exists1 (x,ctx,e2) ->
      syn_expr_ctx
        (Exists (x,e,e2)) ctx
-       (syn_Exists x xml_e
+       (syn_Exists [Word (`Var x)] xml_e
 		   (syn_susp (syn_expr e2 (Exists2 (x,e,ctx)))))
   | Exists2 (x,e1,ctx) ->
      syn_expr_ctx
        (Exists (x,e1,e)) ctx
-       (syn_Exists x
+       (syn_Exists [Word (`Var x)]
 		   (syn_expr e1 (Exists1 (x,ctx,e)))
 		   xml_e)
   | ForAll1 (x,ctx,e2) ->
      syn_expr_ctx
        (ForAll (x,e,e2)) ctx
-       (syn_ForAll x xml_e
+       (syn_ForAll [Word (`Var x)] xml_e
 		   (syn_susp (syn_expr e2 (ForAll2 (x,e,ctx)))))
   | ForAll2 (x,e1,ctx) ->
      syn_expr_ctx
        (ForAll (x,e1,e)) ctx
-       (syn_ForAll x
+       (syn_ForAll [Word (`Var x)]
 		   (syn_expr e1 (ForAll1 (x,ctx,e)))
 		   xml_e)
   | If1 (ctx,e2,e3) ->
@@ -398,25 +420,25 @@ and syn_expr_ctx e ctx (xml_e : syn) : syn =
   | DefVar1 (x,ctx,e2) ->
      syn_expr_ctx
        (DefVar (x,e,e2)) ctx
-       (syn_DefVar x
+       (syn_DefVar [Word (`Var x)]
 		   xml_e
 		   (syn_susp (syn_expr e2 (DefVar2 (x,e,ctx)))))
   | DefVar2 (x,e1,ctx) ->
      syn_expr_ctx
        (DefVar (x,e1,e)) ctx
-       (syn_DefVar x
+       (syn_DefVar [Word (`Var x)]
 		   (syn_expr e1 (DefVar1 (x,ctx,e)))
 		   xml_e)
   | DefFunc1 (name,args,ctx,e2) ->
      syn_expr_ctx
        (DefFunc (name,args,e,e2)) ctx
-       (syn_DefFunc name args
+       (syn_DefFunc [Word (`Func name)] args
 		    xml_e
 		    (syn_susp (syn_expr e2 (DefFunc2 (name,args,e,ctx)))))
   | DefFunc2 (name,args,e1,ctx) ->
      syn_expr_ctx
        (DefFunc (name,args,e1,e)) ctx
-       (syn_DefFunc name args
+       (syn_DefFunc [Word (`Func name)] args
 		    (syn_expr e1 (DefFunc1 (name,args,ctx,e)))
 		    xml_e)
   | Return1 ctx ->
@@ -426,7 +448,7 @@ and syn_expr_ctx e ctx (xml_e : syn) : syn =
   | For1 (x,ctx,opt,f) ->
      syn_flower_ctx
        (For (x,e,opt,f)) ctx
-       (syn_For x
+       (syn_For [Word (`Var x)]
 		xml_e
 		opt
 		(syn_susp (syn_flower f (For2 (x,e,opt,ctx)))))
@@ -439,7 +461,7 @@ and syn_expr_ctx e ctx (xml_e : syn) : syn =
   | Let1 (x,ctx,f) ->
      syn_flower_ctx
        (Let (x,e,f)) ctx
-       (syn_Let x
+       (syn_Let [Word (`Var x)]
 		xml_e
 		(syn_susp (syn_flower f (Let2 (x,e,ctx)))))
   | Where1 (ctx,f) ->
@@ -469,7 +491,7 @@ and syn_flower_ctx f ctx (xml_f : syn) : syn =
   | For2 (x,e1,opt,ctx) ->
      syn_flower_ctx
        (For (x,e1,opt,f)) ctx
-       (syn_For x
+       (syn_For [Word (`Var x)]
 		(syn_expr e1 (For1 (x,ctx,opt,f)))
 		opt
 		xml_f)
@@ -482,7 +504,7 @@ and syn_flower_ctx f ctx (xml_f : syn) : syn =
   | Let2 (x,e1,ctx) ->
      syn_flower_ctx
        (Let (x,e1,f)) ctx
-       (syn_Let x
+       (syn_Let [Word (`Var x)]
 		(syn_expr e1 (Let1 (x,ctx,f)))
 		xml_f)
   | Where2 (e1,ctx) ->
@@ -529,3 +551,47 @@ and syn_flower_ctx f ctx (xml_f : syn) : syn =
 		(syn_susp (syn_flower f2 (FIf2 (f1,ctx,f))))
 	       xml_f)
 
+let the_focus = Word `TheFocus
+let ellipsis = Word `Ellipsis
+       
+let syn_transf : transf -> syn = function
+  | FocusUp -> [Kwd "(focus up)"]
+  | FocusRight -> [Kwd "(focus right)"]
+  | Delete -> [Kwd "(delete focus)"]
+  | InputBool _ -> [Input `Bool]
+  | InputInt _ -> [Input `Int]
+  | InputFloat _ -> [Input `Float]
+  | InputString _ -> [Input `String]
+  | InsertNull -> [Kwd "null"]
+  | InsertConcat -> syn_Concat [[the_focus]; [ellipsis]]
+  | InsertExists _ -> syn_Exists [Input `Ident] [the_focus] [ellipsis]
+  | InsertForAll _ -> syn_ForAll [Input `Ident] [the_focus] [ellipsis]
+  | InsertIf1 -> syn_If [the_focus] [ellipsis] [ellipsis]
+  | InsertIf2 -> syn_If [ellipsis] [the_focus] [ellipsis]
+  | InsertIf3 -> syn_If [ellipsis] [ellipsis] [the_focus]
+  | InsertOr -> syn_Or [[the_focus]; [ellipsis]]
+  | InsertAnd -> syn_And [[the_focus]; [ellipsis]]
+  | InsertNot -> syn_Not [the_focus]
+  | InsertFunc func -> syn_Call func (make_list (arity_of_func func) [ellipsis])
+  | InsertMap -> syn_Map [the_focus] [ellipsis]
+  | InsertPred -> syn_Pred [the_focus] [ellipsis]
+  | InsertDot -> syn_Dot [the_focus] [ellipsis]
+  | InsertArrayLookup -> syn_ArrayLookup [the_focus] [ellipsis]
+  | InsertArrayUnboxing -> syn_ArrayUnboxing [the_focus]
+  | InsertVar x -> syn_Var x
+  | InsertContextItem -> syn_ContextItem
+  | InsertContextEnv -> syn_ContextEnv
+  | InsertObject -> syn_EObject [syn_pair [ellipsis] [ellipsis]]
+  | InsertArray -> syn_Arrayify [ellipsis]
+  | InsertObjectify -> syn_Objectify [the_focus]
+  | InsertArrayify -> syn_Arrayify [the_focus]
+  | InsertDefVar _ -> syn_DefVar [Input `Ident] [the_focus] [ellipsis]
+  | InsertDefFunc _ -> syn_DefFunc [Input `Ident] [] [ellipsis] [ellipsis]
+  | InsertArg _ -> [Kwd "add"; Kwd "argument"; Input `Ident]
+  | InsertFor _ -> syn_For [Input `Ident] [the_focus] false [ellipsis] (* TODO: optional *)
+  | InsertForObject _ -> syn_ForObject [the_focus] false [ellipsis] (* TODO: optional *)
+  | InsertLet _ -> syn_Let [Input `Ident] [the_focus] [ellipsis]
+  | InsertWhere -> syn_Where [the_focus] [ellipsis]
+  | InsertGroupBy x -> syn_GroupBy [x] [the_focus]
+  | InsertOrderBy o -> syn_OrderBy [syn_order [the_focus] o] [ellipsis]
+	   

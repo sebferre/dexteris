@@ -6,29 +6,6 @@ let make_lis (args : (string * string) list) = new Lis.lis
 
 (* rendering words and inputs into HTML *)
 						   
-let html_of_func (func : Jsoniq.func) : Html.t =
-  let open Jsoniq in
-  match func with
-  | EQ -> "="
-  | NE -> "!="
-  | LE -> "<="
-  | LT -> "<"
-  | GE -> ">="
-  | GT -> ">"
-  | Plus -> "+"
-  | Minus -> "-"
-  | Times -> "*"
-  | Div -> "/"
-  | IDiv -> "div"
-  | Mod -> "mod"
-  | Neg -> "-"
-  | StringConcat -> "concat"
-  | Substring -> "substr"
-  | Range -> "range"
-  | Sum -> "sum"
-  | Avg -> "avg"
-  | Defined (name,arity) -> name
-						   
 let html_of_word : Jsoniq_syntax.word -> Html.t = function
   | `Bool b -> string_of_bool b
   | `Int i -> string_of_int i
@@ -39,14 +16,35 @@ let html_of_word : Jsoniq_syntax.word -> Html.t = function
   | `ContextEnv -> "*"
   | `Order Jsoniq.ASC -> "ASC"
   | `Order Jsoniq.DESC -> "DESC"
-  | `Func func -> html_of_func func
+  | `Func name -> name
+  | `TheFocus -> Html.span ~classe:"highlighted" "__"
+  | `Ellipsis -> "..."
 			    
-    
+let html_of_input (input : Jsoniq_syntax.input) : Html.t =
+  let t, placeholder =
+    match input with
+    | `Bool -> "checkbox", None
+    | `Int -> "number", Some "0"
+    | `Float -> "number", Some "0.0e+0"
+    | `String -> "text", None
+    | `Ident -> "text", Some "x"
+  in
+  Html.input ~classe:"input" ?placeholder t
+
+	     
 let w_focus =
   new Widget_focus.widget
       ~id:"lis-focus"
       ~html_of_word
 
+let w_suggestions : Jsoniq_suggestions.suggestion Widget_suggestions.widget =
+  let dico = new Html.dico "lis-results-focus" in
+  new Widget_suggestions.widget
+      ~id:"lis-suggestions"
+      ~html_of_suggestion:(fun sugg ->
+			   Html.syntax ~dico ~html_of_word ~html_of_input
+				       (Jsoniq_syntax.syn_transf (fst sugg)))
+			     
 let w_results : (Jsoniq.var, Jsoniq.item) Widget_table.widget =
   let dico = new Html.dico "lis-results-focus" in
   let html_of_input input =
@@ -85,7 +83,13 @@ let render_place place k =
      w_results#set_contents
        ext.Jsoniq_semantics.vars
        ext.Jsoniq_semantics.bindings)
-    (fun suggestions -> ()) (* TODO *)
+    (fun suggestions ->
+     w_suggestions#set_suggestions suggestions;
+     w_suggestions#on_suggestion_selection
+       (fun sugg ->
+	let transf, new_foc = sugg in
+	let p = new Jsoniq_lis.place place#lis new_foc in
+	k ~push_in_history:true p))
     
 let _ =
   Webapp.start
