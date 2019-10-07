@@ -113,3 +113,7 @@ let case ~(nil: unit -> 'b) ~(cons: 'a -> 'a t -> 'b) (s : 'a t) : 'b =
   | Nil -> nil ()
   | Cons (x,next) -> cons x next
 			  
+let rec length (s : 'a t) : int =
+  match s () with
+  | Nil -> 0
+  | Cons (x,next) -> 1 + length next

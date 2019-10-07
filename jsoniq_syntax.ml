@@ -18,10 +18,10 @@ let rec syn_item : item -> syn = function
   | Null -> [Kwd "null"]
   | Object pairs ->
      [Quote ("{",
-	     [Block
-		(List.map
-		   (fun (k,i) -> Word (`String k) :: syn_item i @ Kwd ";" :: [])
-		   pairs)],
+	     [Enum (", ",
+		    List.map
+		      (fun (k,i) -> Word (`String k) :: Kwd ":" :: syn_item i)
+		      pairs)],
 	     "}")]
   | Array li ->
      [Quote ("[",
@@ -44,7 +44,7 @@ let syn_order xml1 o : syn =
 let syn_Call func lxml =
   let classic name lxml = Word (`Func name) :: syn_args lxml in
   match func, lxml with
-  | EQ, [xml1; xml2] -> xml1 @ Kwd "=" :: xml2
+  | EQ, [xml1; xml2] -> xml1 @ Kwd "==" :: xml2
   | NE, [xml1; xml2] -> xml1 @ Kwd "!=" :: xml2
   | LE, [xml1; xml2] -> xml1 @ Kwd "<=" :: xml2
   | LT, [xml1; xml2] -> xml1 @ Kwd "<" :: xml2
@@ -60,10 +60,11 @@ let syn_Call func lxml =
   | StringConcat, [_] -> classic "concat" lxml
   | Substring, [_;_;_] -> classic "substr" lxml
   | Range, [xml1; xml2] -> xml1 @ Kwd "to" :: xml2
+  | Count, [_] -> classic "count" lxml
   | Sum, [_] -> classic "sum" lxml
   | Avg, [_] -> classic "avg" lxml
   | Defined (name,arity), lxml -> classic name lxml
-  | _ -> failwith "syn_Call: invalid number of arguments"
+  | _ -> failwith "syn_Call: invalid number of arguments or unexpected function"
 			       
 let syn_Flower xml : syn = xml
 let syn_Concat lxml : syn =

@@ -51,9 +51,12 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       add (InsertExists (new input ""));
       add (InsertForAll (new input "")));
     if Sem.TypSet.mem `Bool allowed_typs then (
+      add InsertIf1;
       add InsertOr;
       add InsertAnd;
       add InsertNot);
+    add InsertIf2;
+    add InsertIf3;
     if Sem.TypSet.mem `Bool ctx_typs then
       List.iter
 	(fun func -> add (InsertFunc func))
@@ -66,6 +69,7 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       List.iter
 	(fun func -> add (InsertFunc func))
 	[StringConcat; Substring];
+    if multiple_items then add (InsertFunc Count);
     List.iter
       (fun (name,args) ->
        add (InsertFunc (Defined (name, List.length args))))
@@ -73,11 +77,12 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     if multiple_items then (
       add InsertMap;
       add InsertPred);
+    if Sem.TypSet.mem `Object ctx_typs then (
+      add InsertObject;
+      add InsertContextEnv);      
     if Sem.TypSet.mem `Object allowed_typs then (
       add InsertDot;
-      add InsertObject;
-      add InsertObjectify;
-      add InsertContextEnv);
+      add InsertObjectify);
     if Sem.TypSet.mem `Array allowed_typs then (
       add InsertArrayLookup);
     if Sem.TypSet.mem `Array focus_typs then (

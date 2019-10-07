@@ -47,7 +47,7 @@ type func =
   | Neg
   | StringConcat | Substring
   | Range
-  | Sum | Avg
+  | Count | Sum | Avg
   | Defined of string * int
 
 type expr =
@@ -168,7 +168,26 @@ let compare_item_opt (i1_opt : item option) (i2_opt : item option) : int (* -1, 
   | None, _ -> -1
   | _, None -> 1
   | Some i1, Some i2 -> compare_item i1 i2
-	       
+
+let rec compare_data (d1 : data) (d2 : data) : int (* -1, 0, 1 *) =
+  d1
+  |> Seq.case
+       ~nil:(fun () ->
+	     d2
+	     |> Seq.case
+		  ~nil:(fun () -> 0)
+		  ~cons:(fun i2 r2 -> -1))
+       ~cons:(fun i1 r1 ->
+	      d2
+	      |> Seq.case
+		   ~nil:(fun () -> 1)
+		   ~cons:(fun i2 r2 ->
+			  let c = compare_item i1 i2 in
+			  if c = 0
+			  then compare_data r1 r2
+			  else c))
+		 
+				     
 let rec compare_ordering_key (lo : order list) (k1 : item option list) (k2 : item option list) : int (* -1, 0, 1 *) =
   match lo, k1, k2 with
   | [], [], [] -> 0
@@ -188,14 +207,14 @@ let arity_of_func : func -> int = function
   | Neg -> 1
   | Substring -> 3
   | Range -> 2
-  | Sum | Avg | StringConcat -> 1
+  | Count | Sum | Avg | StringConcat -> 1
   | Defined (name,n) -> n
 
 
 let apply_func (func : func) (args : data list) : data =
   match func, args with
   | (EQ|NE|GT|GE|LT|LE), [d1;d2] ->
-     let c : int = compare_item_opt (item_of_data d1) (item_of_data d2) in
+     let c : int = compare_data d1 d2 in
      let ok = 
        match func with
        | EQ -> c = 0
@@ -255,6 +274,8 @@ let apply_func (func : func) (args : data list) : data =
        | _, None -> Seq.empty
        | Some (Int a), Some (Int b) -> Seq.map (fun n -> Int n) (Seq.range a b)
        | _ -> raise (TypeError "apply_func: invalid types in arguments") )
+  | Count, [d] ->
+     Seq.return (Int (Seq.length d))
   | Sum, [d] ->
      let sum =
        Seq.fold_left

@@ -192,16 +192,8 @@ let rec delete (foc : focus) : focus option =
 			  
 (* focus transformations and navigation paths *)
 			   
-let initial_focus = (*AtExpr (Empty, Root)*)
-  let e =
-    Flower
-      (For ("x", Call (Range, [Item (Int 0); Item (Int 100)]), false,
-	    Let ("y", Call (Times, [Var "x"; Item (Int 2)]),
-		 Return (Var "y"))))
-  in
-  AtExpr (e, Root)
+let initial_focus = AtExpr (Empty, Root)
 
-(* TODO: explicit when user input is required *)
 
 type transf =
   | FocusUp
@@ -320,6 +312,9 @@ and apply_transf_expr = function
   | InputFloat in_f, _, ctx -> Some (AtExpr (Item (Float in_f#get), ctx))
   | InputString in_s, _, ctx -> Some (AtExpr (Item (String in_s#get), ctx))
   | InsertNull, _, ctx -> Some (AtExpr (Item Null, ctx))
+
+  | InsertConcat, e, EObjectX1 ((ll,rr), ctx, e2) -> Some (AtExpr (Empty, EObjectX1 (((e,e2)::ll,rr), ctx, Empty)))
+  | InsertConcat, e, EObjectX2 ((ll,rr), e1, ctx) -> Some (AtExpr (Empty, EObjectX1 (((e1,e)::ll,rr), ctx, Empty)))
 
   | InsertConcat, Empty, _ -> None
   | InsertConcat, e, ConcatX ((ll,rr), ctx) -> Some (AtExpr (Empty, ConcatX ((e::ll,rr), ctx)))
