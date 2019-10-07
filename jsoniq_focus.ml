@@ -203,13 +203,11 @@ let initial_focus = (*AtExpr (Empty, Root)*)
 
 (* TODO: explicit when user input is required *)
 
-type 'a input = 'a option
-			   
 type transf =
   | FocusUp
   | FocusRight
   | Delete
-  | InputBool of bool input
+  | InsertBool of bool
   | InputInt of int input
   | InputFloat of float input
   | InputString of string input
@@ -237,7 +235,7 @@ type transf =
   | InsertDefVar of var input
   | InsertDefFunc of string input
   | InsertArg of var input
-  | InsertFor of (var * bool) input
+  | InsertFor of var input * bool input
   | InsertForObject of bool input
   | InsertLet of var input
   | InsertWhere
@@ -253,14 +251,14 @@ let rec reaching_list reaching_elt sep l =
   | x::r -> reaching_elt x @ sep @ reaching_list reaching_elt sep r
 
 let rec reaching_expr : expr -> transf list = function
-  | S s -> [InputString (Some s)]
+  | S s -> [InputString (new input s)]
   | Item i -> reaching_item i
   | Empty -> [] (* the default value *)
   | Data d -> reaching_data d
   | Concat le -> reaching_list reaching_expr [InsertConcat] le (* assuming |le| > 1 *)
   | Flower f -> reaching_flower f
-  | Exists (x,e1,e2) -> reaching_expr e1 @ InsertExists (Some x) :: reaching_expr e2 @ [FocusUp]
-  | ForAll (x,e1,e2) -> reaching_expr e1 @ InsertForAll (Some x) :: reaching_expr e2 @ [FocusUp]
+  | Exists (x,e1,e2) -> reaching_expr e1 @ InsertExists (new input x) :: reaching_expr e2 @ [FocusUp]
+  | ForAll (x,e1,e2) -> reaching_expr e1 @ InsertForAll (new input x) :: reaching_expr e2 @ [FocusUp]
   | If (e1,e2,e3) -> reaching_expr e1 @ InsertIf1 :: reaching_expr e2 @ FocusRight :: reaching_expr e3 @ [FocusUp]
   | Or le -> reaching_list reaching_expr [InsertOr] le
   | And le -> reaching_list reaching_expr [InsertAnd] le
@@ -277,13 +275,13 @@ let rec reaching_expr : expr -> transf list = function
   | EObject pairs -> InsertObject :: reaching_list reaching_pair [InsertConcat] pairs
   | Objectify e -> reaching_expr e @ [InsertObjectify]
   | Arrayify e -> reaching_expr e @ [InsertArrayify]
-  | DefVar (x,e1,e2) -> reaching_expr e1 @ InsertDefVar (Some x) :: reaching_expr e2 @ [FocusUp]
-  | DefFunc (name,args,e1,e2) -> InsertDefFunc (Some name) :: List.map (fun x -> InsertArg (Some x)) args @ reaching_expr e1 @ FocusRight :: reaching_expr e2 @ [FocusUp]
+  | DefVar (x,e1,e2) -> reaching_expr e1 @ InsertDefVar (new input x) :: reaching_expr e2 @ [FocusUp]
+  | DefFunc (name,args,e1,e2) -> InsertDefFunc (new input name) :: List.map (fun x -> InsertArg (new input x)) args @ reaching_expr e1 @ FocusRight :: reaching_expr e2 @ [FocusUp]
 and reaching_flower : flower -> transf list = function
   | Return e -> reaching_expr e @ [FocusUp]
-  | For (x,e,opt,f) -> reaching_expr e @ InsertFor (Some (x,opt)) :: reaching_flower f @ [FocusUp]
-  | ForObject (e,opt,f) -> reaching_expr e @ InsertForObject (Some opt) :: reaching_flower f @ [FocusUp]
-  | Let (x,e,f) -> reaching_expr e @ InsertLet (Some x) :: reaching_flower f @ [FocusUp]
+  | For (x,e,opt,f) -> reaching_expr e @ InsertFor (new input x, new input opt) :: reaching_flower f @ [FocusUp]
+  | ForObject (e,opt,f) -> reaching_expr e @ InsertForObject (new input opt) :: reaching_flower f @ [FocusUp]
+  | Let (x,e,f) -> reaching_expr e @ InsertLet (new input x) :: reaching_flower f @ [FocusUp]
   | Where (e,f) -> reaching_expr e @ InsertWhere :: reaching_flower f @ [FocusUp]
   | GroupBy (lx,f) -> List.map (fun x -> InsertGroupBy x) lx @ reaching_flower f @ [FocusUp]
   | OrderBy (leo,f) -> List.concat (List.map (fun (e,o) -> reaching_expr e @ [InsertOrderBy o]) leo) @ reaching_flower f @ [FocusUp]
@@ -292,10 +290,10 @@ and reaching_flower : flower -> transf list = function
 and reaching_data (d : data) : transf list =
   reaching_list reaching_item [InsertConcat] (Seq.to_list d)
 and reaching_item : item -> transf list = function
-  | Bool b -> [InputBool (Some b)]
-  | Int n -> [InputInt (Some n)]
-  | Float f -> [InputFloat (Some f)]
-  | String s -> [InputString (Some s)]
+  | Bool b -> [InsertBool b]
+  | Int n -> [InputInt (new input n)]
+  | Float f -> [InputFloat (new input f)]
+  | String s -> [InputString (new input s)]
   | Null -> [InsertNull]
   | Object pairs -> InsertObject :: reaching_list reaching_pair [InsertConcat] (List.map (fun (k,i) -> S k, Item i) pairs)
   | Array li -> InsertArray :: reaching_list reaching_item [InsertConcat] li
@@ -317,10 +315,10 @@ let rec apply_transf (transf : transf) (foc : focus) : focus option =
      | AtExpr (e,ctx) -> apply_transf_expr (transf, e, ctx)
      | AtFlower (f,ctx) -> apply_transf_flower (transf, f, ctx)
 and apply_transf_expr = function
-  | InputBool (Some b), _, ctx -> Some (AtExpr (Item (Bool b), ctx))
-  | InputInt (Some n), _, ctx -> Some (AtExpr (Item (Int n), ctx))
-  | InputFloat (Some f), _, ctx -> Some (AtExpr (Item (Float f), ctx))
-  | InputString (Some s), _, ctx -> Some (AtExpr (Item (String s), ctx))
+  | InsertBool b, _, ctx -> Some (AtExpr (Item (Bool b), ctx))
+  | InputInt in_n, _, ctx -> Some (AtExpr (Item (Int in_n#get), ctx))
+  | InputFloat in_f, _, ctx -> Some (AtExpr (Item (Float in_f#get), ctx))
+  | InputString in_s, _, ctx -> Some (AtExpr (Item (String in_s#get), ctx))
   | InsertNull, _, ctx -> Some (AtExpr (Item Null, ctx))
 
   | InsertConcat, Empty, _ -> None
@@ -328,10 +326,10 @@ and apply_transf_expr = function
   | InsertConcat, Concat le, ctx -> Some (AtExpr (Empty, ConcatX ((List.rev le,[]), ctx)))
   | InsertConcat, e, ctx -> Some (AtExpr (Empty, ConcatX (([e],[]), ctx)))
 
-  | InsertExists (Some x), Empty, ctx -> Some (AtExpr (Empty, Exists1 (x,ctx,Empty)))
-  | InsertExists (Some x), e, ctx -> Some (AtExpr (Empty, Exists2 (x,e,ctx)))
-  | InsertForAll (Some x), Empty, ctx -> Some (AtExpr (Empty, ForAll1 (x,ctx,Empty)))
-  | InsertForAll (Some x), e, ctx -> Some (AtExpr (Empty, ForAll2 (x,e,ctx)))
+  | InsertExists in_x, Empty, ctx -> Some (AtExpr (Empty, Exists1 (in_x#get,ctx,Empty)))
+  | InsertExists in_x, e, ctx -> Some (AtExpr (Empty, Exists2 (in_x#get,e,ctx)))
+  | InsertForAll in_x, Empty, ctx -> Some (AtExpr (Empty, ForAll1 (in_x#get,ctx,Empty)))
+  | InsertForAll in_x, e, ctx -> Some (AtExpr (Empty, ForAll2 (in_x#get,e,ctx)))
 
   | InsertIf1, e, ctx -> Some (AtExpr (Empty, If2 (e,ctx,Empty)))
   | InsertIf2, e, ctx -> Some (AtExpr (Empty, If1 (ctx,e,Empty)))
@@ -349,12 +347,10 @@ and apply_transf_expr = function
   | InsertNot, e, Not1 ctx -> Some (AtExpr (e,ctx))
   | InsertNot, e, ctx -> Some (AtExpr (Not e, ctx))
 
-  | InsertFunc func, Empty, ctx ->
+  | InsertFunc func, e, ctx ->
      ( match arity_of_func func with
        | 0 -> Some (AtExpr (Call (func, []), ctx))
-       | n ->
-	  let rr = Array.to_list (Array.make (n-1) Empty) in
-	  Some (AtExpr (Empty, CallX (func, ([],rr), ctx))) )
+       | n -> Some (AtExpr (Call (func, e :: make_list (n-1) Empty), ctx)) )
 
   | InsertMap, e, ctx -> Some (AtExpr (Empty, Map2 (e, ctx)))
   | InsertPred, e, ctx -> Some (AtExpr (Empty, Pred2 (e, ctx)))
@@ -372,14 +368,14 @@ and apply_transf_expr = function
   | InsertObjectify, e, ctx -> Some (AtExpr (Objectify e, ctx))
   | InsertArrayify, e, ctx -> Some (AtExpr (Arrayify e, ctx))
 
-  | InsertDefVar (Some x), e, ctx -> Some (AtExpr (Empty, DefVar2 (x, e, ctx)))
-  | InsertDefFunc (Some name), Empty, ctx -> Some (AtExpr (Empty, DefFunc1 (name, [], ctx, Empty)))
-  | InsertArg (Some x), DefFunc (name,args,e1,e2), ctx -> Some (AtExpr (DefFunc (name, args@[x], e1, e2), ctx))
-  | InsertArg (Some x), e1, DefFunc1 (name,args,ctx,e2) -> Some (AtExpr (e1, DefFunc1 (name, args@[x], ctx, e2)))
+  | InsertDefVar in_x, e, ctx -> Some (AtExpr (Empty, DefVar2 (in_x#get, e, ctx)))
+  | InsertDefFunc in_name, Empty, ctx -> Some (AtExpr (Empty, DefFunc1 (in_name#get, [], ctx, Empty)))
+  | InsertArg in_x, DefFunc (name,args,e1,e2), ctx -> Some (AtExpr (DefFunc (name, args@[in_x#get], e1, e2), ctx))
+  | InsertArg in_x, e1, DefFunc1 (name,args,ctx,e2) -> Some (AtExpr (e1, DefFunc1 (name, args@[in_x#get], ctx, e2)))
 
-  | InsertFor (Some (x,opt)), e, ctx -> Some (AtExpr (Empty, Return1 (For2 (x,e,opt, ctx_flower_of_expr ctx))))
-  | InsertForObject (Some opt), e, ctx -> Some (AtExpr (Empty, Return1 (ForObject2 (e,opt, ctx_flower_of_expr ctx))))
-  | InsertLet (Some x), e, ctx -> Some (AtExpr (Empty, Return1 (Let2 (x,e, ctx_flower_of_expr ctx))))
+  | InsertFor (in_x,in_opt), e, ctx -> Some (AtExpr (Empty, Return1 (For2 (in_x#get,e,in_opt#get, ctx_flower_of_expr ctx))))
+  | InsertForObject in_opt, e, ctx -> Some (AtExpr (Empty, Return1 (ForObject2 (e,in_opt#get, ctx_flower_of_expr ctx))))
+  | InsertLet in_x, e, ctx -> Some (AtExpr (Empty, Return1 (Let2 (in_x#get,e, ctx_flower_of_expr ctx))))
 
   | InsertWhere, e, Return1 ctx -> Some (AtExpr (Empty, Return1 (Where2 (e, ctx))))
   | InsertGroupBy x, e, Return1 (GroupBy1 (lx,ctx)) -> Some (AtExpr (e, Return1 (GroupBy1 (lx@[x],ctx))))
@@ -391,9 +387,9 @@ and apply_transf_expr = function
 				
   | _ -> None
 and apply_transf_flower = function
-  | InsertFor (Some (x,opt)), f, ctx -> Some (AtExpr (Empty, For1 (x, ctx, opt, f)))
-  | InsertForObject (Some opt), f, ctx -> Some (AtExpr (Empty, ForObject1 (ctx, opt, f)))
-  | InsertLet (Some x), f, ctx -> Some (AtExpr (Empty, Let1 (x, ctx, f)))
+  | InsertFor (in_x,in_opt), f, ctx -> Some (AtExpr (Empty, For1 (in_x#get, ctx, in_opt#get, f)))
+  | InsertForObject in_opt, f, ctx -> Some (AtExpr (Empty, ForObject1 (ctx, in_opt#get, f)))
+  | InsertLet in_x, f, ctx -> Some (AtExpr (Empty, Let1 (in_x#get, ctx, f)))
 
   | _, _, Flower1 _ -> None
   | InsertWhere, f, ctx -> Some (AtExpr (Empty, Where1 (ctx, f)))

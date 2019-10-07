@@ -1,9 +1,10 @@
 
+open Focus
 open Jsoniq
 open Jsoniq_focus
 module Sem = Jsoniq_semantics
 
-type suggestion = transf * focus
+type suggestion = transf
 
 let focus_types_lengths (extent : Sem.extent) : Sem.TypSet.t * int Bintree.t =
   List.fold_left
@@ -40,15 +41,15 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
   let transfs = ref [] in
   let add tr = transfs := tr :: !transfs in
   let () =
-    if Sem.TypSet.mem `Bool ctx_typs then add (InputBool None);
-    if Sem.TypSet.mem `Int ctx_typs then add (InputInt None);
-    if Sem.TypSet.mem `Float ctx_typs then add (InputFloat None);
-    if Sem.TypSet.mem `String ctx_typs then add (InputString None);
+    if Sem.TypSet.mem `Bool ctx_typs then ( add (InsertBool false); add (InsertBool true) );
+    if Sem.TypSet.mem `Int ctx_typs then add (InputInt (new input 0));
+    if Sem.TypSet.mem `Float ctx_typs then add (InputFloat (new input 0.));
+    if Sem.TypSet.mem `String ctx_typs then add (InputString (new input ""));
     add InsertNull;
     add InsertConcat;
     if Sem.TypSet.mem `Bool ctx_typs then (
-      add (InsertExists None);
-      add (InsertForAll None));
+      add (InsertExists (new input ""));
+      add (InsertForAll (new input "")));
     if Sem.TypSet.mem `Bool allowed_typs then (
       add InsertOr;
       add InsertAnd;
@@ -87,13 +88,13 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     List.iter
       (fun x -> add (InsertVar x))
       sem.Sem.annot#env;
-    add (InsertDefVar None);
-    add (InsertDefFunc None);
-    add (InsertArg None);
+    add (InsertDefVar (new input ""));
+    add (InsertDefFunc (new input ""));
+    add (InsertArg (new input ""));
     if multiple_items then (
-      add (InsertFor None);
-      add (InsertForObject None));
-    add (InsertLet None);
+      add (InsertFor (new input "", new input false));
+      add (InsertForObject (new input false)));
+    add (InsertLet (new input ""));
     if multiple_bindings then (
       List.iter
 	(fun x -> add (InsertGroupBy x)) (* TODO: suggest only variables not yet grouped *)
@@ -105,6 +106,6 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
   List.fold_left
     (fun res tr ->
      match apply_transf tr foc with
-     | Some foc' -> (tr,foc') :: res
+     | Some foc' -> tr :: res
      | None -> res)
     [] !transfs

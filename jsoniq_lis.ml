@@ -15,8 +15,10 @@ object
     k_suggestions lsugg
 
   method activate sugg =
-    let transf, new_focus = sugg in
-    new place lis new_focus
+    let transf = sugg in
+    match Jsoniq_focus.apply_transf transf focus with
+    | Some new_focus -> Some (new place lis new_focus)
+    | None -> None
 
   method abort = ()
 end

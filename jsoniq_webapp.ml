@@ -10,7 +10,7 @@ let html_of_word : Jsoniq_syntax.word -> Html.t = function
   | `Bool b -> string_of_bool b
   | `Int i -> string_of_int i
   | `Float f -> string_of_float f
-  | `String s -> "\"" ^ String.escaped s ^ "\""
+  | `String s -> "\"" ^ Jsutils.escapeHTML s ^ "\""
   | `Var v -> v
   | `ContextItem -> "_"
   | `ContextEnv -> "*"
@@ -20,35 +20,33 @@ let html_of_word : Jsoniq_syntax.word -> Html.t = function
   | `TheFocus -> Html.span ~classe:"highlighted" "__"
   | `Ellipsis -> "..."
 			    
-let html_of_input (input : Jsoniq_syntax.input) : Html.t =
-  let t, placeholder =
+let html_info_of_input (input : Jsoniq_syntax.input) : Html.input_info =
+  (* exceptions are captured by caller of updates *)
+  let input_type, placeholder, input_update =
     match input with
-    | `Bool -> "checkbox", None
-    | `Int -> "number", Some "0"
-    | `Float -> "number", Some "0.0e+0"
-    | `String -> "text", None
-    | `Ident -> "text", Some "x"
-  in
-  Html.input ~classe:"input" ?placeholder t
+    | `Int input -> "number", "0", (fun value -> input#set (int_of_string value))
+    | `Float input -> "number", "0.0e+0", (fun value -> input#set (float_of_string value))
+    | `String input -> "text", "", (fun value -> input#set value)
+    | `Ident input -> "text", "x", (fun value -> input#set value) in
+  Html.({ input_type; placeholder; input_update })
 
-	     
+      
+(* UI widgets *)
+			      
 let w_focus =
   new Widget_focus.widget
       ~id:"lis-focus"
       ~html_of_word
 
 let w_suggestions : Jsoniq_suggestions.suggestion Widget_suggestions.widget =
-  let dico = new Html.dico "lis-results-focus" in
   new Widget_suggestions.widget
       ~id:"lis-suggestions"
-      ~html_of_suggestion:(fun sugg ->
-			   Html.syntax ~dico ~html_of_word ~html_of_input
-				       (Jsoniq_syntax.syn_transf (fst sugg)))
+      ~html_of_suggestion:(fun ~input_dico sugg ->
+			   Html.syntax ~input_dico
+				       ~html_of_word ~html_info_of_input
+				       (Jsoniq_syntax.syn_transf sugg))
 			     
 let w_results : (Jsoniq.var, Jsoniq.item) Widget_table.widget =
-  let dico = new Html.dico "lis-results-focus" in
-  let html_of_input input =
-    failwith "unexpected input in extent" in
   new Widget_table.widget
       ~id:"lis-results"
       ~html_of_column:(fun x ->
@@ -59,7 +57,7 @@ let w_results : (Jsoniq.var, Jsoniq.item) Widget_table.widget =
 		       None, classe_opt, None, x)
       ~html_of_cell:(fun i ->
 		     let d = Jsoniq.unpack i in
-		     Html.syntax ~dico ~html_of_word ~html_of_input
+		     Html.syntax ~html_of_word
 				 (Jsoniq_syntax.syn_data d))
       
       
@@ -87,9 +85,9 @@ let render_place place k =
      w_suggestions#set_suggestions suggestions;
      w_suggestions#on_suggestion_selection
        (fun sugg ->
-	let transf, new_foc = sugg in
-	let p = new Jsoniq_lis.place place#lis new_foc in
-	k ~push_in_history:true p))
+	match place#activate sugg with
+	| Some p -> k ~push_in_history:true p
+	| None -> assert false))
     
 let _ =
   Webapp.start

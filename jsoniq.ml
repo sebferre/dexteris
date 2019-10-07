@@ -191,11 +191,6 @@ let arity_of_func : func -> int = function
   | Sum | Avg | StringConcat -> 1
   | Defined (name,n) -> n
 
-let rec make_list (arity : int) (x : 'a) : 'a list =
-  if arity = 0
-  then []
-  else x :: make_list (arity-1) x
-	   
 
 let apply_func (func : func) (args : data list) : data =
   match func, args with

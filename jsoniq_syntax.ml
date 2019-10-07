@@ -4,7 +4,10 @@ open Jsoniq
 open Jsoniq_focus
 
 type word = [`Bool of bool | `Int of int | `Float of float | `String of string | `Var of var | `Func of string | `ContextItem | `ContextEnv | `Order of order | `TheFocus | `Ellipsis ]
-type input = [`Bool | `Int | `Float | `String | `Ident]
+type input = [ `Int of int Focus.input
+	     | `Float of float Focus.input
+	     | `String of string Focus.input
+	     | `Ident of string Focus.input ]
 type syn = (word,input,focus) xml
 
 let rec syn_item : item -> syn = function
@@ -558,21 +561,22 @@ let syn_transf : transf -> syn = function
   | FocusUp -> [Kwd "(focus up)"]
   | FocusRight -> [Kwd "(focus right)"]
   | Delete -> [Kwd "(delete focus)"]
-  | InputBool _ -> [Input `Bool]
-  | InputInt _ -> [Input `Int]
-  | InputFloat _ -> [Input `Float]
-  | InputString _ -> [Input `String]
+  | InsertBool false -> [Kwd "false"]
+  | InsertBool true -> [Kwd "true"]
+  | InputInt i -> [Kwd "an"; Kwd "integer"; Input (`Int i)]
+  | InputFloat i -> [Kwd "a"; Kwd "float"; Input (`Float i)]
+  | InputString i -> [Kwd "a"; Kwd "string"; Input (`String i)]
   | InsertNull -> [Kwd "null"]
   | InsertConcat -> syn_Concat [[the_focus]; [ellipsis]]
-  | InsertExists _ -> syn_Exists [Input `Ident] [the_focus] [ellipsis]
-  | InsertForAll _ -> syn_ForAll [Input `Ident] [the_focus] [ellipsis]
+  | InsertExists in_x -> syn_Exists [Input (`Ident in_x)] [the_focus] [ellipsis]
+  | InsertForAll in_x -> syn_ForAll [Input (`Ident in_x)] [the_focus] [ellipsis]
   | InsertIf1 -> syn_If [the_focus] [ellipsis] [ellipsis]
   | InsertIf2 -> syn_If [ellipsis] [the_focus] [ellipsis]
   | InsertIf3 -> syn_If [ellipsis] [ellipsis] [the_focus]
   | InsertOr -> syn_Or [[the_focus]; [ellipsis]]
   | InsertAnd -> syn_And [[the_focus]; [ellipsis]]
   | InsertNot -> syn_Not [the_focus]
-  | InsertFunc func -> syn_Call func (make_list (arity_of_func func) [ellipsis])
+  | InsertFunc func -> syn_Call func (Focus.make_list (arity_of_func func) [ellipsis])
   | InsertMap -> syn_Map [the_focus] [ellipsis]
   | InsertPred -> syn_Pred [the_focus] [ellipsis]
   | InsertDot -> syn_Dot [the_focus] [ellipsis]
@@ -585,12 +589,12 @@ let syn_transf : transf -> syn = function
   | InsertArray -> syn_Arrayify [ellipsis]
   | InsertObjectify -> syn_Objectify [the_focus]
   | InsertArrayify -> syn_Arrayify [the_focus]
-  | InsertDefVar _ -> syn_DefVar [Input `Ident] [the_focus] [ellipsis]
-  | InsertDefFunc _ -> syn_DefFunc [Input `Ident] [] [ellipsis] [ellipsis]
-  | InsertArg _ -> [Kwd "add"; Kwd "argument"; Input `Ident]
-  | InsertFor _ -> syn_For [Input `Ident] [the_focus] false [ellipsis] (* TODO: optional *)
-  | InsertForObject _ -> syn_ForObject [the_focus] false [ellipsis] (* TODO: optional *)
-  | InsertLet _ -> syn_Let [Input `Ident] [the_focus] [ellipsis]
+  | InsertDefVar in_x -> syn_DefVar [Input (`Ident in_x)] [the_focus] [ellipsis]
+  | InsertDefFunc in_name -> syn_DefFunc [Input (`Ident in_name)] [] [ellipsis] [ellipsis]
+  | InsertArg in_x -> [Kwd "add"; Kwd "argument"; Input (`Ident in_x)]
+  | InsertFor (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [the_focus] false [ellipsis] (* TODO: optional *)
+  | InsertForObject in_opt -> syn_ForObject [the_focus] false [ellipsis] (* TODO: optional *)
+  | InsertLet in_x -> syn_Let [Input (`Ident in_x)] [the_focus] [ellipsis]
   | InsertWhere -> syn_Where [the_focus] [ellipsis]
   | InsertGroupBy x -> syn_GroupBy [x] [the_focus]
   | InsertOrderBy o -> syn_OrderBy [syn_order [the_focus] o] [ellipsis]
