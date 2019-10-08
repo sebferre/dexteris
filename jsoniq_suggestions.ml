@@ -41,12 +41,23 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
   let transfs = ref [] in
   let add tr = transfs := tr :: !transfs in
   let () =
+    add FocusUp;
+    List.iter
+      (fun x -> add (InsertVar x))
+      sem.Sem.annot#env;
     if Sem.TypSet.mem `Bool ctx_typs then ( add (InsertBool false); add (InsertBool true) );
     if Sem.TypSet.mem `Int ctx_typs then add (InputInt (new input 0));
     if Sem.TypSet.mem `Float ctx_typs then add (InputFloat (new input 0.));
     if Sem.TypSet.mem `String ctx_typs then add (InputString (new input ""));
     add InsertNull;
     add InsertConcat;
+    if multiple_items then (
+      add InsertMap;
+      add InsertPred);
+    if multiple_items then (
+      add (InsertFor (new input "", new input false));
+      add (InsertForObject (new input false)));
+    add (InsertLet (new input ""));
     if Sem.TypSet.mem `Bool ctx_typs then (
       add (InsertExists (new input ""));
       add (InsertForAll (new input "")));
@@ -74,9 +85,6 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       (fun (name,args) ->
        add (InsertFunc (Defined (name, List.length args))))
       sem.Sem.annot#funcs;
-    if multiple_items then (
-      add InsertMap;
-      add InsertPred);
     if Sem.TypSet.mem `Object ctx_typs then (
       add InsertObject;
       add InsertContextEnv);      
@@ -90,16 +98,9 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     if Sem.TypSet.mem `Array ctx_typs then (
       add InsertArray;
       add InsertArrayify);
-    List.iter
-      (fun x -> add (InsertVar x))
-      sem.Sem.annot#env;
     add (InsertDefVar (new input ""));
     add (InsertDefFunc (new input ""));
     add (InsertArg (new input ""));
-    if multiple_items then (
-      add (InsertFor (new input "", new input false));
-      add (InsertForObject (new input false)));
-    add (InsertLet (new input ""));
     if multiple_bindings then (
       List.iter
 	(fun x -> add (InsertGroupBy x)) (* TODO: suggest only variables not yet grouped *)

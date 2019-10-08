@@ -86,7 +86,7 @@ let syn_Not xml : syn =
 let syn_Map xml1 xml2 : syn =
   xml1 @ Kwd "!" :: xml2
 let syn_Pred xml1 xml2 : syn =
-  xml1 @ Quote ("[", xml2, "]") :: []
+  xml1 @ Quote ("[ ", xml2, " ]") :: []
 let syn_Dot xml1 xml2 : syn =
   xml1 @ Kwd "." :: xml2
 let syn_ArrayLookup xml1 xml2 : syn =
@@ -123,7 +123,7 @@ let syn_ForObject xml1 opt xml2 : syn =
   [Block [Kwd "for" :: (if opt then [Kwd "optional"] else []) @ Kwd "object" :: Kwd "in" :: xml1;
 	  xml2]]
 let syn_Let xmlx xml1 xml2 : syn =
-  [Block [Kwd "let" :: xmlx @ Kwd "in" :: xml1;
+  [Block [Kwd "let" :: xmlx @ Kwd "=" :: xml1;
 	  xml2]]
 let syn_Where xml1 xml2 : syn =
   [Block [Kwd "where" :: xml1;
@@ -142,8 +142,8 @@ let syn_susp xml : syn = [Suspended xml]
 (* DERIVED *)			      
 let rec syn_focus (foc : focus) : syn =
   match foc with
-  | AtExpr (e,ctx) -> syn_expr_ctx e ctx [Highlight (syn_expr e ctx); DeleteCurrentFocus]
-  | AtFlower (f,ctx) -> syn_flower_ctx f ctx [Highlight (syn_flower f ctx); DeleteCurrentFocus]
+  | AtExpr (e,ctx) -> syn_expr_ctx e ctx [Highlight (syn_expr e ctx); ControlCurrentFocus]
+  | AtFlower (f,ctx) -> syn_flower_ctx f ctx [Highlight (syn_flower f ctx); ControlCurrentFocus]
 and syn_expr e ctx : syn =
   let xml =
     match e with

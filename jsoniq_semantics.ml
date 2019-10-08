@@ -82,14 +82,14 @@ and sem_expr_ctx annot e : expr_ctx -> sem = function
      sem_expr_ctx annot e ctx
   | Exists2 (x,e1,ctx) ->
      annot#add_var x;
-     annot#only_typs [`Bool];
+     (*annot#only_typs [`Bool];*)
      sem_expr_ctx annot (expr_bind_in x e1 e) ctx
   | ForAll1 (x,ctx,e2) ->
      annot#any_typ;
      sem_expr_ctx annot e ctx
   | ForAll2 (x,e1,ctx) ->
      annot#add_var x;
-     annot#only_typs [`Bool];
+     (*annot#only_typs [`Bool];*)
      sem_expr_ctx annot (expr_bind_in x e1 e) ctx
   | If1 (ctx,e2,e3) ->
      annot#only_typs [`Bool];
@@ -118,7 +118,7 @@ and sem_expr_ctx annot e : expr_ctx -> sem = function
   | Pred1 (ctx,e2) -> sem_expr_ctx annot e ctx
   | Pred2 (e1,ctx) ->
      annot#add_var var_context; (* TODO: generate unique vars instead of var_context *)
-     annot#only_typs [`Bool];
+     (*annot#only_typs [`Bool];*) (* annoying constraint when building *)
      sem_expr_ctx annot (expr_bind_in var_context e1 e) ctx
   | Dot1 (ctx,e2) ->
      annot#only_typs [`Object];

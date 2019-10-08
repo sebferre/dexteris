@@ -68,10 +68,16 @@ let render_place place k =
     (fun foc ->
      let p = new Jsoniq_lis.place place#lis foc in
      k ~push_in_history:false p);
+  w_focus#on_focus_up
+    (fun () ->
+     match Jsoniq_focus.focus_up place#focus with
+     | Some foc ->
+	let p = new Jsoniq_lis.place place#lis foc in
+	k ~push_in_history:false p
+     | None -> ());
   w_focus#on_focus_delete
     (fun () ->
-     let foc_opt = Jsoniq_focus.delete place#focus in
-     match foc_opt with
+     match Jsoniq_focus.delete place#focus with
      | Some foc ->
 	let p = new Jsoniq_lis.place place#lis foc in
 	k ~push_in_history:true p

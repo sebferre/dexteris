@@ -176,6 +176,17 @@ and focus_flower_right (f : flower) : flower_ctx -> focus option = function
   | FIf2 (f1,ctx,f3) -> Some (AtFlower (f3, FIf3 (f1,f,ctx)))
   | FIf3 (f1,f2,ctx) -> None
 
+let rec focus_next_Empty (foc : focus) : focus option =
+  match foc with
+  | AtExpr (Empty, ctx) -> Some foc
+  | _ ->
+     match focus_right foc with
+     | Some foc -> focus_next_Empty foc
+     | None ->
+	match focus_up foc with
+	| Some foc -> focus_next_Empty foc
+	| None -> None
+			  
 
 let rec delete (foc : focus) : focus option =
   match foc with
@@ -345,7 +356,7 @@ and apply_transf_expr = function
   | InsertFunc func, e, ctx ->
      ( match arity_of_func func with
        | 0 -> Some (AtExpr (Call (func, []), ctx))
-       | n -> Some (AtExpr (Call (func, e :: make_list (n-1) Empty), ctx)) )
+       | n -> Some (AtExpr (e, CallX (func, ([],make_list (n-1) Empty), ctx))) )
 
   | InsertMap, e, ctx -> Some (AtExpr (Empty, Map2 (e, ctx)))
   | InsertPred, e, ctx -> Some (AtExpr (Empty, Pred2 (e, ctx)))

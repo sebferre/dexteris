@@ -16,8 +16,13 @@ object
 
   method activate sugg =
     let transf = sugg in
-    match Jsoniq_focus.apply_transf transf focus with
-    | Some new_focus -> Some (new place lis new_focus)
+    match Focus.apply_transf transf focus with
+    | Some new_focus ->
+       let new_focus =
+	 match Focus.focus_next_Empty new_focus with
+	 | Some new_foc -> new_foc
+	 | None -> new_focus in
+       Some (new place lis new_focus)
     | None -> None
 
   method abort = ()
