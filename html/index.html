@@ -55,63 +55,71 @@
 
     <!-- main components -->
     <div class="container-fluid">
-      
-      <div id="lis-view" class="panel-group">
+	
+      <!-- <div id="lis-view" class="panel-group"> -->
+      <div class="row">
 	<!-- focus view -->
-	<div id="focus-view" class="panel panel-info">
-	  <div class="panel-heading">
-	    <h5 class="panel-title">
-	      <a data-toggle="collapse" data-target="#collapse-focus">
-		Your query and its <span class="highlighted">current focus</span>
-		(click on different parts of the query to change it)
-	      </a>
-	    </h5>
-	  </div>
-	  <div id="collapse-focus" class="panel-collapse collapse in">
-	    <div id="focus-body" class="panel-body">
-	      <div id="lis-focus">
-		FOCUS
+	<div class="col-md-4">
+	  <div id="focus-view" class="panel panel-info">
+	    <div class="panel-heading">
+	      <h5 class="panel-title">
+		<a data-toggle="collapse" data-target="#collapse-focus">
+		  Your query and its <span class="highlighted">current focus</span>
+		  <!-- (click on different parts of the query to change it) -->
+		</a>
+	      </h5>
+	    </div>
+	    <div id="collapse-focus" class="panel-collapse collapse in">
+	      <div id="focus-body" class="panel-body">
+		<div id="lis-focus">
+		  FOCUS
+		</div>
 	      </div>
 	    </div>
 	  </div>
 	</div>
 
 	<!-- suggestions view -->
-	<div id="suggestions-view" class="panel panel-info">
-	  <div class="panel-heading">
-	    <h5 class="panel-title">
-	      <a data-toggle="collapse" data-target="#collapse-suggestions">
-		Suggestions to refine your query
-	      </a>
-	    </h5>
-	  </div>
-	  <div id="collapse-suggestions" class="panel-collapse collapse in">
-	    <div id="suggestions-body" class="panel-body">
-	      <div id="lis-suggestions">
-		SUGGESTIONS
+	<div class="col-md-8">
+	  <div id="suggestions-view" class="panel panel-info">
+	    <div class="panel-heading">
+	      <h5 class="panel-title">
+		<a data-toggle="collapse" data-target="#collapse-suggestions">
+		  Suggestions to refine your query
+		</a>
+	      </h5>
+	    </div>
+	    <div id="collapse-suggestions" class="panel-collapse collapse in">
+	      <div id="suggestions-body" class="panel-body">
+		<div id="lis-suggestions">
+		  SUGGESTIONS
+		</div>
 	      </div>
 	    </div>
 	  </div>
 	</div>
-	
-	<!-- results view -->
-	<div id="results-view" class="panel panel-info">
-	  <div class="panel-heading">
-	    <h5 class="panel-title">
-	      <a data-toggle="collapse" data-target="#collapse-results">
-		Results of your query
-	      </a>
-	    </h5>
-	  </div>
-	  <div id="collapse-results" class="panel-collapse collapse in">
-	    <div id="results-body" class="panel-body">
-	      <div id="lis-results">
-		RESULTS
-	      </div>
-	    </div>
-	  </div>
-	</div>
+      </div>
 
+      <div class="row">
+	<!-- results view -->
+	<div class="col-md-12">
+	  <div id="results-view" class="panel panel-info">
+	    <div class="panel-heading">
+	      <h5 class="panel-title">
+		<a data-toggle="collapse" data-target="#collapse-results">
+		  Results of your query
+		</a>
+	      </h5>
+	    </div>
+	    <div id="collapse-results" class="panel-collapse collapse in">
+	      <div id="results-body" class="panel-body">
+		<div id="lis-results">
+		  RESULTS
+		</div>
+	      </div>
+	    </div>
+	  </div>
+	</div>
       </div>
     </div>
 

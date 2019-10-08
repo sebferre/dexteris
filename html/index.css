@@ -98,6 +98,13 @@ select {
     padding: 0px 5px;
 }
 
+#lis-focus {
+    height:300px;
+    resize:vertical;
+    overflow:auto;
+    padding-top:0;
+}
+
 #focus-dropdown {
     position: relative;
     display: inline;
@@ -131,7 +138,7 @@ select {
 }
 
 .list-suggestions {
-    height:240px;
+    height:300px;
     resize:vertical;
     overflow:auto;
     padding-top:0;
