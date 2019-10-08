@@ -212,6 +212,7 @@ type transf =
   | Delete
   | InsertBool of bool
   | InputInt of int input
+  | InputRange of int input * int input
   | InputFloat of float input
   | InputString of string input
   | InsertNull
@@ -320,6 +321,7 @@ let rec apply_transf (transf : transf) (foc : focus) : focus option =
 and apply_transf_expr = function
   | InsertBool b, _, ctx -> Some (AtExpr (Item (Bool b), ctx))
   | InputInt in_n, _, ctx -> Some (AtExpr (Item (Int in_n#get), ctx))
+  | InputRange (in_a,in_b), _, ctx -> Some (AtExpr (Call (Range, [Item (Int in_a#get); Item (Int in_b#get)]), ctx))
   | InputFloat in_f, _, ctx -> Some (AtExpr (Item (Float in_f#get), ctx))
   | InputString in_s, _, ctx -> Some (AtExpr (Item (String in_s#get), ctx))
   | InsertNull, _, ctx -> Some (AtExpr (Item Null, ctx))

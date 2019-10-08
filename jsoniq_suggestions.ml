@@ -43,10 +43,11 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
   let () =
     add FocusUp;
     List.iter
-      (fun x -> add (InsertVar x))
+      (fun x -> if x <> Sem.field_focus then add (InsertVar x))
       sem.Sem.annot#env;
     if Sem.TypSet.mem `Bool ctx_typs then ( add (InsertBool false); add (InsertBool true) );
     if Sem.TypSet.mem `Int ctx_typs then add (InputInt (new input 0));
+    if Sem.TypSet.mem `Int ctx_typs then add (InputRange (new input 0, new input 10));
     if Sem.TypSet.mem `Float ctx_typs then add (InputFloat (new input 0.));
     if Sem.TypSet.mem `String ctx_typs then add (InputString (new input ""));
     add InsertNull;
@@ -58,16 +59,6 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       add (InsertFor (new input "", new input false));
       add (InsertForObject (new input false)));
     add (InsertLet (new input ""));
-    if Sem.TypSet.mem `Bool ctx_typs then (
-      add (InsertExists (new input ""));
-      add (InsertForAll (new input "")));
-    if Sem.TypSet.mem `Bool allowed_typs then (
-      add InsertIf1;
-      add InsertOr;
-      add InsertAnd;
-      add InsertNot);
-    add InsertIf2;
-    add InsertIf3;
     if Sem.TypSet.mem `Bool ctx_typs then
       List.iter
 	(fun func -> add (InsertFunc func))
@@ -85,6 +76,16 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       (fun (name,args) ->
        add (InsertFunc (Defined (name, List.length args))))
       sem.Sem.annot#funcs;
+    if Sem.TypSet.mem `Bool ctx_typs then (
+      add (InsertExists (new input ""));
+      add (InsertForAll (new input "")));
+    if Sem.TypSet.mem `Bool allowed_typs then (
+      add InsertOr;
+      add InsertAnd;
+      add InsertNot;
+      add InsertIf1);
+    add InsertIf2;
+    add InsertIf3;
     if Sem.TypSet.mem `Object ctx_typs then (
       add InsertObject;
       add InsertContextEnv);      

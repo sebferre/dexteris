@@ -18,6 +18,11 @@ select {
     padding: 4px;
 }
 
+.suggestion-input {
+    height: 10px;
+    width:150px;
+}
+
 .no-padding {
     padding-left: 0;
     padding-right: 0;

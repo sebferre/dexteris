@@ -565,6 +565,7 @@ let syn_transf : transf -> syn = function
   | InsertBool false -> [Kwd "false"]
   | InsertBool true -> [Kwd "true"]
   | InputInt i -> [Kwd "an"; Kwd "integer"; Input (`Int i)]
+  | InputRange (i1,i2) -> Kwd "a" :: Kwd "range" :: Kwd "from " :: syn_Call Range [[Input (`Int i1)]; [Input (`Int i2)]]
   | InputFloat i -> [Kwd "a"; Kwd "float"; Input (`Float i)]
   | InputString i -> [Kwd "a"; Kwd "string"; Input (`String i)]
   | InsertNull -> [Kwd "null"]
