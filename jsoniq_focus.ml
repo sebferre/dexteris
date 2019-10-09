@@ -377,7 +377,7 @@ and apply_transf_expr = function
   | InsertArrayify, e, ctx -> Some (AtExpr (Arrayify e, ctx))
 
   | InsertDefVar in_x, e, ctx -> Some (AtExpr (Empty, DefVar2 (in_x#get, e, ctx)))
-  | InsertDefFunc in_name, Empty, ctx -> Some (AtExpr (Empty, DefFunc1 (in_name#get, [], ctx, Empty)))
+  | InsertDefFunc in_name, e, ctx -> Some (AtExpr (Empty, DefFunc1 (in_name#get, [], ctx, e)))
   | InsertArg in_x, DefFunc (name,args,e1,e2), ctx -> Some (AtExpr (DefFunc (name, args@[in_x#get], e1, e2), ctx))
   | InsertArg in_x, e1, DefFunc1 (name,args,ctx,e2) -> Some (AtExpr (e1, DefFunc1 (name, args@[in_x#get], ctx, e2)))
 

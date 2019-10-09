@@ -60,6 +60,10 @@ let w_results : (Jsoniq.var, Jsoniq.item) Widget_table.widget =
 		     Html.syntax ~html_of_word
 				 (Jsoniq_syntax.syn_data d))
       
+
+let suggestions_cols = ["col-md-3 col-xs-1";
+			"col-md-4 col-xs-1";
+			"col-md-5 col-xs-1"]
       
 let render_place place k =
   let xml = Jsoniq_syntax.syn_focus place#focus in
@@ -88,7 +92,7 @@ let render_place place k =
        ext.Jsoniq_semantics.vars
        ext.Jsoniq_semantics.bindings)
     (fun suggestions ->
-     w_suggestions#set_suggestions suggestions;
+     w_suggestions#set_suggestions suggestions_cols suggestions;
      w_suggestions#on_suggestion_selection
        (fun sugg ->
 	match place#activate sugg with

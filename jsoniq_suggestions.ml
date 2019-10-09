@@ -32,7 +32,7 @@ let focus_types_lengths (extent : Sem.extent) : Sem.TypSet.t * int Bintree.t =
      with Not_found -> typs, lens)
     (Sem.TypSet.empty, Bintree.empty) extent.Sem.bindings
 			     
-let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion list =
+let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion list list =
   let focus_typs, focus_lens = focus_types_lengths extent in
   let ctx_typs = sem.Sem.annot#typs in
   let allowed_typs = Sem.TypSet.inter ctx_typs focus_typs in
@@ -99,9 +99,9 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     if Sem.TypSet.mem `Array ctx_typs then (
       add `Val InsertArray;
       add `Val InsertArrayify);
-    add `Op (InsertDefVar (new input ""));
-    add `Op (InsertDefFunc (new input ""));
-    add `Op (InsertArg (new input ""));
+    add `Flower (InsertDefVar (new input ""));
+    add `Flower (InsertDefFunc (new input ""));
+    add `Flower (InsertArg (new input ""));
     if multiple_bindings then (
       List.iter
 	(fun x -> add `Flower (InsertGroupBy x)) (* TODO: suggest only variables not yet grouped *)
@@ -110,9 +110,15 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       add `Flower (InsertOrderBy DESC);
       add `Flower (InsertOrderBy ASC));
   in
-  List.fold_left
-    (fun res (kind,tr) ->
-     match apply_transf tr foc with
-     | Some foc' -> tr :: res
-     | None -> res)
-    [] !transfs
+  let lsugg_val, lsugg_op, lsugg_flower =
+    List.fold_left
+      (fun (lv,lo,lf) (kind,tr) ->
+       match apply_transf tr foc with
+       | Some _ ->
+	  ( match kind with
+	    | `Val -> (tr::lv,lo,lf)
+	    | `Op -> (lv,tr::lo,lf)
+	    | `Flower -> (lv,lo,tr::lf) )
+       | None -> (lv,lo,lf))
+      ([],[],[]) !transfs in
+  [lsugg_op; lsugg_val; lsugg_flower]

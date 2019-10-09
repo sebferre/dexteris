@@ -20,7 +20,7 @@ select {
 
 .suggestion-input {
     height: 10px;
-    width:150px;
+    width:100px;
 }
 
 .no-padding {
@@ -103,6 +103,10 @@ select {
     padding: 0px 5px;
 }
 
+#focus-body {
+    padding: 5px 15px;
+}
+
 #lis-focus {
     height:300px;
     resize:vertical;
@@ -140,6 +144,18 @@ select {
     padding-left: 0px;
     padding-right: 0px;
     white-space: nowrap;
+}
+
+#suggestions-body {
+    padding: 5px 15px;
+}
+
+.column-suggestions {
+    padding: 0px 5px;
+}
+
+.panel-suggestions {
+    margin: 0 0;
 }
 
 .list-suggestions {

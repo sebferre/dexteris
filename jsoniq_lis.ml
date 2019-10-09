@@ -11,8 +11,8 @@ object
     let sem = Semantics.sem_focus focus in
     let ext = Semantics.extent sem in
     k_extent ext;
-    let lsugg = Suggestions.suggestions focus sem ext in
-    k_suggestions lsugg
+    let llsugg = Suggestions.suggestions focus sem ext in
+    k_suggestions llsugg
 
   method activate sugg =
     let transf = sugg in
