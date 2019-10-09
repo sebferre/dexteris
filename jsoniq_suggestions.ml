@@ -39,79 +39,79 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
   let multiple_items = Bintree.fold (fun n ok -> ok || n > 1) focus_lens false in
   let multiple_bindings = List.length extent.Sem.bindings > 1 in
   let transfs = ref [] in
-  let add tr = transfs := tr :: !transfs in
+  let add kind tr = transfs := (kind,tr) :: !transfs in
   let () =
-    add FocusUp;
+    add `Val FocusUp;
     List.iter
-      (fun x -> if x <> Sem.field_focus then add (InsertVar x))
+      (fun x -> if x <> Sem.field_focus then add `Val (InsertVar x))
       sem.Sem.annot#env;
-    if Sem.TypSet.mem `Bool ctx_typs then ( add (InsertBool false); add (InsertBool true) );
-    if Sem.TypSet.mem `Int ctx_typs then add (InputInt (new input 0));
-    if Sem.TypSet.mem `Int ctx_typs then add (InputRange (new input 0, new input 10));
-    if Sem.TypSet.mem `Float ctx_typs then add (InputFloat (new input 0.));
-    if Sem.TypSet.mem `String ctx_typs then add (InputString (new input ""));
-    add InsertNull;
-    add InsertConcat;
+    if Sem.TypSet.mem `Bool ctx_typs then ( add `Val (InsertBool false); add `Val (InsertBool true) );
+    if Sem.TypSet.mem `Int ctx_typs then add `Val (InputInt (new input 0));
+    if Sem.TypSet.mem `Int ctx_typs then add `Val (InputRange (new input 0, new input 10));
+    if Sem.TypSet.mem `Float ctx_typs then add `Val (InputFloat (new input 0.));
+    if Sem.TypSet.mem `String ctx_typs then add `Val (InputString (new input ""));
+    add `Val InsertNull;
+    add `Val InsertConcat;
     if multiple_items then (
-      add InsertMap;
-      add InsertPred);
+      add `Flower InsertMap;
+      add `Flower InsertPred);
     if multiple_items then (
-      add (InsertFor (new input "", new input false));
-      add (InsertForObject (new input false)));
-    add (InsertLet (new input ""));
+      add `Flower (InsertFor (new input "", new input false));
+      add `Flower (InsertForObject (new input false)));
+    add `Flower (InsertLet (new input ""));
     if Sem.TypSet.mem `Bool ctx_typs then
       List.iter
-	(fun func -> add (InsertFunc func))
+	(fun func -> add `Op (InsertFunc func))
 	[EQ; NE; LE; LT; GE; GT];
     if Sem.TypSet.mem `Int ctx_typs || Sem.TypSet.mem `Float ctx_typs then
       List.iter
-	(fun func -> add (InsertFunc func))
+	(fun func -> add `Op (InsertFunc func))
 	[Plus; Minus; Times; Div; IDiv; Mod; Neg; Range; Sum; Avg];
     if Sem.TypSet.mem `String ctx_typs then
       List.iter
-	(fun func -> add (InsertFunc func))
+	(fun func -> add `Op (InsertFunc func))
 	[StringConcat; Substring];
-    if multiple_items then add (InsertFunc Count);
+    if multiple_items then add `Op (InsertFunc Count);
     List.iter
       (fun (name,args) ->
-       add (InsertFunc (Defined (name, List.length args))))
+       add `Op (InsertFunc (Defined (name, List.length args))))
       sem.Sem.annot#funcs;
     if Sem.TypSet.mem `Bool ctx_typs then (
-      add (InsertExists (new input ""));
-      add (InsertForAll (new input "")));
+      add `Flower (InsertExists (new input ""));
+      add `Flower (InsertForAll (new input "")));
     if Sem.TypSet.mem `Bool allowed_typs then (
-      add InsertOr;
-      add InsertAnd;
-      add InsertNot;
-      add InsertIf1);
-    add InsertIf2;
-    add InsertIf3;
+      add `Op InsertOr;
+      add `Op InsertAnd;
+      add `Op InsertNot;
+      add `Op InsertIf1);
+    add `Op InsertIf2;
+    add `Op InsertIf3;
     if Sem.TypSet.mem `Object ctx_typs then (
-      add InsertObject;
-      add InsertContextEnv);      
+      add `Val InsertObject;
+      add `Val InsertContextEnv);      
     if Sem.TypSet.mem `Object allowed_typs then (
-      add InsertDot;
-      add InsertObjectify);
+      add `Val InsertDot;
+      add `Val InsertObjectify);
     if Sem.TypSet.mem `Array allowed_typs then (
-      add InsertArrayLookup);
+      add `Val InsertArrayLookup);
     if Sem.TypSet.mem `Array focus_typs then (
-      add InsertArrayUnboxing);
+      add `Val InsertArrayUnboxing);
     if Sem.TypSet.mem `Array ctx_typs then (
-      add InsertArray;
-      add InsertArrayify);
-    add (InsertDefVar (new input ""));
-    add (InsertDefFunc (new input ""));
-    add (InsertArg (new input ""));
+      add `Val InsertArray;
+      add `Val InsertArrayify);
+    add `Op (InsertDefVar (new input ""));
+    add `Op (InsertDefFunc (new input ""));
+    add `Op (InsertArg (new input ""));
     if multiple_bindings then (
       List.iter
-	(fun x -> add (InsertGroupBy x)) (* TODO: suggest only variables not yet grouped *)
+	(fun x -> add `Flower (InsertGroupBy x)) (* TODO: suggest only variables not yet grouped *)
 	sem.Sem.annot#env;
-      if Sem.TypSet.mem `Bool focus_typs then add InsertWhere;
-      add (InsertOrderBy DESC);
-      add (InsertOrderBy ASC));
+      if Sem.TypSet.mem `Bool focus_typs then add `Flower InsertWhere;
+      add `Flower (InsertOrderBy DESC);
+      add `Flower (InsertOrderBy ASC));
   in
   List.fold_left
-    (fun res tr ->
+    (fun res (kind,tr) ->
      match apply_transf tr foc with
      | Some foc' -> tr :: res
      | None -> res)

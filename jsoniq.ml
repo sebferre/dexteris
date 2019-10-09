@@ -383,9 +383,9 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
 	 let func_env, args, e = List.assoc name funcs in
 	 let call_env =
 	   List.fold_left2
-	     (fun env v e ->
+	     (fun call_env v e ->
 	      let d = eval_expr funcs env e in
-	      (v,d)::env)
+	      (v,d)::call_env)
 	     func_env args le in
 	 eval_expr funcs call_env e
        else raise (TypeError (name ^ ": wrong number of arguments"))

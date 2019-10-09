@@ -153,7 +153,10 @@ and sem_expr_ctx annot e : expr_ctx -> sem = function
   | DefVar2 (x,e1,ctx) ->
      annot#add_var x;
      sem_expr_ctx annot (DefVar (x,e1,e)) ctx
-  | DefFunc1 (name,args,ctx,e2) -> raise TODO (* add args' example values *)
+  | DefFunc1 (name,args,ctx,e2) -> (* add args' example values *)
+     annot#add_func name args;
+     args |> List.iter annot#add_var;
+     sem_expr_ctx annot e ctx
   | DefFunc2 (name,args,e1,ctx) ->
      annot#add_func name args;
      sem_expr_ctx annot (DefFunc (name,args,e1,e)) ctx
