@@ -98,8 +98,17 @@ let render_place place k =
 	match place#activate sugg with
 	| Some p -> k ~push_in_history:true p
 	| None -> assert false))
-    
+
+let error_message : exn -> string = function
+  | Failure msg -> msg
+  | Jsoniq.TODO -> "some feature is not yet implemented"
+  | Jsoniq.TypeError msg -> "Type error: " ^ msg
+  | Jsoniq.Unbound x -> "Unbound variable: " ^ x
+  | Jsoniq.Undefined msg -> "Undefined " ^ msg
+  | exn -> Printexc.to_string exn
+
 let _ =
   Webapp.start
     ~make_lis
     ~render_place
+    ~error_message
