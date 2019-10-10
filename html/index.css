@@ -57,6 +57,10 @@ select {
 .focus {
 }
 
+.indented {
+    padding-left: 25px;
+}
+
 .highlighted {
     background-color:#a0f0a0;
 }

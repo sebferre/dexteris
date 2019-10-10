@@ -100,9 +100,12 @@ let syn_ContextItem : syn =
 let syn_ContextEnv : syn =
   [Word `ContextEnv]
 let syn_EObject xml_pairs : syn =
-  [Quote ("{", [Block xml_pairs], "}")]
+  match xml_pairs with
+  | [] -> [Kwd "{ }"]
+  | [xml_pair] -> [Quote ("{ ", xml_pair, " }")]
+  | _ -> [Quote ("{", [Indent [Block xml_pairs]], "}")]
 let syn_Objectify xml1 : syn =
-  [Quote ("{|", xml1, "|}")]
+  [Quote ("{| ", xml1, " |}")]
 let syn_Arrayify xml1 : syn =
   [Quote ("[", xml1, "]")]
 let syn_DefVar xmlx xml1 xml2 : syn =
@@ -110,18 +113,17 @@ let syn_DefVar xmlx xml1 xml2 : syn =
 	  xml2]]
 let syn_DefFunc xml_func args xml1 xml2 : syn =
   [Block [Kwd "def" :: xml_func @
-	    syn_args (List.map (fun x -> [Word (`Var x)]) args) @
-	    Kwd "=" :: xml1;
+	    syn_args (List.map (fun x -> [Word (`Var x)]) args) @ Kwd "=" :: Indent xml1 :: [];
 	  xml2]]
 
 let syn_Return xml1 : syn =
   Kwd "return" :: xml1
 let syn_For xmlx xml1 opt xml2 : syn =
-  [Block [Kwd "for" :: (if opt then [Kwd "optional"] else []) @ xmlx @ Kwd "in" :: xml1;
-	  xml2]]
+  Kwd "for" :: (if opt then [Kwd "optional"] else []) @ xmlx @ Kwd "in" :: xml1 @
+    [Indent xml2]
 let syn_ForObject xml1 opt xml2 : syn =
-  [Block [Kwd "for" :: (if opt then [Kwd "optional"] else []) @ Kwd "object" :: Kwd "in" :: xml1;
-	  xml2]]
+  Kwd "for" :: (if opt then [Kwd "optional"] else []) @ Kwd "object" :: Kwd "in" :: xml1 @
+    [Indent xml2]
 let syn_Let xmlx xml1 xml2 : syn =
   [Block [Kwd "let" :: xmlx @ Kwd "=" :: xml1;
 	  xml2]]
