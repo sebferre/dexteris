@@ -61,7 +61,11 @@ let field_focus = "@focus"
 
 let expr_bind_in x e1 e = Flower (For (x,e1,false, flower_of_expr e))
 
-				 
+let rec expr_bind_list_in lxe1 e =
+  match lxe1 with
+  | [] -> e
+  | (x,e1)::r -> Flower (For (x,e1,false, flower_of_expr (expr_bind_list_in r e)))
+			 
 let rec sem_focus (foc : focus) : sem =
   let annot = new annot in
   annot#add_var field_focus;
@@ -156,7 +160,7 @@ and sem_expr_ctx annot e : expr_ctx -> sem = function
   | DefFunc1 (name,args,ctx,e2) -> (* add args' example values *)
      annot#add_func name args;
      args |> List.iter annot#add_var;
-     sem_expr_ctx annot e ctx
+     sem_expr_ctx annot (expr_bind_list_in (List.map (fun x -> (x,Item (Int 0))) args) e) ctx
   | DefFunc2 (name,args,e1,ctx) ->
      annot#add_func name args;
      sem_expr_ctx annot (DefFunc (name,args,e1,e)) ctx
