@@ -388,11 +388,11 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
 	      (v,d)::call_env)
 	     func_env args le in
 	 eval_expr funcs call_env e
-       else raise (TypeError (name ^ ": wrong number of arguments"))
-     else raise (Undefined ("function " ^ name))
+       else Seq.empty (* raise (TypeError (name ^ ": wrong number of arguments")) *)
+     else Seq.empty (* raise (Undefined ("function " ^ name)) *)
   | Call (func,le) ->
      let ld = List.map (eval_expr funcs env) le in
-     apply_func func ld
+     (try apply_func func ld with _ -> Seq.empty)
   | Map (e1,e2) ->
      eval_expr funcs env e1
      |> Seq.flat_map
