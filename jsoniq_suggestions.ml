@@ -6,34 +6,37 @@ module Sem = Jsoniq_semantics
 
 type suggestion = transf
 
-let focus_types_lengths (extent : Sem.extent) : Sem.TypSet.t * int Bintree.t =
+let focus_types_lengths_fields (extent : Sem.extent) : Sem.TypSet.t * int Bintree.t * string Bintree.t =
   List.fold_left
-    (fun (typs,lens) binding ->
+    (fun (typs,lens,fields) binding ->
      try
        let i0 = List.assoc Sem.field_focus binding in
        match i0 with
        | Array li ->
-	  let typs, len =
+	  let typs, len, fields =
 	    List.fold_left
-	      (fun (typs,len) i ->
-	       let typs =
+	      (fun (typs,len,fields) i ->
+	       let typs, fields =
 		 match i with
-		 | Bool _ -> Sem.TypSet.add `Bool typs
-		 | Int _ -> Sem.TypSet.add `Int typs
-		 | Float _ -> Sem.TypSet.add `Float typs
-		 | String _ -> Sem.TypSet.add `String typs
-		 | Null -> typs
-		 | Object _ -> Sem.TypSet.add `Object typs
-		 | Array _ -> Sem.TypSet.add `Array typs in
-	       typs, len+1)
-	      (typs,0) li in
-	  typs, Bintree.add len lens
+		 | Bool _ -> Sem.TypSet.add `Bool typs, fields
+		 | Int _ -> Sem.TypSet.add `Int typs, fields
+		 | Float _ -> Sem.TypSet.add `Float typs, fields
+		 | String _ -> Sem.TypSet.add `String typs, fields
+		 | Null -> typs, fields
+		 | Object pairs ->
+		    Sem.TypSet.add `Object typs,
+		    List.fold_left (fun fields (k,_) -> Bintree.add k fields) fields pairs
+		 | Array _ -> Sem.TypSet.add `Array typs, fields in
+	       typs, len+1, fields)
+	      (typs,0,fields) li in
+	  typs, Bintree.add len lens, fields
        | _ -> assert false
-     with Not_found -> typs, lens)
-    (Sem.TypSet.empty, Bintree.empty) extent.Sem.bindings
-			     
+     with Not_found -> typs, lens, fields)
+    (Sem.TypSet.empty, Bintree.empty, Bintree.empty) extent.Sem.bindings
+
+    
 let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion list list =
-  let focus_typs, focus_lens = focus_types_lengths extent in
+  let focus_typs, focus_lens, fields = focus_types_lengths_fields extent in
   let ctx_typs = sem.Sem.annot#typs in
   let allowed_typs = Sem.TypSet.inter ctx_typs focus_typs in
   let multiple_items = Bintree.fold (fun n ok -> ok || n > 1) focus_lens false in
@@ -92,6 +95,9 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     if Sem.TypSet.mem `Object allowed_typs then (
       add `Val InsertDot;
       add `Val InsertObjectify);
+    Bintree.iter
+      (fun k -> add `Val (InsertField k))
+      fields;
     if Sem.TypSet.mem `Array allowed_typs then (
       add `Val InsertArrayLookup);
     if Sem.TypSet.mem `Array focus_typs then (

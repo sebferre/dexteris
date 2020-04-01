@@ -227,6 +227,7 @@ type transf =
   | InsertMap
   | InsertPred
   | InsertDot
+  | InsertField of string
   | InsertArrayLookup
   | InsertArrayUnboxing
   | InsertVar of var
@@ -363,6 +364,8 @@ and apply_transf_expr = function
   | InsertMap, e, ctx -> Some (AtExpr (Empty, Map2 (e, ctx)))
   | InsertPred, e, ctx -> Some (AtExpr (Empty, Pred2 (e, ctx)))
   | InsertDot, e, ctx -> Some (AtExpr (Empty, Dot2 (e, ctx)))
+  | InsertField k, Dot (e,_), ctx -> Some (AtExpr (Dot (e, S k), ctx))
+  | InsertField k, e, ctx -> Some (AtExpr (Dot (e, S k), ctx))
   | InsertArrayLookup, e, ctx -> Some (AtExpr (Empty, ArrayLookup2 (e, ctx)))
 
   | InsertArrayUnboxing, e, ctx -> Some (AtExpr (ArrayUnboxing e, ctx))

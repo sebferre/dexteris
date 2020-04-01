@@ -584,6 +584,7 @@ let syn_transf : transf -> syn = function
   | InsertMap -> syn_Map [the_focus] [ellipsis]
   | InsertPred -> syn_Pred [the_focus] [ellipsis]
   | InsertDot -> syn_Dot [the_focus] [ellipsis]
+  | InsertField k -> syn_Dot [the_focus] [Word (`String k)]
   | InsertArrayLookup -> syn_ArrayLookup [the_focus] [ellipsis]
   | InsertArrayUnboxing -> syn_ArrayUnboxing [the_focus]
   | InsertVar x -> syn_Var x
