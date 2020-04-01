@@ -599,7 +599,8 @@ let syn_transf : transf -> syn = function
   | InsertArg in_x -> [Kwd "add"; Kwd "argument"; Input (`Ident in_x)]
   | InsertFor (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [the_focus] false [ellipsis] (* TODO: optional *)
   | InsertForObject in_opt -> syn_ForObject [the_focus] false [ellipsis] (* TODO: optional *)
-  | InsertLet in_x -> syn_Let [Input (`Ident in_x)] [the_focus] [ellipsis]
+  | InsertLet1 in_x -> syn_Let [Input (`Ident in_x)] [the_focus] [ellipsis]
+  | InsertLet2 in_x -> syn_Let [Input (`Ident in_x)] [ellipsis] [the_focus]
   | InsertWhere -> syn_Where [the_focus] [ellipsis]
   | InsertGroupBy x -> syn_GroupBy [x] [the_focus]
   | InsertOrderBy o -> syn_OrderBy [syn_order [the_focus] o] [ellipsis]

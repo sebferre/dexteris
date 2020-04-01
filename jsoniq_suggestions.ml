@@ -61,7 +61,8 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     if multiple_items then (
       add `Flower (InsertFor (new input "", new input false));
       add `Flower (InsertForObject (new input false)));
-    add `Flower (InsertLet (new input ""));
+    add `Flower (InsertLet1 (new input ""));
+    add `Flower (InsertLet2 (new input ""));
     if Sem.TypSet.mem `Bool ctx_typs then
       List.iter
 	(fun func -> add `Op (InsertFunc func))

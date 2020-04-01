@@ -242,7 +242,8 @@ type transf =
   | InsertArg of var input
   | InsertFor of var input * bool input
   | InsertForObject of bool input
-  | InsertLet of var input
+  | InsertLet1 of var input
+  | InsertLet2 of var input
   | InsertWhere
   | InsertGroupBy of var
   | InsertOrderBy of order
@@ -286,7 +287,7 @@ and reaching_flower : flower -> transf list = function
   | Return e -> reaching_expr e @ [FocusUp]
   | For (x,e,opt,f) -> reaching_expr e @ InsertFor (new input x, new input opt) :: reaching_flower f @ [FocusUp]
   | ForObject (e,opt,f) -> reaching_expr e @ InsertForObject (new input opt) :: reaching_flower f @ [FocusUp]
-  | Let (x,e,f) -> reaching_expr e @ InsertLet (new input x) :: reaching_flower f @ [FocusUp]
+  | Let (x,e,f) -> reaching_expr e @ InsertLet1 (new input x) :: reaching_flower f @ [FocusUp]
   | Where (e,f) -> reaching_expr e @ InsertWhere :: reaching_flower f @ [FocusUp]
   | GroupBy (lx,f) -> List.map (fun x -> InsertGroupBy x) lx @ reaching_flower f @ [FocusUp]
   | OrderBy (leo,f) -> List.concat (List.map (fun (e,o) -> reaching_expr e @ [InsertOrderBy o]) leo) @ reaching_flower f @ [FocusUp]
@@ -309,7 +310,10 @@ and reaching_pair (e1, e2: expr * expr) : transf list =
 let ctx_flower_of_expr = function
   | Return1 ctx_f -> ctx_f
   | ctx_e -> Flower1 ctx_e
-						 
+let ctx_expr_of_flower = function
+  | Flower1 ctx_e -> ctx_e
+  | ctx_f -> Return1 ctx_f
+		     
 let rec apply_transf (transf : transf) (foc : focus) : focus option =
   match transf with
   | FocusUp -> focus_up foc
@@ -386,8 +390,8 @@ and apply_transf_expr = function
 
   | InsertFor (in_x,in_opt), e, ctx -> Some (AtExpr (Empty, Return1 (For2 (in_x#get,e,in_opt#get, ctx_flower_of_expr ctx))))
   | InsertForObject in_opt, e, ctx -> Some (AtExpr (Empty, Return1 (ForObject2 (e,in_opt#get, ctx_flower_of_expr ctx))))
-  | InsertLet in_x, e, ctx -> Some (AtExpr (Empty, Return1 (Let2 (in_x#get,e, ctx_flower_of_expr ctx))))
-
+  | InsertLet1 in_x, e, ctx -> Some (AtExpr (Empty, Return1 (Let2 (in_x#get, e, ctx_flower_of_expr ctx))))
+  | InsertLet2 in_x, e, ctx -> apply_transf_flower (InsertLet2 in_x, Return e, ctx_flower_of_expr ctx)
   | InsertWhere, e, Return1 ctx -> Some (AtExpr (Empty, Return1 (Where2 (e, ctx))))
   | InsertGroupBy x, e, Return1 (GroupBy1 (lx,ctx)) -> Some (AtExpr (e, Return1 (GroupBy1 (lx@[x],ctx))))
   | InsertGroupBy x, e, Return1 ctx -> Some (AtExpr (e, Return1 (GroupBy1 ([x],ctx))))
@@ -400,13 +404,13 @@ and apply_transf_expr = function
 and apply_transf_flower = function
   | InsertFor (in_x,in_opt), f, ctx -> Some (AtExpr (Empty, For1 (in_x#get, ctx, in_opt#get, f)))
   | InsertForObject in_opt, f, ctx -> Some (AtExpr (Empty, ForObject1 (ctx, in_opt#get, f)))
-  | InsertLet in_x, f, ctx -> Some (AtExpr (Empty, Let1 (in_x#get, ctx, f)))
-
+  | InsertLet1 in_x, f, ctx -> apply_transf_expr (InsertLet1 in_x, Flower f, ctx_expr_of_flower ctx)
+  | InsertLet2 in_x, f, ctx -> Some (AtExpr (Empty, Let1 (in_x#get, ctx, f)))
   | _, _, Flower1 _ -> None
-  | InsertWhere, f, ctx -> Some (AtExpr (Empty, Where1 (ctx, f)))
+  | InsertWhere, f, ctx -> Some (AtExpr (Empty, Return1 (Where2 (Flower f, ctx))))
   | InsertGroupBy x, GroupBy (lx,f), ctx -> Some (AtFlower (GroupBy (lx@[x],f), ctx))
   | InsertGroupBy x, f, GroupBy1 (lx, ctx) -> Some (AtFlower (f, GroupBy1 (lx@[x], ctx)))
   | InsertGroupBy x, f, ctx -> Some (AtFlower (GroupBy ([x],f), ctx))
 				
-  | transf, Return e, ctx -> apply_transf_expr (transf, e, Return1 ctx)
+  | transf, Return e, ctx -> apply_transf_expr (transf, e, ctx_expr_of_flower ctx)
   | _ -> None
