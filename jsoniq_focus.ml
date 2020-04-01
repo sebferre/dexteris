@@ -237,16 +237,22 @@ type transf =
   | InsertArray
   | InsertObjectify
   | InsertArrayify
-  | InsertDefVar of var input
-  | InsertDefFunc of string input
+  | InsertDefVar1 of var input
+  | InsertDefVar2 of var input
+  | InsertDefFunc1 of string input
+  | InsertDefFunc2 of string input
   | InsertArg of var input
-  | InsertFor of var input * bool input
-  | InsertForObject of bool input
+  | InsertFor1 of var input * bool input
+  | InsertFor2 of var input * bool input
+  | InsertForObject1 of bool input
+  | InsertForObject2 of bool input
   | InsertLet1 of var input
   | InsertLet2 of var input
-  | InsertWhere
+  | InsertWhere1
+  | InsertWhere2
   | InsertGroupBy of var
-  | InsertOrderBy of order
+  | InsertOrderBy1 of order
+  | InsertOrderBy2 of order
 
 (* TODO: avoid implicit focus change in transf application, make it global *)
 		       
@@ -281,16 +287,16 @@ let rec reaching_expr : expr -> transf list = function
   | EObject pairs -> InsertObject :: reaching_list reaching_pair [InsertConcat] pairs
   | Objectify e -> reaching_expr e @ [InsertObjectify]
   | Arrayify e -> reaching_expr e @ [InsertArrayify]
-  | DefVar (x,e1,e2) -> reaching_expr e1 @ InsertDefVar (new input x) :: reaching_expr e2 @ [FocusUp]
-  | DefFunc (name,args,e1,e2) -> InsertDefFunc (new input name) :: List.map (fun x -> InsertArg (new input x)) args @ reaching_expr e1 @ FocusRight :: reaching_expr e2 @ [FocusUp]
+  | DefVar (x,e1,e2) -> reaching_expr e1 @ InsertDefVar1 (new input x) :: reaching_expr e2 @ [FocusUp]
+  | DefFunc (name,args,e1,e2) -> InsertDefFunc1 (new input name) :: List.map (fun x -> InsertArg (new input x)) args @ reaching_expr e1 @ FocusRight :: reaching_expr e2 @ [FocusUp]
 and reaching_flower : flower -> transf list = function
   | Return e -> reaching_expr e @ [FocusUp]
-  | For (x,e,opt,f) -> reaching_expr e @ InsertFor (new input x, new input opt) :: reaching_flower f @ [FocusUp]
-  | ForObject (e,opt,f) -> reaching_expr e @ InsertForObject (new input opt) :: reaching_flower f @ [FocusUp]
+  | For (x,e,opt,f) -> reaching_expr e @ InsertFor1 (new input x, new input opt) :: reaching_flower f @ [FocusUp]
+  | ForObject (e,opt,f) -> reaching_expr e @ InsertForObject1 (new input opt) :: reaching_flower f @ [FocusUp]
   | Let (x,e,f) -> reaching_expr e @ InsertLet1 (new input x) :: reaching_flower f @ [FocusUp]
-  | Where (e,f) -> reaching_expr e @ InsertWhere :: reaching_flower f @ [FocusUp]
+  | Where (e,f) -> reaching_expr e @ InsertWhere1 :: reaching_flower f @ [FocusUp]
   | GroupBy (lx,f) -> List.map (fun x -> InsertGroupBy x) lx @ reaching_flower f @ [FocusUp]
-  | OrderBy (leo,f) -> List.concat (List.map (fun (e,o) -> reaching_expr e @ [InsertOrderBy o]) leo) @ reaching_flower f @ [FocusUp]
+  | OrderBy (leo,f) -> List.concat (List.map (fun (e,o) -> reaching_expr e @ [InsertOrderBy1 o]) leo) @ reaching_flower f @ [FocusUp]
   | FConcat lf -> reaching_list reaching_flower [InsertConcat] lf
   | FIf (f1,f2,f3) -> reaching_flower f1 @ InsertIf1 :: reaching_flower f2 @ FocusRight :: reaching_flower f3 @ [FocusUp]
 and reaching_data (d : data) : transf list =
@@ -306,7 +312,12 @@ and reaching_item : item -> transf list = function
 and reaching_pair (e1, e2: expr * expr) : transf list =
   reaching_expr e1 @ FocusRight :: reaching_expr e2
 
-
+let flower_of_expr = function
+  | Flower f -> f
+  | e -> Return e
+let expr_of_flower = function
+  | Return e -> e
+  | f -> Flower f
 let ctx_flower_of_expr = function
   | Return1 ctx_f -> ctx_f
   | ctx_e -> Flower1 ctx_e
@@ -320,97 +331,106 @@ let rec apply_transf (transf : transf) (foc : focus) : focus option =
   | FocusRight -> focus_right foc
   | Delete -> delete foc
   | _ ->
-     match foc with
-     | AtExpr (e,ctx) -> apply_transf_expr (transf, e, ctx)
-     | AtFlower (f,ctx) -> apply_transf_flower (transf, f, ctx)
+     let e, ctx_e =
+       match foc with
+       | AtExpr (e,ctx) -> e, ctx
+       | AtFlower (f,ctx) -> expr_of_flower f, ctx_expr_of_flower ctx in
+     match apply_transf_expr (transf,e,ctx_e) with
+     | None -> None
+     | Some (Flower f, Return1 ctx) -> Some (AtFlower (f,ctx))
+     | Some (e',ctx') -> Some (AtExpr (e',ctx'))
 and apply_transf_expr = function
-  | InsertBool b, _, ctx -> Some (AtExpr (Item (Bool b), ctx))
-  | InputInt in_n, _, ctx -> Some (AtExpr (Item (Int in_n#get), ctx))
-  | InputRange (in_a,in_b), _, ctx -> Some (AtExpr (Call (Range, [Item (Int in_a#get); Item (Int in_b#get)]), ctx))
-  | InputFloat in_f, _, ctx -> Some (AtExpr (Item (Float in_f#get), ctx))
-  | InputString in_s, _, ctx -> Some (AtExpr (Item (String in_s#get), ctx))
-  | InsertNull, _, ctx -> Some (AtExpr (Item Null, ctx))
+  | (FocusUp | FocusRight | Delete), _, _ -> assert false
+  | InsertBool b, _, ctx -> Some (Item (Bool b), ctx)
+  | InputInt in_n, _, ctx -> Some (Item (Int in_n#get), ctx)
+  | InputRange (in_a,in_b), _, ctx -> Some (Call (Range, [Item (Int in_a#get); Item (Int in_b#get)]), ctx)
+  | InputFloat in_f, _, ctx -> Some (Item (Float in_f#get), ctx)
+  | InputString in_s, _, ctx -> Some (Item (String in_s#get), ctx)
+  | InsertNull, _, ctx -> Some (Item Null, ctx)
 
-  | InsertConcat, e, EObjectX1 ((ll,rr), ctx, e2) -> Some (AtExpr (Empty, EObjectX1 (((e,e2)::ll,rr), ctx, Empty)))
-  | InsertConcat, e, EObjectX2 ((ll,rr), e1, ctx) -> Some (AtExpr (Empty, EObjectX1 (((e1,e)::ll,rr), ctx, Empty)))
+  | InsertConcat, e, EObjectX1 ((ll,rr), ctx, e2) -> Some (Empty, EObjectX1 (((e,e2)::ll,rr), ctx, Empty))
+  | InsertConcat, e, EObjectX2 ((ll,rr), e1, ctx) -> Some (Empty, EObjectX1 (((e1,e)::ll,rr), ctx, Empty))
 
   | InsertConcat, Empty, _ -> None
-  | InsertConcat, e, ConcatX ((ll,rr), ctx) -> Some (AtExpr (Empty, ConcatX ((e::ll,rr), ctx)))
-  | InsertConcat, Concat le, ctx -> Some (AtExpr (Empty, ConcatX ((List.rev le,[]), ctx)))
-  | InsertConcat, e, ctx -> Some (AtExpr (Empty, ConcatX (([e],[]), ctx)))
+  | InsertConcat, e, ConcatX ((ll,rr), ctx) -> Some (Empty, ConcatX ((e::ll,rr), ctx))
+  | InsertConcat, Concat le, ctx -> Some (Empty, ConcatX ((List.rev le,[]), ctx))
+  | InsertConcat, e, ctx -> Some (Empty, ConcatX (([e],[]), ctx))
 
-  | InsertExists in_x, Empty, ctx -> Some (AtExpr (Empty, Exists1 (in_x#get,ctx,Empty)))
-  | InsertExists in_x, e, ctx -> Some (AtExpr (Empty, Exists2 (in_x#get,e,ctx)))
-  | InsertForAll in_x, Empty, ctx -> Some (AtExpr (Empty, ForAll1 (in_x#get,ctx,Empty)))
-  | InsertForAll in_x, e, ctx -> Some (AtExpr (Empty, ForAll2 (in_x#get,e,ctx)))
+  | InsertExists in_x, Empty, ctx -> Some (Empty, Exists1 (in_x#get,ctx,Empty))
+  | InsertExists in_x, e, ctx -> Some (Empty, Exists2 (in_x#get,e,ctx))
+  | InsertForAll in_x, Empty, ctx -> Some (Empty, ForAll1 (in_x#get,ctx,Empty))
+  | InsertForAll in_x, e, ctx -> Some (Empty, ForAll2 (in_x#get,e,ctx))
 
-  | InsertIf1, e, ctx -> Some (AtExpr (Empty, If2 (e,ctx,Empty)))
-  | InsertIf2, e, ctx -> Some (AtExpr (Empty, If1 (ctx,e,Empty)))
-  | InsertIf3, e, ctx -> Some (AtExpr (Empty, If1 (ctx,Empty,e)))
+  | InsertIf1, e, ctx -> Some (Empty, If2 (e,ctx,Empty))
+  | InsertIf2, e, ctx -> Some (Empty, If1 (ctx,e,Empty))
+  | InsertIf3, e, ctx -> Some (Empty, If1 (ctx,Empty,e))
 
-  | InsertOr, e, OrX ((ll,rr), ctx) -> Some (AtExpr (Empty, OrX ((e::ll,rr), ctx)))
-  | InsertOr, Or le, ctx -> Some (AtExpr (Empty, OrX ((List.rev le,[]), ctx)))
-  | InsertOr, e, ctx -> Some (AtExpr (Empty, OrX (([e],[]), ctx)))
+  | InsertOr, e, OrX ((ll,rr), ctx) -> Some (Empty, OrX ((e::ll,rr), ctx))
+  | InsertOr, Or le, ctx -> Some (Empty, OrX ((List.rev le,[]), ctx))
+  | InsertOr, e, ctx -> Some (Empty, OrX (([e],[]), ctx))
 
-  | InsertAnd, e, AndX ((ll,rr), ctx) -> Some (AtExpr (Empty, AndX ((e::ll,rr), ctx)))
-  | InsertAnd, And le, ctx -> Some (AtExpr (Empty, AndX ((List.rev le,[]), ctx)))
-  | InsertAnd, e, ctx -> Some (AtExpr (Empty, AndX (([e],[]), ctx)))
+  | InsertAnd, e, AndX ((ll,rr), ctx) -> Some (Empty, AndX ((e::ll,rr), ctx))
+  | InsertAnd, And le, ctx -> Some (Empty, AndX ((List.rev le,[]), ctx))
+  | InsertAnd, e, ctx -> Some (Empty, AndX (([e],[]), ctx))
 
-  | InsertNot, Not e, ctx -> Some (AtExpr (e,ctx))
-  | InsertNot, e, Not1 ctx -> Some (AtExpr (e,ctx))
-  | InsertNot, e, ctx -> Some (AtExpr (Not e, ctx))
+  | InsertNot, Not e, ctx -> Some (e,ctx)
+  | InsertNot, e, Not1 ctx -> Some (e,ctx)
+  | InsertNot, e, ctx -> Some (Not e, ctx)
 
   | InsertFunc func, e, ctx ->
      ( match arity_of_func func with
-       | 0 -> Some (AtExpr (Call (func, []), ctx))
-       | n -> Some (AtExpr (e, CallX (func, ([],make_list (n-1) Empty), ctx))) )
+       | 0 -> Some (Call (func, []), ctx)
+       | n -> Some (e, CallX (func, ([],make_list (n-1) Empty), ctx)) )
 
-  | InsertMap, e, ctx -> Some (AtExpr (Empty, Map2 (e, ctx)))
-  | InsertPred, e, ctx -> Some (AtExpr (Empty, Pred2 (e, ctx)))
-  | InsertDot, e, ctx -> Some (AtExpr (Empty, Dot2 (e, ctx)))
-  | InsertField k, Dot (e,_), ctx -> Some (AtExpr (Dot (e, S k), ctx))
-  | InsertField k, e, ctx -> Some (AtExpr (Dot (e, S k), ctx))
-  | InsertArrayLookup, e, ctx -> Some (AtExpr (Empty, ArrayLookup2 (e, ctx)))
+  | InsertMap, e, ctx -> Some (Empty, Map2 (e, ctx))
+  | InsertPred, e, ctx -> Some (Empty, Pred2 (e, ctx))
+  | InsertDot, e, ctx -> Some (Empty, Dot2 (e, ctx))
+  | InsertField k, Dot (e,_), ctx -> Some (Dot (e, S k), ctx)
+  | InsertField k, e, ctx -> Some (Dot (e, S k), ctx)
+  | InsertArrayLookup, e, ctx -> Some (Empty, ArrayLookup2 (e, ctx))
 
-  | InsertArrayUnboxing, e, ctx -> Some (AtExpr (ArrayUnboxing e, ctx))
+  | InsertArrayUnboxing, e, ctx -> Some (ArrayUnboxing e, ctx)
 
-  | InsertVar x, Empty, ctx -> Some (AtExpr (Var x, ctx))
-  | InsertContextItem, Empty, ctx -> Some (AtExpr (ContextItem, ctx))
-  | InsertContextEnv, Empty, ctx -> Some (AtExpr (ContextEnv, ctx))
+  | InsertVar x, Empty, ctx -> Some (Var x, ctx)
+  | InsertVar _, _, _ -> None
+  | InsertContextItem, Empty, ctx -> Some (ContextItem, ctx)
+  | InsertContextItem, _, _ -> None
+  | InsertContextEnv, Empty, ctx -> Some (ContextEnv, ctx)
+  | InsertContextEnv, _, _ -> None
 
-  | InsertObject, Empty, ctx -> Some (AtExpr (Empty, EObjectX1 (([],[]), ctx, Empty)))
-  | InsertArray, Empty, ctx -> Some (AtExpr (Empty, Arrayify1 ctx))
-  | InsertObjectify, e, ctx -> Some (AtExpr (Objectify e, ctx))
-  | InsertArrayify, e, ctx -> Some (AtExpr (Arrayify e, ctx))
+  | InsertObject, Empty, ctx -> Some (Empty, EObjectX1 (([],[]), ctx, Empty))
+  | InsertObject, _, _ -> None
+  | InsertArray, Empty, ctx -> Some (Empty, Arrayify1 ctx)
+  | InsertArray, _, _ -> None
+  | InsertObjectify, e, ctx -> Some (Objectify e, ctx)
+  | InsertArrayify, e, ctx -> Some (Arrayify e, ctx)
 
-  | InsertDefVar in_x, e, ctx -> Some (AtExpr (Empty, DefVar2 (in_x#get, e, ctx)))
-  | InsertDefFunc in_name, e, ctx -> Some (AtExpr (Empty, DefFunc1 (in_name#get, [], ctx, e)))
-  | InsertArg in_x, DefFunc (name,args,e1,e2), ctx -> Some (AtExpr (DefFunc (name, args@[in_x#get], e1, e2), ctx))
-  | InsertArg in_x, e1, DefFunc1 (name,args,ctx,e2) -> Some (AtExpr (e1, DefFunc1 (name, args@[in_x#get], ctx, e2)))
+  | InsertDefVar1 in_x, e, ctx -> Some (Empty, DefVar2 (in_x#get, e, ctx))
+  | InsertDefVar2 in_x, e, ctx -> Some (Empty, DefVar1 (in_x#get, ctx, e))
+  | InsertDefFunc1 in_name, e, ctx -> Some (e, DefFunc1 (in_name#get, [], ctx, Empty))
+  | InsertDefFunc2 in_name, e, ctx -> Some (Empty, DefFunc1 (in_name#get, [], ctx, e))
+  | InsertArg in_x, DefFunc (name,args,e1,e2), ctx -> Some (DefFunc (name, args@[in_x#get], e1, e2), ctx)
+  | InsertArg in_x, e1, DefFunc1 (name,args,ctx,e2) -> Some (e1, DefFunc1 (name, args@[in_x#get], ctx, e2))
+  | InsertArg _, _, _ -> None
 
-  | InsertFor (in_x,in_opt), e, ctx -> Some (AtExpr (Empty, Return1 (For2 (in_x#get,e,in_opt#get, ctx_flower_of_expr ctx))))
-  | InsertForObject in_opt, e, ctx -> Some (AtExpr (Empty, Return1 (ForObject2 (e,in_opt#get, ctx_flower_of_expr ctx))))
-  | InsertLet1 in_x, e, ctx -> Some (AtExpr (Empty, Return1 (Let2 (in_x#get, e, ctx_flower_of_expr ctx))))
-  | InsertLet2 in_x, e, ctx -> apply_transf_flower (InsertLet2 in_x, Return e, ctx_flower_of_expr ctx)
-  | InsertWhere, e, Return1 ctx -> Some (AtExpr (Empty, Return1 (Where2 (e, ctx))))
-  | InsertGroupBy x, e, Return1 (GroupBy1 (lx,ctx)) -> Some (AtExpr (e, Return1 (GroupBy1 (lx@[x],ctx))))
-  | InsertGroupBy x, e, Return1 ctx -> Some (AtExpr (e, Return1 (GroupBy1 ([x],ctx))))
-  | InsertOrderBy o, e, Return1 (OrderBy2 (leo, ctx)) -> Some (AtExpr (Empty, Return1 (OrderBy2 (leo@[e,o], ctx))))
-  | InsertOrderBy o, e, Return1 ctx -> Some (AtExpr (Empty, Return1 (OrderBy2 ([e,o], ctx))))
-    
-  | transf, Flower f, ctx -> apply_transf_flower (transf, f, Flower1 ctx)
-				
-  | _ -> None
-and apply_transf_flower = function
-  | InsertFor (in_x,in_opt), f, ctx -> Some (AtExpr (Empty, For1 (in_x#get, ctx, in_opt#get, f)))
-  | InsertForObject in_opt, f, ctx -> Some (AtExpr (Empty, ForObject1 (ctx, in_opt#get, f)))
-  | InsertLet1 in_x, f, ctx -> apply_transf_expr (InsertLet1 in_x, Flower f, ctx_expr_of_flower ctx)
-  | InsertLet2 in_x, f, ctx -> Some (AtExpr (Empty, Let1 (in_x#get, ctx, f)))
-  | _, _, Flower1 _ -> None
-  | InsertWhere, f, ctx -> Some (AtExpr (Empty, Return1 (Where2 (Flower f, ctx))))
-  | InsertGroupBy x, GroupBy (lx,f), ctx -> Some (AtFlower (GroupBy (lx@[x],f), ctx))
-  | InsertGroupBy x, f, GroupBy1 (lx, ctx) -> Some (AtFlower (f, GroupBy1 (lx@[x], ctx)))
-  | InsertGroupBy x, f, ctx -> Some (AtFlower (GroupBy ([x],f), ctx))
-				
-  | transf, Return e, ctx -> apply_transf_expr (transf, e, ctx_expr_of_flower ctx)
-  | _ -> None
+  | InsertFor1 (in_x,in_opt), e, ctx -> Some (Empty, Return1 (For2 (in_x#get, e, in_opt#get, ctx_flower_of_expr ctx)))
+  | InsertFor2 (in_x,in_opt), e, ctx -> Some (Empty, For1 (in_x#get, ctx_flower_of_expr ctx, in_opt#get, flower_of_expr e))
+  | InsertForObject1 in_opt, e, ctx -> Some (Empty, Return1 (ForObject2 (e, in_opt#get, ctx_flower_of_expr ctx)))
+  | InsertForObject2 in_opt, e, ctx -> Some (Empty, ForObject1 (ctx_flower_of_expr ctx, in_opt#get, flower_of_expr e))
+					   
+  | InsertLet1 in_x, e, ctx -> Some (Empty, Return1 (Let2 (in_x#get, e, ctx_flower_of_expr ctx)))
+  | InsertLet2 in_x, e, ctx -> Some (Empty, Let1 (in_x#get, ctx_flower_of_expr ctx, flower_of_expr e))
+
+  | _, _, Return1 (Flower1 _) -> None (* to block transformations below in this ctx *)
+			 
+  | InsertWhere1, e, ctx -> Some (Empty, Return1 (Where2 (e, ctx_flower_of_expr ctx)))
+  | InsertWhere2, e, ctx -> Some (Empty, Where1 (ctx_flower_of_expr ctx, flower_of_expr e))
+
+  | InsertGroupBy x, e, Return1 (GroupBy1 (lx,ctx)) -> Some (e, Return1 (GroupBy1 (lx@[x],ctx)))					    
+  | InsertGroupBy x, Flower (GroupBy (lx,f)), ctx -> Some (Flower (GroupBy (lx@[x],f)), ctx)						 
+  | InsertGroupBy x, e, ctx -> Some (e, Return1 (GroupBy1 ([x], ctx_flower_of_expr ctx)))
+
+  | InsertOrderBy1 o, e, Return1 (OrderBy2 (leo, ctx)) -> Some (Empty, Return1 (OrderBy2 (leo@[e,o], ctx)))
+  | InsertOrderBy1 o, e, ctx -> Some (Empty, Return1 (OrderBy2 ([e,o], ctx_flower_of_expr ctx)))
+  | InsertOrderBy2 o, e, ctx -> Some (Empty, OrderBy1X (([],[]), ctx_flower_of_expr ctx, o, flower_of_expr e))
+

@@ -594,14 +594,21 @@ let syn_transf : transf -> syn = function
   | InsertArray -> syn_Arrayify [ellipsis]
   | InsertObjectify -> syn_Objectify [the_focus]
   | InsertArrayify -> syn_Arrayify [the_focus]
-  | InsertDefVar in_x -> syn_DefVar [Input (`Ident in_x)] [the_focus] [ellipsis]
-  | InsertDefFunc in_name -> syn_DefFunc [Input (`Ident in_name)] [] [ellipsis] [ellipsis]
+  | InsertDefVar1 in_x -> syn_DefVar [Input (`Ident in_x)] [the_focus] [ellipsis]
+  | InsertDefVar2 in_x -> syn_DefVar [Input (`Ident in_x)] [ellipsis] [the_focus]
+  | InsertDefFunc1 in_name -> syn_DefFunc [Input (`Ident in_name)] [] [the_focus] [ellipsis]
+  | InsertDefFunc2 in_name -> syn_DefFunc [Input (`Ident in_name)] [] [ellipsis] [the_focus]
   | InsertArg in_x -> [Kwd "add"; Kwd "argument"; Input (`Ident in_x)]
-  | InsertFor (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [the_focus] false [ellipsis] (* TODO: optional *)
-  | InsertForObject in_opt -> syn_ForObject [the_focus] false [ellipsis] (* TODO: optional *)
+  | InsertFor1 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [the_focus] false [ellipsis] (* TODO: optional *)
+  | InsertFor2 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [ellipsis] false [the_focus] (* TODO: optional *)
+  | InsertForObject1 in_opt -> syn_ForObject [the_focus] false [ellipsis] (* TODO: optional *)
+  | InsertForObject2 in_opt -> syn_ForObject [ellipsis] false [the_focus] (* TODO: optional *)
   | InsertLet1 in_x -> syn_Let [Input (`Ident in_x)] [the_focus] [ellipsis]
   | InsertLet2 in_x -> syn_Let [Input (`Ident in_x)] [ellipsis] [the_focus]
-  | InsertWhere -> syn_Where [the_focus] [ellipsis]
+  | InsertWhere1 -> syn_Where [the_focus] [ellipsis]
+  | InsertWhere2 -> syn_Where [ellipsis] [the_focus]
   | InsertGroupBy x -> syn_GroupBy [x] [the_focus]
-  | InsertOrderBy o -> syn_OrderBy [syn_order [the_focus] o] [ellipsis]
+  | InsertOrderBy1 o -> syn_OrderBy [syn_order [the_focus] o] [ellipsis]
+  | InsertOrderBy2 o -> syn_OrderBy [syn_order [ellipsis] o] [the_focus]
+				    
 	   

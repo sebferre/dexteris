@@ -59,8 +59,10 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       add `Flower InsertMap;
       add `Flower InsertPred);
     if multiple_items then (
-      add `Flower (InsertFor (new input "", new input false));
-      add `Flower (InsertForObject (new input false)));
+      add `Flower (InsertFor1 (new input "", new input false));
+      add `Flower (InsertForObject1 (new input false)));
+    add `Flower (InsertFor2 (new input "", new input false));
+    add `Flower (InsertForObject2 (new input false));
     add `Flower (InsertLet1 (new input ""));
     add `Flower (InsertLet2 (new input ""));
     if Sem.TypSet.mem `Bool ctx_typs then
@@ -106,16 +108,21 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     if Sem.TypSet.mem `Array ctx_typs then (
       add `Val InsertArray;
       add `Val InsertArrayify);
-    add `Flower (InsertDefVar (new input ""));
-    add `Flower (InsertDefFunc (new input ""));
+    add `Flower (InsertDefVar1 (new input ""));
+    add `Flower (InsertDefVar2 (new input ""));
+    add `Flower (InsertDefFunc1 (new input ""));
+    add `Flower (InsertDefFunc2 (new input ""));
     add `Flower (InsertArg (new input ""));
+    add `Flower InsertWhere2;
     if multiple_bindings then (
       List.iter
 	(fun x -> add `Flower (InsertGroupBy x)) (* TODO: suggest only variables not yet grouped *)
 	sem.Sem.annot#env;
-      if Sem.TypSet.mem `Bool focus_typs then add `Flower InsertWhere;
-      add `Flower (InsertOrderBy DESC);
-      add `Flower (InsertOrderBy ASC));
+      if Sem.TypSet.mem `Bool focus_typs then add `Flower InsertWhere1;
+      add `Flower (InsertOrderBy1 DESC);
+      add `Flower (InsertOrderBy1 ASC));
+    add `Flower (InsertOrderBy2 DESC);
+    add `Flower (InsertOrderBy2 ASC);
   in
   let lsugg_val, lsugg_op, lsugg_flower =
     List.fold_left
