@@ -108,9 +108,6 @@ let syn_Objectify xml1 : syn =
   [Quote ("{| ", xml1, " |}")]
 let syn_Arrayify xml1 : syn =
   [Quote ("[", xml1, "]")]
-let syn_DefVar xmlx xml1 xml2 : syn =
-  [Block [Kwd "def" :: xmlx @ Kwd "=" :: xml1;
-	  xml2]]
 let syn_DefFunc xml_func args xml1 xml2 : syn =
   [Block [Kwd "def" :: xml_func @
 	    syn_args (List.map (fun x -> [Word (`Var x)]) args) @ Kwd "=" :: Indent xml1 :: [];
@@ -218,10 +215,10 @@ and syn_expr e ctx : syn =
        syn_Objectify (syn_expr e1 (Objectify1 ctx))
     | Arrayify e1 ->
        syn_Arrayify (syn_expr e1 (Arrayify1 ctx))
-    | DefVar (x,e1,e2) ->
-       syn_DefVar [Word (`Var x)]
-		  (syn_expr e1 (DefVar1 (x,ctx,e2)))
-		  (syn_expr e2 (DefVar2 (x,e1,ctx)))
+    | Let (x,e1,e2) ->
+       syn_Let [Word (`Var x)]
+		  (syn_expr e1 (Let1 (x,ctx,e2)))
+		  (syn_expr e2 (Let2 (x,e1,ctx)))
     | DefFunc (name,args,e1,e2) ->
        syn_DefFunc [Word (`Func name)] args
 		   (syn_expr e1 (DefFunc1 (name,args,ctx,e2)))
@@ -243,10 +240,10 @@ and syn_flower f ctx : syn =
 	       (syn_expr e1 (ForObject1 (ctx,opt,f1)))
 	       opt
 	       (syn_flower f1 (ForObject2 (e1,opt,ctx)))
-    | Let (x,e1,f1) ->
+    | FLet (x,e1,f1) ->
        syn_Let [Word (`Var x)]
-	       (syn_expr e1 (Let1 (x,ctx,f1)))
-	       (syn_flower f1 (Let2 (x,e1,ctx)))
+	       (syn_expr e1 (FLet1 (x,ctx,f1)))
+	       (syn_flower f1 (FLet2 (x,e1,ctx)))
     | Where (e1,f1) ->
        syn_Where (syn_expr e1 (Where1 (ctx,f1)))
 		 (syn_flower f1 (Where2 (e1,ctx)))
@@ -423,17 +420,17 @@ and syn_expr_ctx e ctx (xml_e : syn) : syn =
      syn_expr_ctx
        (Arrayify e) ctx
        (syn_Arrayify xml_e)
-  | DefVar1 (x,ctx,e2) ->
+  | Let1 (x,ctx,e2) ->
      syn_expr_ctx
-       (DefVar (x,e,e2)) ctx
-       (syn_DefVar [Word (`Var x)]
+       (Let (x,e,e2)) ctx
+       (syn_Let [Word (`Var x)]
 		   xml_e
-		   (syn_susp (syn_expr e2 (DefVar2 (x,e,ctx)))))
-  | DefVar2 (x,e1,ctx) ->
+		   (syn_susp (syn_expr e2 (Let2 (x,e,ctx)))))
+  | Let2 (x,e1,ctx) ->
      syn_expr_ctx
-       (DefVar (x,e1,e)) ctx
-       (syn_DefVar [Word (`Var x)]
-		   (syn_expr e1 (DefVar1 (x,ctx,e)))
+       (Let (x,e1,e)) ctx
+       (syn_Let [Word (`Var x)]
+		   (syn_expr e1 (Let1 (x,ctx,e)))
 		   xml_e)
   | DefFunc1 (name,args,ctx,e2) ->
      syn_expr_ctx
@@ -464,12 +461,12 @@ and syn_expr_ctx e ctx (xml_e : syn) : syn =
        (syn_ForObject xml_e
 		      opt
 		      (syn_susp (syn_flower f (ForObject2 (e,opt,ctx)))))
-  | Let1 (x,ctx,f) ->
+  | FLet1 (x,ctx,f) ->
      syn_flower_ctx
-       (Let (x,e,f)) ctx
+       (FLet (x,e,f)) ctx
        (syn_Let [Word (`Var x)]
 		xml_e
-		(syn_susp (syn_flower f (Let2 (x,e,ctx)))))
+		(syn_susp (syn_flower f (FLet2 (x,e,ctx)))))
   | Where1 (ctx,f) ->
      syn_flower_ctx
        (Where (e,f)) ctx
@@ -507,11 +504,11 @@ and syn_flower_ctx f ctx (xml_f : syn) : syn =
        (syn_ForObject (syn_expr e1 (ForObject1 (ctx,opt,f)))
 		      opt
 		      xml_f)
-  | Let2 (x,e1,ctx) ->
+  | FLet2 (x,e1,ctx) ->
      syn_flower_ctx
-       (Let (x,e1,f)) ctx
+       (FLet (x,e1,f)) ctx
        (syn_Let [Word (`Var x)]
-		(syn_expr e1 (Let1 (x,ctx,f)))
+		(syn_expr e1 (FLet1 (x,ctx,f)))
 		xml_f)
   | Where2 (e1,ctx) ->
      syn_flower_ctx
@@ -594,8 +591,6 @@ let syn_transf : transf -> syn = function
   | InsertArray -> syn_Arrayify [ellipsis]
   | InsertObjectify -> syn_Objectify [the_focus]
   | InsertArrayify -> syn_Arrayify [the_focus]
-  | InsertDefVar1 in_x -> syn_DefVar [Input (`Ident in_x)] [the_focus] [ellipsis]
-  | InsertDefVar2 in_x -> syn_DefVar [Input (`Ident in_x)] [ellipsis] [the_focus]
   | InsertDefFunc1 in_name -> syn_DefFunc [Input (`Ident in_name)] [] [the_focus] [ellipsis]
   | InsertDefFunc2 in_name -> syn_DefFunc [Input (`Ident in_name)] [] [ellipsis] [the_focus]
   | InsertArg in_x -> [Kwd "add"; Kwd "argument"; Input (`Ident in_x)]

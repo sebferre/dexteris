@@ -30,14 +30,14 @@ type expr_ctx =
   | EObjectX2 of (expr * expr) list_ctx * expr * expr_ctx
   | Objectify1 of expr_ctx
   | Arrayify1 of expr_ctx
-  | DefVar1 of var * expr_ctx * expr
-  | DefVar2 of var * expr * expr_ctx
+  | Let1 of var * expr_ctx * expr
+  | Let2 of var * expr * expr_ctx
   | DefFunc1 of string * var list * expr_ctx * expr
   | DefFunc2 of string * var list * expr * expr_ctx
   | Return1 of flower_ctx
   | For1 of var * flower_ctx * bool * flower
   | ForObject1 of flower_ctx * bool * flower
-  | Let1 of var * flower_ctx * flower
+  | FLet1 of var * flower_ctx * flower
   | Where1 of flower_ctx * flower
   | OrderBy1X of (expr * order) list_ctx * flower_ctx * order * flower
 
@@ -46,7 +46,7 @@ and flower_ctx =
   | Flower1 of expr_ctx
   | For2 of var * expr * bool * flower_ctx
   | ForObject2 of expr * bool * flower_ctx
-  | Let2 of var * expr * flower_ctx
+  | FLet2 of var * expr * flower_ctx
   | Where2 of expr * flower_ctx
   | GroupBy1 of var list * flower_ctx
   | OrderBy2 of (expr * order) list * flower_ctx
@@ -92,21 +92,21 @@ and focus_expr_up (e : expr) : expr_ctx -> focus = function
   | EObjectX2 (ll_rr,e1,ctx) -> AtExpr (EObject (list_of_ctx (e1,e) ll_rr), ctx)
   | Objectify1 ctx -> AtExpr (Objectify e, ctx)
   | Arrayify1 ctx -> AtExpr (Arrayify e, ctx)
-  | DefVar1 (x,ctx,e2) -> AtExpr (DefVar (x,e,e2), ctx)
-  | DefVar2 (x,e1,ctx) -> AtExpr (DefVar (x,e1,e), ctx)
+  | Let1 (x,ctx,e2) -> AtExpr (Let (x,e,e2), ctx)
+  | Let2 (x,e1,ctx) -> AtExpr (Let (x,e1,e), ctx)
   | DefFunc1 (name,args,ctx,e2) -> AtExpr (DefFunc (name,args,e,e2), ctx)
   | DefFunc2 (name,args,e1,ctx) -> AtExpr (DefFunc (name,args,e1,e), ctx)
   | Return1 ctx -> AtFlower (Return e, ctx)
   | For1 (x,ctx,opt,f) -> AtFlower (For (x,e,opt,f), ctx)
   | ForObject1 (ctx,opt,f) -> AtFlower (ForObject (e,opt,f), ctx)
-  | Let1 (x,ctx,f) -> AtFlower (Let (x,e,f), ctx)
+  | FLet1 (x,ctx,f) -> AtFlower (FLet (x,e,f), ctx)
   | Where1 (ctx,f) -> AtFlower (Where (e,f), ctx)
   | OrderBy1X (ll_rr,ctx,o,f) -> AtFlower (OrderBy (list_of_ctx (e,o) ll_rr, f), ctx)
 and focus_flower_up (f : flower) : flower_ctx -> focus = function
   | Flower1 ctx -> AtExpr (Flower f, ctx)
   | For2 (x,e,opt,ctx) -> AtFlower (For (x,e,opt,f), ctx)
   | ForObject2 (e,opt,ctx) -> AtFlower (ForObject (e,opt,f), ctx)
-  | Let2 (x,e,ctx) -> AtFlower (Let (x,e,f), ctx)
+  | FLet2 (x,e,ctx) -> AtFlower (FLet (x,e,f), ctx)
   | Where2 (e,ctx) -> AtFlower (Where (e,f), ctx)
   | GroupBy1 (lx,ctx) -> AtFlower (GroupBy (lx,f), ctx)
   | OrderBy2 (leo,ctx) -> AtFlower (OrderBy (leo,f), ctx)
@@ -151,14 +151,14 @@ and focus_expr_right (e : expr) : expr_ctx -> focus option = function
   | EObjectX2 ((_,[]),_,_) -> None
   | Objectify1 ctx -> None
   | Arrayify1 ctx -> None
-  | DefVar1 (x,ctx,e2) -> Some (AtExpr (e2, DefVar2 (x,e,ctx)))
-  | DefVar2 (x,e1,ctx) -> None
+  | Let1 (x,ctx,e2) -> Some (AtExpr (e2, Let2 (x,e,ctx)))
+  | Let2 (x,e1,ctx) -> None
   | DefFunc1 (name,args,ctx,e2) -> Some (AtExpr (e2, DefFunc2 (name,args,e,ctx)))
   | DefFunc2 (name,args,e1,ctx) -> None
   | Return1 ctx -> None
   | For1 (x,ctx,opt,f) -> Some (AtFlower (f, For2 (x,e,opt,ctx)))
   | ForObject1 (ctx,opt,f) -> Some (AtFlower (f, ForObject2 (e,opt,ctx)))
-  | Let1 (x,ctx,f) -> Some (AtFlower (f, Let2 (x,e,ctx)))
+  | FLet1 (x,ctx,f) -> Some (AtFlower (f, FLet2 (x,e,ctx)))
   | Where1 (ctx,f) -> Some (AtFlower (f, Where2 (e,ctx)))
   | OrderBy1X ((ll,(e1,o1)::rr),ctx,o,f) -> Some (AtExpr (e1, OrderBy1X (((e,o)::ll,rr),ctx,o1,f)))
   | OrderBy1X ((ll,[]),ctx,o,f) -> Some (AtFlower (f, OrderBy2 (List.rev ((e,o)::ll), ctx)))
@@ -166,7 +166,7 @@ and focus_flower_right (f : flower) : flower_ctx -> focus option = function
   | Flower1 ctx -> None
   | For2 (x,e,opt,ctx) -> None
   | ForObject2 (e,opt,ctx) -> None
-  | Let2 (x,e,ctx) -> None
+  | FLet2 (x,e,ctx) -> None
   | Where2 (e,ctx) -> None
   | GroupBy1 (lx,ctx) -> None
   | OrderBy2 (leo,ctx) -> None
@@ -237,8 +237,6 @@ type transf =
   | InsertArray
   | InsertObjectify
   | InsertArrayify
-  | InsertDefVar1 of var input
-  | InsertDefVar2 of var input
   | InsertDefFunc1 of string input
   | InsertDefFunc2 of string input
   | InsertArg of var input
@@ -287,13 +285,13 @@ let rec reaching_expr : expr -> transf list = function
   | EObject pairs -> InsertObject :: reaching_list reaching_pair [InsertConcat] pairs
   | Objectify e -> reaching_expr e @ [InsertObjectify]
   | Arrayify e -> reaching_expr e @ [InsertArrayify]
-  | DefVar (x,e1,e2) -> reaching_expr e1 @ InsertDefVar1 (new input x) :: reaching_expr e2 @ [FocusUp]
+  | Let (x,e1,e2) -> reaching_expr e1 @ InsertLet1 (new input x) :: reaching_expr e2 @ [FocusUp]
   | DefFunc (name,args,e1,e2) -> InsertDefFunc1 (new input name) :: List.map (fun x -> InsertArg (new input x)) args @ reaching_expr e1 @ FocusRight :: reaching_expr e2 @ [FocusUp]
 and reaching_flower : flower -> transf list = function
   | Return e -> reaching_expr e @ [FocusUp]
   | For (x,e,opt,f) -> reaching_expr e @ InsertFor1 (new input x, new input opt) :: reaching_flower f @ [FocusUp]
   | ForObject (e,opt,f) -> reaching_expr e @ InsertForObject1 (new input opt) :: reaching_flower f @ [FocusUp]
-  | Let (x,e,f) -> reaching_expr e @ InsertLet1 (new input x) :: reaching_flower f @ [FocusUp]
+  | FLet (x,e,f) -> reaching_expr e @ InsertLet1 (new input x) :: reaching_flower f @ [FocusUp]
   | Where (e,f) -> reaching_expr e @ InsertWhere1 :: reaching_flower f @ [FocusUp]
   | GroupBy (lx,f) -> List.map (fun x -> InsertGroupBy x) lx @ reaching_flower f @ [FocusUp]
   | OrderBy (leo,f) -> List.concat (List.map (fun (e,o) -> reaching_expr e @ [InsertOrderBy1 o]) leo) @ reaching_flower f @ [FocusUp]
@@ -405,8 +403,6 @@ and apply_transf_expr = function
   | InsertObjectify, e, ctx -> Some (Objectify e, ctx)
   | InsertArrayify, e, ctx -> Some (Arrayify e, ctx)
 
-  | InsertDefVar1 in_x, e, ctx -> Some (Empty, DefVar2 (in_x#get, e, ctx))
-  | InsertDefVar2 in_x, e, ctx -> Some (Empty, DefVar1 (in_x#get, ctx, e))
   | InsertDefFunc1 in_name, e, ctx -> Some (e, DefFunc1 (in_name#get, [], ctx, Empty))
   | InsertDefFunc2 in_name, e, ctx -> Some (Empty, DefFunc1 (in_name#get, [], ctx, e))
   | InsertArg in_x, DefFunc (name,args,e1,e2), ctx -> Some (DefFunc (name, args@[in_x#get], e1, e2), ctx)
@@ -417,11 +413,13 @@ and apply_transf_expr = function
   | InsertFor2 (in_x,in_opt), e, ctx -> Some (Empty, For1 (in_x#get, ctx_flower_of_expr ctx, in_opt#get, flower_of_expr e))
   | InsertForObject1 in_opt, e, ctx -> Some (Empty, Return1 (ForObject2 (e, in_opt#get, ctx_flower_of_expr ctx)))
   | InsertForObject2 in_opt, e, ctx -> Some (Empty, ForObject1 (ctx_flower_of_expr ctx, in_opt#get, flower_of_expr e))
-					   
-  | InsertLet1 in_x, e, ctx -> Some (Empty, Return1 (Let2 (in_x#get, e, ctx_flower_of_expr ctx)))
-  | InsertLet2 in_x, e, ctx -> Some (Empty, Let1 (in_x#get, ctx_flower_of_expr ctx, flower_of_expr e))
 
-  | _, _, Return1 (Flower1 _) -> None (* to block transformations below in this ctx *)
+  | InsertLet1 in_x, e, Return1 ctx -> Some (Empty, Return1 (FLet2 (in_x#get, e, ctx)))
+  | InsertLet2 in_x, e, Return1 ctx -> Some (Empty, FLet1 (in_x#get, ctx, flower_of_expr e))
+  | InsertLet1 in_x, e, ctx -> Some (Empty, Let2 (in_x#get, e, ctx))
+  | InsertLet2 in_x, e, ctx -> Some (Empty, Let1 (in_x#get, ctx, e))
+
+  (* transformations below should only be suggested in for context *)
 			 
   | InsertWhere1, e, ctx -> Some (Empty, Return1 (Where2 (e, ctx_flower_of_expr ctx)))
   | InsertWhere2, e, ctx -> Some (Empty, Where1 (ctx_flower_of_expr ctx, flower_of_expr e))

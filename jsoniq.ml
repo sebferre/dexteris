@@ -75,13 +75,13 @@ type expr =
   | EObject of (expr * expr) list
   | Objectify of expr
   | Arrayify of expr
-  | DefVar of var * expr * expr
+  | Let of var * expr * expr
   | DefFunc of string * var list * expr * expr
  and flower =
   | Return of expr
   | For of var * expr * bool * flower (* optional flag *)
   | ForObject of expr * bool * flower (* optional flag *)
-  | Let of var * expr * flower
+  | FLet of var * expr * flower
   | Where of expr * flower
   | GroupBy of var list * flower
   | OrderBy of (expr * order) list * flower
@@ -478,7 +478,7 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
      Seq.return (Object pairs)
   | Arrayify e ->
      Seq.return (Array (Seq.to_list (eval_expr funcs env e)))
-  | DefVar (v,e1,e2) ->
+  | Let (v,e1,e2) ->
      let d = eval_expr funcs env e1 in
      let env = (v,d)::env in
      eval_expr funcs env e2
@@ -524,7 +524,7 @@ and eval_flower (funcs : funcs) (ctx : env Seq.t) : flower -> data = function
 			 Seq.return env
 		      | _ -> Seq.empty)) in
      eval_flower funcs ctx f
-  | Let (x,e, f) ->
+  | FLet (x,e, f) ->
      let ctx =
        ctx
        |> Seq.map
@@ -613,7 +613,7 @@ module Test =
 let ex1 (csv : data) : expr =
   (* CSV has columns: dateTime, store, amount, consumer *)
   Flower (ForObject (Data csv, false,
-       Let ("date", Call (Substring,
+       FLet ("date", Call (Substring,
 			  [Var "dateTime";
 			   Item (Int 0); Item (Int 10)]),
 	    FConcat
@@ -624,7 +624,7 @@ let ex1 (csv : data) : expr =
 				    S "o", Call (Sum, [Var "amount"])]));
 		GroupBy (["date"],
 			 OrderBy ([Var "date", DESC],
-				  Let ("uriDate", Call (StringConcat,
+				  FLet ("uriDate", Call (StringConcat,
 							[S "<day/";
 							 Var "date";
 							 S ">"]),

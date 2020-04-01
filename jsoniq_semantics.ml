@@ -151,12 +151,12 @@ and sem_expr_ctx annot e : expr_ctx -> sem = function
   | Arrayify1 ctx ->
      annot#any_typ;
      sem_expr_ctx annot e ctx
-  | DefVar1 (x,ctx,e2) ->
+  | Let1 (x,ctx,e2) ->
      annot#any_typ;
      sem_expr_ctx annot e ctx
-  | DefVar2 (x,e1,ctx) ->
+  | Let2 (x,e1,ctx) ->
      annot#add_var x;
-     sem_expr_ctx annot (DefVar (x,e1,e)) ctx
+     sem_expr_ctx annot (Let (x,e1,e)) ctx
   | DefFunc1 (name,args,ctx,e2) -> (* add args' example values *)
      annot#add_func name args;
      args |> List.iter annot#add_var;
@@ -171,7 +171,7 @@ and sem_expr_ctx annot e : expr_ctx -> sem = function
   | ForObject1 (ctx,opt,f) ->
      annot#any_typ;
      sem_flower_ctx annot (flower_of_expr e) ctx
-  | Let1 (x,ctx,f) ->
+  | FLet1 (x,ctx,f) ->
      annot#any_typ;
      sem_flower_ctx annot (flower_of_expr e) ctx
   | Where1 (ctx,f) ->
@@ -186,9 +186,9 @@ and sem_flower_ctx annot f : flower_ctx -> sem = function
      annot#add_var x;
      sem_flower_ctx annot (For (x,e1,opt,f)) ctx
   | ForObject2 (e1,opt,ctx) -> sem_flower_ctx annot (ForObject (e1,opt,f)) ctx
-  | Let2 (x,e1,ctx) ->
+  | FLet2 (x,e1,ctx) ->
      annot#add_var x;
-     sem_flower_ctx annot (Let (x,e1,f)) ctx
+     sem_flower_ctx annot (FLet (x,e1,f)) ctx
   | Where2 (e1,ctx) -> sem_flower_ctx annot (Where (e1,f)) ctx
   | GroupBy1 (lx,ctx) -> sem_flower_ctx annot (GroupBy (lx,f)) ctx
   | OrderBy2 (leo,ctx) -> sem_flower_ctx annot (OrderBy (leo,f)) ctx

@@ -108,8 +108,6 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     if Sem.TypSet.mem `Array ctx_typs then (
       add `Val InsertArray;
       add `Val InsertArrayify);
-    add `Flower (InsertDefVar1 (new input ""));
-    add `Flower (InsertDefVar2 (new input ""));
     add `Flower (InsertDefFunc1 (new input ""));
     add `Flower (InsertDefFunc2 (new input ""));
     add `Flower (InsertArg (new input ""));
