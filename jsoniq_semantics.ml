@@ -4,7 +4,7 @@ open Jsoniq_focus
 
 type typ = [`Bool | `Int | `Float | `String | `Object | `Array]
 
-module TypSet = Set.Make(struct type t = typ let compare = Pervasives.compare end)
+module TypSet = Set.Make(struct type t = typ let compare = Stdlib.compare end)
 	     
 let all_typs : TypSet.t =
   List.fold_right TypSet.add [`Bool; `Int; `Float; `String; `Object; `Array] TypSet.empty
