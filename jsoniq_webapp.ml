@@ -24,10 +24,18 @@ let html_info_of_input (input : Jsoniq_syntax.input) : Html.input_info =
   (* exceptions are captured by caller of updates *)
   let input_type, placeholder, input_update =
     match input with
-    | `Int input -> "number", "0", (fun value -> input#set (int_of_string value))
-    | `Float input -> "number", "0.0e+0", (fun value -> input#set (float_of_string value))
-    | `String input -> "text", "", (fun value -> input#set value)
-    | `Ident input -> "text", "x", (fun value -> input#set value) in
+    | `Int input ->
+       "number", "0",
+       new Html.input_update (fun value -> input#set (int_of_string value))
+    | `Float input ->
+       "number", "0.0e+0",
+       new Html.input_update (fun value -> input#set (float_of_string value))
+    | `String input ->
+       "text", "",
+       new Html.input_update (fun value -> input#set value)
+    | `Ident input ->
+       "text", "x",
+       new Html.input_update (fun value -> input#set value) in
   Html.({ input_type; placeholder; input_update })
 
       
