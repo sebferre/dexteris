@@ -119,9 +119,6 @@ let syn_Return xml1 : syn =
 let syn_For xmlx xml1 opt xml2 : syn =
   Kwd "for" :: (if opt then [Kwd "optional"] else []) @ xmlx @ Kwd "in" :: xml1 @
     [Indent xml2]
-let syn_ForObject xml1 opt xml2 : syn =
-  Kwd "for" :: (if opt then [Kwd "optional"] else []) @ Kwd "object" :: Kwd "in" :: xml1 @
-    [Indent xml2]
 let syn_Let xmlx xml1 xml2 : syn =
   [Block [Kwd "let" :: xmlx @ Kwd "=" :: xml1;
 	  xml2]]
@@ -236,11 +233,6 @@ and syn_flower f ctx : syn =
 	       (syn_expr e1 (For1 (x,ctx,opt,f1)))
 	       opt
 	       (syn_flower f1 (For2 (x,e1,opt,ctx)))
-    | ForObject (e1,opt,f1) ->
-       syn_ForObject
-	       (syn_expr e1 (ForObject1 (ctx,opt,f1)))
-	       opt
-	       (syn_flower f1 (ForObject2 (e1,opt,ctx)))
     | FLet (x,e1,f1) ->
        syn_Let [Word (`Var x)]
 	       (syn_expr e1 (FLet1 (x,ctx,f1)))
@@ -456,12 +448,6 @@ and syn_expr_ctx e ctx (xml_e : syn) : syn =
 		xml_e
 		opt
 		(syn_susp (syn_flower f (For2 (x,e,opt,ctx)))))
-  | ForObject1 (ctx,opt,f) ->
-     syn_flower_ctx
-       (ForObject (e,opt,f)) ctx
-       (syn_ForObject xml_e
-		      opt
-		      (syn_susp (syn_flower f (ForObject2 (e,opt,ctx)))))
   | FLet1 (x,ctx,f) ->
      syn_flower_ctx
        (FLet (x,e,f)) ctx
@@ -499,12 +485,6 @@ and syn_flower_ctx f ctx (xml_f : syn) : syn =
 		(syn_expr e1 (For1 (x,ctx,opt,f)))
 		opt
 		xml_f)
-  | ForObject2 (e1,opt,ctx) ->
-     syn_flower_ctx
-       (ForObject (e1,opt,f)) ctx
-       (syn_ForObject (syn_expr e1 (ForObject1 (ctx,opt,f)))
-		      opt
-		      xml_f)
   | FLet2 (x,e1,ctx) ->
      syn_flower_ctx
        (FLet (x,e1,f)) ctx
@@ -598,8 +578,6 @@ let syn_transf : transf -> syn = function
   | InsertArg in_x -> [Kwd "add"; Kwd "argument"; Input (`Ident in_x)]
   | InsertFor1 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [the_focus] false [ellipsis] (* TODO: optional *)
   | InsertFor2 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [ellipsis] false [the_focus] (* TODO: optional *)
-  | InsertForObject1 in_opt -> syn_ForObject [the_focus] false [ellipsis] (* TODO: optional *)
-  | InsertForObject2 in_opt -> syn_ForObject [ellipsis] false [the_focus] (* TODO: optional *)
   | InsertLet1 in_x -> syn_Let [Input (`Ident in_x)] [the_focus] [ellipsis]
   | InsertLet2 in_x -> syn_Let [Input (`Ident in_x)] [ellipsis] [the_focus]
   | InsertWhere1 -> syn_Where [the_focus] [ellipsis]

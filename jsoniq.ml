@@ -85,7 +85,6 @@ type expr =
  and flower =
   | Return of expr
   | For of var * expr * bool * flower (* optional flag *)
-  | ForObject of expr * bool * flower (* optional flag *)
   | FLet of var * expr * flower
   | Where of expr * flower
   | GroupBy of var list * flower
@@ -509,26 +508,6 @@ and eval_flower (funcs : funcs) (ctx : env Seq.t) : flower -> data = function
 		    (fun i ->
 		     Seq.return ((x, Seq.return i)::env))) in
      eval_flower funcs ctx f
-  | ForObject (e, optional, f) ->
-     let ctx =
-       ctx
-       |> Seq.flat_map
-	    (fun env ->
-	     let d = eval_expr funcs env e in
-	     if optional && Seq.is_empty d
-	     then Seq.return env
-	     else
-	       d
-	       |> Seq.flat_map
-		    (function
-		      | `Assoc pairs ->
-			 let env =
-			   List.fold_left
-			     (fun env (x,i) -> (x, Seq.return i)::env)
-			     env pairs in
-			 Seq.return env
-		      | _ -> Seq.empty)) in
-     eval_flower funcs ctx f
   | FLet (x,e, f) ->
      let ctx =
        ctx
@@ -617,16 +596,16 @@ module Test =
 		      
 let ex1 (csv : data) : expr =
   (* CSV has columns: dateTime, store, amount, consumer *)
-  Flower (ForObject (FileData ("example.csv",csv), false,
+  Flower (For ("row", FileData ("example.csv",csv), false,
        FLet ("date", Call (Substring,
-			  [Var "dateTime";
+			  [Dot (Var "row", S "dateTime");
 			   Item (`Int 0); Item (`Int 10)]),
 	    FConcat
 	      [ GroupBy (["store"],
 			 Return (EObject
 				   [S "s", Call (StringConcat, [S "<store/"; Var "store"; S ">"]);
 				    S "p", S "ex:totalAmount";
-				    S "o", Call (Sum, [Var "amount"])]));
+				    S "o", Call (Sum, [Dot (Var "row", S "amount")])]));
 		GroupBy (["date"],
 			 OrderBy ([Var "date", DESC],
 				  FLet ("uriDate", Call (StringConcat,
@@ -642,7 +621,7 @@ let ex1 (csv : data) : expr =
 					     EObject
 					       [S "s", Var "uriDate";
 						S "p", S "ex:averageAmount";
-						S "o", Call (Avg, [Var "amount"])]]))))])))
+						S "o", Call (Avg, [Dot (Var "row", S "amount")])]]))))])))
 
 (* CNL tentative version
   for each row in CSV

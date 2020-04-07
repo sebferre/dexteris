@@ -169,9 +169,6 @@ and sem_expr_ctx annot e : expr_ctx -> sem = function
   | For1 (x,ctx,opt,f) ->
      annot#any_typ;
      sem_flower_ctx annot (flower_of_expr e) ctx
-  | ForObject1 (ctx,opt,f) ->
-     annot#any_typ;
-     sem_flower_ctx annot (flower_of_expr e) ctx
   | FLet1 (x,ctx,f) ->
      annot#any_typ;
      sem_flower_ctx annot (flower_of_expr e) ctx
@@ -186,7 +183,6 @@ and sem_flower_ctx annot f : flower_ctx -> sem = function
   | For2 (x,e1,opt,ctx) ->
      annot#add_var x;
      sem_flower_ctx annot (For (x,e1,opt,f)) ctx
-  | ForObject2 (e1,opt,ctx) -> sem_flower_ctx annot (ForObject (e1,opt,f)) ctx
   | FLet2 (x,e1,ctx) ->
      annot#add_var x;
      sem_flower_ctx annot (FLet (x,e1,f)) ctx

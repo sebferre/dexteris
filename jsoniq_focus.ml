@@ -36,7 +36,6 @@ type expr_ctx =
   | DefFunc2 of string * var list * expr * expr_ctx
   | Return1 of flower_ctx
   | For1 of var * flower_ctx * bool * flower
-  | ForObject1 of flower_ctx * bool * flower
   | FLet1 of var * flower_ctx * flower
   | Where1 of flower_ctx * flower
   | OrderBy1X of (expr * order) list_ctx * flower_ctx * order * flower
@@ -45,7 +44,6 @@ type expr_ctx =
 and flower_ctx =
   | Flower1 of expr_ctx
   | For2 of var * expr * bool * flower_ctx
-  | ForObject2 of expr * bool * flower_ctx
   | FLet2 of var * expr * flower_ctx
   | Where2 of expr * flower_ctx
   | GroupBy1 of var list * flower_ctx
@@ -98,14 +96,12 @@ and focus_expr_up (e : expr) : expr_ctx -> focus = function
   | DefFunc2 (name,args,e1,ctx) -> AtExpr (DefFunc (name,args,e1,e), ctx)
   | Return1 ctx -> AtFlower (Return e, ctx)
   | For1 (x,ctx,opt,f) -> AtFlower (For (x,e,opt,f), ctx)
-  | ForObject1 (ctx,opt,f) -> AtFlower (ForObject (e,opt,f), ctx)
   | FLet1 (x,ctx,f) -> AtFlower (FLet (x,e,f), ctx)
   | Where1 (ctx,f) -> AtFlower (Where (e,f), ctx)
   | OrderBy1X (ll_rr,ctx,o,f) -> AtFlower (OrderBy (list_of_ctx (e,o) ll_rr, f), ctx)
 and focus_flower_up (f : flower) : flower_ctx -> focus = function
   | Flower1 ctx -> AtExpr (Flower f, ctx)
   | For2 (x,e,opt,ctx) -> AtFlower (For (x,e,opt,f), ctx)
-  | ForObject2 (e,opt,ctx) -> AtFlower (ForObject (e,opt,f), ctx)
   | FLet2 (x,e,ctx) -> AtFlower (FLet (x,e,f), ctx)
   | Where2 (e,ctx) -> AtFlower (Where (e,f), ctx)
   | GroupBy1 (lx,ctx) -> AtFlower (GroupBy (lx,f), ctx)
@@ -157,7 +153,6 @@ and focus_expr_right (e : expr) : expr_ctx -> focus option = function
   | DefFunc2 (name,args,e1,ctx) -> None
   | Return1 ctx -> None
   | For1 (x,ctx,opt,f) -> Some (AtFlower (f, For2 (x,e,opt,ctx)))
-  | ForObject1 (ctx,opt,f) -> Some (AtFlower (f, ForObject2 (e,opt,ctx)))
   | FLet1 (x,ctx,f) -> Some (AtFlower (f, FLet2 (x,e,ctx)))
   | Where1 (ctx,f) -> Some (AtFlower (f, Where2 (e,ctx)))
   | OrderBy1X ((ll,(e1,o1)::rr),ctx,o,f) -> Some (AtExpr (e1, OrderBy1X (((e,o)::ll,rr),ctx,o1,f)))
@@ -165,7 +160,6 @@ and focus_expr_right (e : expr) : expr_ctx -> focus option = function
 and focus_flower_right (f : flower) : flower_ctx -> focus option = function
   | Flower1 ctx -> None
   | For2 (x,e,opt,ctx) -> None
-  | ForObject2 (e,opt,ctx) -> None
   | FLet2 (x,e,ctx) -> None
   | Where2 (e,ctx) -> None
   | GroupBy1 (lx,ctx) -> None
@@ -243,8 +237,6 @@ type transf =
   | InsertArg of var input
   | InsertFor1 of var input * bool input
   | InsertFor2 of var input * bool input
-  | InsertForObject1 of bool input
-  | InsertForObject2 of bool input
   | InsertLet1 of var input
   | InsertLet2 of var input
   | InsertWhere1
@@ -291,7 +283,6 @@ let rec reaching_expr : expr -> transf list = function
 and reaching_flower : flower -> transf list = function
   | Return e -> reaching_expr e @ [FocusUp]
   | For (x,e,opt,f) -> reaching_expr e @ InsertFor1 (new input x, new input opt) :: reaching_flower f @ [FocusUp]
-  | ForObject (e,opt,f) -> reaching_expr e @ InsertForObject1 (new input opt) :: reaching_flower f @ [FocusUp]
   | FLet (x,e,f) -> reaching_expr e @ InsertLet1 (new input x) :: reaching_flower f @ [FocusUp]
   | Where (e,f) -> reaching_expr e @ InsertWhere1 :: reaching_flower f @ [FocusUp]
   | GroupBy (lx,f) -> List.map (fun x -> InsertGroupBy x) lx @ reaching_flower f @ [FocusUp]
@@ -416,8 +407,6 @@ and apply_transf_expr = function
 
   | InsertFor1 (in_x,in_opt), e, ctx -> Some (Empty, Return1 (For2 (in_x#get, e, in_opt#get, ctx_flower_of_expr ctx)))
   | InsertFor2 (in_x,in_opt), e, ctx -> Some (Empty, For1 (in_x#get, ctx_flower_of_expr ctx, in_opt#get, flower_of_expr e))
-  | InsertForObject1 in_opt, e, ctx -> Some (Empty, Return1 (ForObject2 (e, in_opt#get, ctx_flower_of_expr ctx)))
-  | InsertForObject2 in_opt, e, ctx -> Some (Empty, ForObject1 (ctx_flower_of_expr ctx, in_opt#get, flower_of_expr e))
 
   | InsertLet1 in_x, e, Return1 ctx -> Some (Empty, Return1 (FLet2 (in_x#get, e, ctx)))
   | InsertLet2 in_x, e, Return1 ctx -> Some (Empty, FLet1 (in_x#get, ctx, flower_of_expr e))

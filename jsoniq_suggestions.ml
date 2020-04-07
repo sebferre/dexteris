@@ -61,10 +61,8 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       add `Flower InsertMap;
       add `Flower InsertPred);
     if multiple_items then (
-      add `Flower (InsertFor1 (new input "", new input false));
-      add `Flower (InsertForObject1 (new input false)));
+      add `Flower (InsertFor1 (new input "", new input false)));
     add `Flower (InsertFor2 (new input "", new input false));
-    add `Flower (InsertForObject2 (new input false));
     add `Flower (InsertLet1 (new input ""));
     add `Flower (InsertLet2 (new input ""));
     if Sem.TypSet.mem `Bool ctx_typs then
