@@ -215,6 +215,7 @@ type transf =
   | InputRange of int input * int input
   | InputFloat of float input
   | InputString of string input
+  | InputFileData of (string * data) input
   | InsertNull
   | InsertConcat
   | InsertExists of var input
@@ -264,7 +265,7 @@ let rec reaching_expr : expr -> transf list = function
   | S s -> [InputString (new input s)]
   | Item i -> reaching_item i
   | Empty -> [] (* the default value *)
-  | Data d -> reaching_data d
+  | FileData (filename,d) -> [InputFileData (new input (filename,d))] (* reaching_data d *)
   | Concat le -> reaching_list reaching_expr [InsertConcat] le (* assuming |le| > 1 *)
   | Flower f -> reaching_flower f
   | Exists (x,e1,e2) -> reaching_expr e1 @ InsertExists (new input x) :: reaching_expr e2 @ [FocusUp]
@@ -344,6 +345,10 @@ and apply_transf_expr = function
   | InputRange (in_a,in_b), _, ctx -> Some (Call (Range, [Item (Int in_a#get); Item (Int in_b#get)]), ctx)
   | InputFloat in_f, _, ctx -> Some (Item (Float in_f#get), ctx)
   | InputString in_s, _, ctx -> Some (Item (String in_s#get), ctx)
+  | InputFileData in_filedata, _, ctx ->
+     let filename, d = in_filedata#get in
+     Some (FileData (filename,d), ctx)
+     
   | InsertNull, _, ctx -> Some (Item Null, ctx)
 
   | InsertConcat, e, EObjectX1 ((ll,rr), ctx, e2) -> Some (Empty, EObjectX1 (((e,e2)::ll,rr), ctx, Empty))

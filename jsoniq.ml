@@ -54,7 +54,7 @@ type expr =
   | S of string
   | Item of item
   | Empty
-  | Data of data
+  | FileData of string * data
   | Concat of expr list
   | Flower of flower
   | Exists of var * expr * expr
@@ -333,7 +333,7 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
   | S s -> Seq.return (String s)
   | Item i -> Seq.return i
   | Empty -> Seq.empty
-  | Data d -> d
+  | FileData (filename,d) -> d
   | Concat le -> Seq.from_list le |> Seq.flat_map (eval_expr funcs env)
   | Flower lf -> eval_flower funcs (Seq.return env) lf
   | Exists (x,e1,e2) ->
@@ -612,7 +612,7 @@ module Test =
 		      
 let ex1 (csv : data) : expr =
   (* CSV has columns: dateTime, store, amount, consumer *)
-  Flower (ForObject (Data csv, false,
+  Flower (ForObject (FileData ("example.csv",csv), false,
        FLet ("date", Call (Substring,
 			  [Var "dateTime";
 			   Item (Int 0); Item (Int 10)]),

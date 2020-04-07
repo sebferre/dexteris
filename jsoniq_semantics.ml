@@ -53,6 +53,7 @@ class annot =
 	typs <- TypSet.filter (fun t -> List.mem t lt) typs;
 	typ_to_be_defined <- false
       )
+    method allows_any_type : bool = not typ_to_be_defined
   end
 
 type sem = { annot : annot; expr : expr }

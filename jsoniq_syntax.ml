@@ -7,7 +7,8 @@ type word = [`Bool of bool | `Int of int | `Float of float | `String of string |
 type input = [ `Int of int Focus.input
 	     | `Float of float Focus.input
 	     | `String of string Focus.input
-	     | `Ident of string Focus.input ]
+	     | `Ident of string Focus.input
+	     | `FileData of (string * data) Focus.input ]
 type syn = (word,input,focus) xml
 
 let rec syn_item : item -> syn = function
@@ -149,7 +150,7 @@ and syn_expr e ctx : syn =
     | S s -> [Word (`String s)]
     | Item i -> syn_item i
     | Empty -> [Kwd "()"]
-    | Data d -> syn_data d
+    | FileData (filename,d) -> [Kwd "file"; Word (`String filename)]
     | Concat le ->
        syn_Concat
 	 (List.map
@@ -567,6 +568,7 @@ let syn_transf : transf -> syn = function
   | InputRange (i1,i2) -> Kwd "a" :: Kwd "range" :: Kwd "from " :: syn_Call Range [[Input (`Int i1)]; [Input (`Int i2)]]
   | InputFloat i -> [Kwd "a"; Kwd "float"; Input (`Float i)]
   | InputString i -> [Kwd "a"; Kwd "string"; Input (`String i)]
+  | InputFileData i -> [Kwd "a"; Kwd "file"; Input (`FileData i)]
   | InsertNull -> [Kwd "null"]
   | InsertConcat -> syn_Concat [[the_focus]; [ellipsis]]
   | InsertExists in_x -> syn_Exists [Input (`Ident in_x)] [the_focus] [ellipsis]
