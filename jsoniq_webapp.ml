@@ -56,9 +56,8 @@ let html_info_of_input (input : Jsoniq_syntax.input) : Html.input_info =
 	    Jsutils.file_string_of_input
 	      input_elt
 	      (fun (filename,contents) ->
-	       let str = Yojson.Basic.stream_from_string ~fname:filename contents in
-	       let data = Seq.from_stream str in
-	       input#set (filename, data)))
+	       let data = Jsoniq_files.data_of_file filename contents in
+	       input#set (filename,data)))
   in
   Html.({ input_type; placeholder; input_update })
 
