@@ -301,13 +301,13 @@ and reaching_flower : flower -> transf list = function
 and reaching_data (d : data) : transf list =
   reaching_list reaching_item [InsertConcat] (Seq.to_list d)
 and reaching_item : item -> transf list = function
-  | Bool b -> [InsertBool b]
-  | Int n -> [InputInt (new input n)]
-  | Float f -> [InputFloat (new input f)]
-  | String s -> [InputString (new input s)]
-  | Null -> [InsertNull]
-  | Object pairs -> InsertObject :: reaching_list reaching_pair [InsertConcat] (List.map (fun (k,i) -> S k, Item i) pairs)
-  | Array li -> InsertArray :: reaching_list reaching_item [InsertConcat] li
+  | `Bool b -> [InsertBool b]
+  | `Int n -> [InputInt (new input n)]
+  | `Float f -> [InputFloat (new input f)]
+  | `String s -> [InputString (new input s)]
+  | `Null -> [InsertNull]
+  | `Assoc pairs -> InsertObject :: reaching_list reaching_pair [InsertConcat] (List.map (fun (k,i) -> S k, Item i) pairs)
+  | `List li -> InsertArray :: reaching_list reaching_item [InsertConcat] li
 and reaching_pair (e1, e2: expr * expr) : transf list =
   reaching_expr e1 @ FocusRight :: reaching_expr e2
 
@@ -340,16 +340,16 @@ let rec apply_transf (transf : transf) (foc : focus) : focus option =
      | Some (e',ctx') -> Some (AtExpr (e',ctx'))
 and apply_transf_expr = function
   | (FocusUp | FocusRight | Delete), _, _ -> assert false
-  | InsertBool b, _, ctx -> Some (Item (Bool b), ctx)
-  | InputInt in_n, _, ctx -> Some (Item (Int in_n#get), ctx)
-  | InputRange (in_a,in_b), _, ctx -> Some (Call (Range, [Item (Int in_a#get); Item (Int in_b#get)]), ctx)
-  | InputFloat in_f, _, ctx -> Some (Item (Float in_f#get), ctx)
-  | InputString in_s, _, ctx -> Some (Item (String in_s#get), ctx)
+  | InsertBool b, _, ctx -> Some (Item (`Bool b), ctx)
+  | InputInt in_n, _, ctx -> Some (Item (`Int in_n#get), ctx)
+  | InputRange (in_a,in_b), _, ctx -> Some (Call (Range, [Item (`Int in_a#get); Item (`Int in_b#get)]), ctx)
+  | InputFloat in_f, _, ctx -> Some (Item (`Float in_f#get), ctx)
+  | InputString in_s, _, ctx -> Some (Item (`String in_s#get), ctx)
   | InputFileData in_filedata, _, ctx ->
      let filename, d = in_filedata#get in
      Some (FileData (filename,d), ctx)
      
-  | InsertNull, _, ctx -> Some (Item Null, ctx)
+  | InsertNull, _, ctx -> Some (Item `Null, ctx)
 
   | InsertConcat, e, EObjectX1 ((ll,rr), ctx, e2) -> Some (Empty, EObjectX1 (((e,e2)::ll,rr), ctx, Empty))
   | InsertConcat, e, EObjectX2 ((ll,rr), e1, ctx) -> Some (Empty, EObjectX1 (((e1,e)::ll,rr), ctx, Empty))

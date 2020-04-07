@@ -12,19 +12,19 @@ type input = [ `Int of int Focus.input
 type syn = (word,input,focus) xml
 
 let rec syn_item : item -> syn = function
-  | Bool b -> [Word (`Bool b)]
-  | Int i -> [Word (`Int i)]
-  | Float f -> [Word (`Float f)]
-  | String s -> [Word (`String s)]
-  | Null -> [Kwd "null"]
-  | Object pairs ->
+  | `Bool b -> [Word (`Bool b)]
+  | `Int i -> [Word (`Int i)]
+  | `Float f -> [Word (`Float f)]
+  | `String s -> [Word (`String s)]
+  | `Null -> [Kwd "null"]
+  | `Assoc pairs ->
      [Quote ("{",
 	     [Enum (", ",
 		    List.map
 		      (fun (k,i) -> Word (`String k) :: Kwd ":" :: syn_item i)
 		      pairs)],
 	     "}")]
-  | Array li ->
+  | `List li ->
      [Quote ("[",
 	     [Enum (", ",
 		    List.map syn_item li)],

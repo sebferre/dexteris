@@ -12,21 +12,21 @@ let focus_types_lengths_fields (extent : Sem.extent) : Sem.TypSet.t * int Bintre
      try
        let i0 = List.assoc Sem.field_focus binding in
        match i0 with
-       | Array li ->
+       | `List li ->
 	  let typs, len, fields =
 	    List.fold_left
 	      (fun (typs,len,fields) i ->
 	       let typs, fields =
 		 match i with
-		 | Bool _ -> Sem.TypSet.add `Bool typs, fields
-		 | Int _ -> Sem.TypSet.add `Int typs, fields
-		 | Float _ -> Sem.TypSet.add `Float typs, fields
-		 | String _ -> Sem.TypSet.add `String typs, fields
-		 | Null -> typs, fields
-		 | Object pairs ->
+		 | `Bool _ -> Sem.TypSet.add `Bool typs, fields
+		 | `Int _ -> Sem.TypSet.add `Int typs, fields
+		 | `Float _ -> Sem.TypSet.add `Float typs, fields
+		 | `String _ -> Sem.TypSet.add `String typs, fields
+		 | `Null -> typs, fields
+		 | `Assoc pairs ->
 		    Sem.TypSet.add `Object typs,
 		    List.fold_left (fun fields (k,_) -> Bintree.add k fields) fields pairs
-		 | Array _ -> Sem.TypSet.add `Array typs, fields in
+		 | `List _ -> Sem.TypSet.add `Array typs, fields in
 	       typs, len+1, fields)
 	      (typs,0,fields) li in
 	  typs, Bintree.add len lens, fields

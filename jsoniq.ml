@@ -18,24 +18,29 @@ object
 end
     
 (* ======================================================= *)
-    
+
+module Seq = Myseq
+	       
 exception TODO
     
-type item = (* JSON *)
+(*type item = (* JSON *)
   | Bool of bool
   | Int of int
   | Float of float
   | String of string
   | Null
   | Object of (string * item) list
-  | Array of item list
-			      
+  | Array of item list*)
+
+type item = Yojson.Basic.t
+(* [`Null | `Bool of bool | `Int of int | `Float of float | `Assoc of (string * item) list | `List of item list ] *)
+	      
 type data = item Seq.t
 
-let pack (d : data) : item = Array (Seq.to_list d)
+let pack (d : data) : item = `List (Seq.to_list d)
 let unpack (i : item) : data =
   match i with
-  | Array li -> Seq.from_list li
+  | `List li -> Seq.from_list li
   | _ -> failwith "Jsoniq.unpack" (* should not happen *)
 				   
 		 
@@ -111,10 +116,10 @@ let item_of_data (d : data) : item option =
 
 let item_as_string (i : item) : string =
   match i with
-  | Bool b -> string_of_bool b
-  | Int n -> string_of_int n
-  | Float f -> string_of_float f
-  | String s -> s
+  | `Bool b -> string_of_bool b
+  | `Int n -> string_of_int n
+  | `Float f -> string_of_float f
+  | `String s -> s
   | _ -> raise (TypeError "invalid item as string")
 
 let rec output_data out d =
@@ -123,14 +128,14 @@ let rec output_data out d =
 	  output_item out i;
 	  output_string out "\n")
 and output_item out = function
-  | Bool b -> output_string out (string_of_bool b)
-  | Int n -> output_string out (string_of_int n)
-  | Float f -> output_string out (string_of_float f)
-  | String s -> output_char out '"';
+  | `Bool b -> output_string out (string_of_bool b)
+  | `Int n -> output_string out (string_of_int n)
+  | `Float f -> output_string out (string_of_float f)
+  | `String s -> output_char out '"';
 		output_string out (String.escaped s);
 		output_char out '"'
-  | Null -> output_string out "null"
-  | Object pairs ->
+  | `Null -> output_string out "null"
+  | `Assoc pairs ->
      output_char out '{';
      List.iter
        (fun (k,i) ->
@@ -140,7 +145,7 @@ and output_item out = function
 	output_string out ", ")
        pairs;
      output_char out '}'
-  | Array li ->
+  | `List li ->
      output_char out '[';
      List.iter
        (fun i ->
@@ -151,15 +156,15 @@ and output_item out = function
 	       
 let compare_item (i1 : item) (i2 : item) : int (* -1, 0, 1 *) =
   match i1, i2 with
-  | Null, Null -> 0
-  | Null, _ -> -1
-  | _, Null -> 1
-  | Bool b1, Bool b2 -> compare b1 b2
-  | Int n1, Int n2 -> compare n1 n2
-  | Float f1, Float f2 -> compare f1 f2
-  | Int n1, Float f2 -> compare  (float n1) f2
-  | Float f1, Int n2 -> compare f1 (float n2)
-  | String s1, String s2 -> compare s1 s2
+  | `Null, `Null -> 0
+  | `Null, _ -> -1
+  | _, `Null -> 1
+  | `Bool b1, `Bool b2 -> compare b1 b2
+  | `Int n1, `Int n2 -> compare n1 n2
+  | `Float f1, `Float f2 -> compare f1 f2
+  | `Int n1, `Float f2 -> compare  (float n1) f2
+  | `Float f1, `Int n2 -> compare f1 (float n2)
+  | `String s1, `String s2 -> compare s1 s2
   | _ -> raise (TypeError "invalid types in item comparison")
 
 let compare_item_opt (i1_opt : item option) (i2_opt : item option) : int (* -1, 0, 1 *) =
@@ -224,7 +229,7 @@ let apply_func (func : func) (args : data list) : data =
        | GT -> c > 0
        | GE -> c >= 0
        | _ -> assert false in
-     Seq.return (Bool ok)
+     Seq.return (`Bool ok)
   | (Plus|Minus|Times|Div), [d1; d2] ->
      ( match item_of_data d1, item_of_data d2 with
        | None, _
@@ -239,69 +244,69 @@ let apply_func (func : func) (args : data list) : data =
 	    | _ -> assert false in
 	  let i =
 	    match i1, i2 with
-	    | Int n1, Int n2 -> Int (opn n1 n2)
-	    | Int n1, Float f2 -> Float (opf (float n1) f2)
-	    | Float f1, Int n2 -> Float (opf f1 (float n2))
-	    | Float f1, Float f2 -> Float (opf f1 f2)
+	    | `Int n1, `Int n2 -> `Int (opn n1 n2)
+	    | `Int n1, `Float f2 -> `Float (opf (float n1) f2)
+	    | `Float f1, `Int n2 -> `Float (opf f1 (float n2))
+	    | `Float f1, `Float f2 -> `Float (opf f1 f2)
 	    | _ -> raise (TypeError "apply_func: invalid types in arguments") in
 	  Seq.return i )
   | (IDiv|Mod), [d1;d2] ->
      ( match item_of_data d1, item_of_data d2 with
        | None, _
        | _, None -> Seq.empty
-       | Some (Int n1), Some (Int n2) ->
+       | Some (`Int n1), Some (`Int n2) ->
 	  let n =
 	    match func with
 	    | IDiv -> n1 / n2
 	    | Mod -> n1 mod n2
 	    | _ -> assert false in
-	  Seq.return (Int n)
+	  Seq.return (`Int n)
        | _ -> raise (TypeError "apply_func: invalid types in arguments") )
   | Neg, [arg] ->
      ( match item_of_data arg with
        | None -> Seq.empty
-       | Some (Int n1) -> Seq.return (Int (- n1))
-       | Some (Float f1) -> Seq.return (Float (-. f1))
+       | Some (`Int n1) -> Seq.return (`Int (- n1))
+       | Some (`Float f1) -> Seq.return (`Float (-. f1))
        | _ -> raise (TypeError "apply_func: invalid types in arguments") )
   | Substring, [str; start; len] ->
-     let str : string = match item_of_data str with Some (String s) -> s | _ -> raise (TypeError "substring: undefined string") in
-     let start : int = match item_of_data start with Some (Int pos) -> pos | _ -> 0 in
-     let len : int = match item_of_data len with Some (Int len) -> len | _ -> String.length str - start in
-     Seq.return (String (String.sub str start len))
+     let str : string = match item_of_data str with Some (`String s) -> s | _ -> raise (TypeError "substring: undefined string") in
+     let start : int = match item_of_data start with Some (`Int pos) -> pos | _ -> 0 in
+     let len : int = match item_of_data len with Some (`Int len) -> len | _ -> String.length str - start in
+     Seq.return (`String (String.sub str start len))
   | Range, [d1;d2] ->
      ( match item_of_data d1, item_of_data d2 with
        | None, _
        | _, None -> Seq.empty
-       | Some (Int a), Some (Int b) -> Seq.map (fun n -> Int n) (Seq.range a b)
+       | Some (`Int a), Some (`Int b) -> Seq.map (fun n -> `Int n) (Seq.range a b)
        | _ -> raise (TypeError "apply_func: invalid types in arguments") )
   | Count, [d] ->
-     Seq.return (Int (Seq.length d))
+     Seq.return (`Int (Seq.length d))
   | Sum, [d] ->
      let sum =
        Seq.fold_left
 	 (fun sum i ->
 	  match i with
-	  | Bool b -> if b then sum +. 1. else sum
-	  | Int n -> sum +. float n
-	  | Float f -> sum +. f
+	  | `Bool b -> if b then sum +. 1. else sum
+	  | `Int n -> sum +. float n
+	  | `Float f -> sum +. f
 	  | _ -> sum)
 	 0. d in
-     Seq.return (Float sum)
+     Seq.return (`Float sum)
   | Avg, [d] ->
      let nb, sum =
        Seq.fold_left
 	 (fun (nb,sum) i ->
 	  match i with
-	  | Bool b -> if b then nb+1, sum +. 1. else nb+1, sum
-	  | Int n -> nb+1, sum +. float n
-	  | Float f -> nb+1, sum +. f
+	  | `Bool b -> if b then nb+1, sum +. 1. else nb+1, sum
+	  | `Int n -> nb+1, sum +. float n
+	  | `Float f -> nb+1, sum +. f
 	  | _ -> nb, sum)
 	 (0,0.) d in
-     Seq.return (Float (sum /. float nb))
+     Seq.return (`Float (sum /. float nb))
   | StringConcat, [d] ->
      let li = Seq.to_list d in
      let ls = List.map item_as_string li in
-     Seq.return (String (String.concat "" ls))
+     Seq.return (`String (String.concat "" ls))
   | Defined _, _ -> invalid_arg "apply_func: defined function as argument"
   | _ -> raise (Undefined ("apply_func: wrong number of arguments"))
 	       
@@ -316,21 +321,21 @@ let item_of_env (env : env) : item =
     List.fold_left
       (fun pairs (x,d) -> (x, pack d)::pairs)
       [] env in
-  Object pairs
+  `Assoc pairs
 
 let is_true (d : data) : bool =
   match Seq.hd_opt d with
   | None -> false
   | Some i ->
      match i with
-     | Bool b -> b
-     | Int n -> n <> 0
-     | String s -> s <> ""
-     | Null -> false
+     | `Bool b -> b
+     | `Int n -> n <> 0
+     | `String s -> s <> ""
+     | `Null -> false
      | _ -> true (* TODO: ?? *)
 
 let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
-  | S s -> Seq.return (String s)
+  | S s -> Seq.return (`String s)
   | Item i -> Seq.return i
   | Empty -> Seq.empty
   | FileData (filename,d) -> d
@@ -345,7 +350,7 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
 	     || let env = (x, Seq.return i1)::env in
 		is_true (eval_expr funcs env e2))
 	    false in
-     Seq.return (Bool ok)
+     Seq.return (`Bool ok)
   | ForAll (x,e1,e2) ->
      let ok =
        eval_expr funcs env e1
@@ -355,7 +360,7 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
 	     && let env = (x, Seq.return i1)::env in
 		is_true (eval_expr funcs env e2))
 	    true in
-     Seq.return (Bool ok)
+     Seq.return (`Bool ok)
   | If (cond,e1,e2) ->
      if is_true (eval_expr funcs env cond)
      then eval_expr funcs env e1
@@ -365,16 +370,16 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
        List.fold_left
 	 (fun ok e -> ok || is_true (eval_expr funcs env e))
 	 false le in
-     Seq.return (Bool ok)
+     Seq.return (`Bool ok)
   | And le ->
      let ok =
        List.fold_left
 	 (fun ok e -> ok && is_true (eval_expr funcs env e))
 	 true le in
-     Seq.return (Bool ok)
+     Seq.return (`Bool ok)
   | Not e ->
      let ok = not (is_true (eval_expr funcs env e)) in
-     Seq.return (Bool ok)
+     Seq.return (`Bool ok)
   | Call (Defined (name,arity), le) ->
      if List.mem_assoc name funcs
      then
@@ -409,11 +414,11 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
      eval_expr funcs env e1
      |> Seq.flat_map
 	  (function
-	    | Object pairs ->
+	    | `Assoc pairs ->
 	       eval_expr funcs env e2
 	       |> Seq.flat_map
 		    (function
-		      | String key ->
+		      | `String key ->
 			 (try Seq.return (List.assoc key pairs)
 			  with _ -> Seq.empty)
 		      | _ -> Seq.empty)
@@ -422,11 +427,11 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
      eval_expr funcs env e1
      |> Seq.flat_map
 	  (function
-	    | Array li ->
+	    | `List li ->
 	       eval_expr funcs env e2
 	       |> Seq.flat_map
 		    (function
-		      | Int n ->
+		      | `Int n ->
 			 (try Seq.return (List.nth li (n-1))
 			  with _ -> Seq.empty)
 		      | _ -> Seq.empty)
@@ -436,7 +441,7 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
      |> Seq.flat_map
 	  (fun i ->
 	   match i with
-	   | Array li -> Seq.from_list li
+	   | `List li -> Seq.from_list li
 	   | _ -> Seq.empty)
   | Var x -> (try List.assoc x env with _ -> raise (Unbound x))
   | ContextItem -> (try List.assoc var_context env with _ -> raise (Unbound var_context))
@@ -447,22 +452,22 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
 	 (fun (e1,e2) pairs ->
 	  match item_of_data (eval_expr funcs env e1) with
 	  | None -> pairs
-	  | Some (String key) ->
+	  | Some (`String key) ->
 	     ( match Seq.to_list (eval_expr funcs env e2) with
 	       | [] -> pairs
-	       | [Null] -> pairs
+	       | [`Null] -> pairs
 	       | [i] -> (key,i)::pairs
-	       | li -> (key, Array li)::pairs )
+	       | li -> (key, `List li)::pairs )
 	  | _ -> raise (TypeError "string expected for object fields"))
 	 lkv [] in
-     Seq.return (Object pairs)
+     Seq.return (`Assoc pairs)
   | Objectify e ->
      let dico = new dico in
      eval_expr funcs env e
      |> Seq.iter
 	  (fun i ->
 	   match i with
-	   | Object pairs ->
+	   | `Assoc pairs ->
 	      pairs |> List.iter (fun (k,i) -> dico#add k i)
 	   | _ -> ());
      let pairs =
@@ -472,12 +477,12 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
 	    match li with
 	    | [] -> assert false
 	    | [i] -> i
-	    | _ -> Array li in
+	    | _ -> `List li in
 	  (k, i) :: pairs)
 	 [] in
-     Seq.return (Object pairs)
+     Seq.return (`Assoc pairs)
   | Arrayify e ->
-     Seq.return (Array (Seq.to_list (eval_expr funcs env e)))
+     Seq.return (`List (Seq.to_list (eval_expr funcs env e)))
   | Let (v,e1,e2) ->
      let d = eval_expr funcs env e1 in
      let env = (v,d)::env in
@@ -516,7 +521,7 @@ and eval_flower (funcs : funcs) (ctx : env Seq.t) : flower -> data = function
 	       d
 	       |> Seq.flat_map
 		    (function
-		      | Object pairs ->
+		      | `Assoc pairs ->
 			 let env =
 			   List.fold_left
 			     (fun env (x,i) -> (x, Seq.return i)::env)
@@ -615,7 +620,7 @@ let ex1 (csv : data) : expr =
   Flower (ForObject (FileData ("example.csv",csv), false,
        FLet ("date", Call (Substring,
 			  [Var "dateTime";
-			   Item (Int 0); Item (Int 10)]),
+			   Item (`Int 0); Item (`Int 10)]),
 	    FConcat
 	      [ GroupBy (["store"],
 			 Return (EObject
@@ -632,7 +637,7 @@ let ex1 (csv : data) : expr =
 					 (Concat
 					    [EObject
 					       [S "s", Var "uriDate";
-						S "p", Item (String "ex:date");
+						S "p", Item (`String "ex:date");
 						S "o", Var "date"];
 					     EObject
 					       [S "s", Var "uriDate";
@@ -656,22 +661,22 @@ let ex1 (csv : data) : expr =
 	    
 let csv1 : data =
   Seq.from_list
-    [Object ["dateTime", String "2019-05-01T00:50:09-07:00";
-	     "store", Int 95;
-	     "amount", Float 352.33;
-	     "consumer", String "Raja"];
-     Object ["dateTime", String "2019-05-01T23:52:06-07:00";
-	     "store", Int 69;
-	     "amount", Float 354.95;
-	     "consumer", String "Tyrone"];
-     Object ["dateTime", String "2019-05-02T00:50:34-07:00";
-	     "store", Int 95;
-	     "amount", Float 358.67;
-	     "consumer", String "Herrod"];
-     Object ["dateTime", String "2019-05-03T01:00:44-07:00";
-	     "store", Int 70;
-	     "amount", Float 325.35;
-	     "consumer", String "Jackson"]]
+    [`Assoc ["dateTime", `String "2019-05-01T00:50:09-07:00";
+	     "store", `Int 95;
+	     "amount", `Float 352.33;
+	     "consumer", `String "Raja"];
+     `Assoc ["dateTime", `String "2019-05-01T23:52:06-07:00";
+	     "store", `Int 69;
+	     "amount", `Float 354.95;
+	     "consumer", `String "Tyrone"];
+     `Assoc ["dateTime", `String "2019-05-02T00:50:34-07:00";
+	     "store", `Int 95;
+	     "amount", `Float 358.67;
+	     "consumer", `String "Herrod"];
+     `Assoc ["dateTime", `String "2019-05-03T01:00:44-07:00";
+	     "store", `Int 70;
+	     "amount", `Float 325.35;
+	     "consumer", `String "Jackson"]]
 
 let main () =
   eval_expr [] [] (ex1 csv1)
