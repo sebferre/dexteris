@@ -1,4 +1,5 @@
 
+open Jsoniq
 module Lis = Jsoniq_lis
 
 (* LIS building *)
@@ -52,10 +53,12 @@ let html_info_of_input (input : Jsoniq_syntax.input) : Html.input_info =
        "file", "",
        new Html.input_update
 	   (fun input_elt ->
-	    Jsutils.file_js_of_input
+	    Jsutils.file_string_of_input
 	      input_elt
-	      (fun (filename,js) ->
-	       input#set (filename, Jsoniq_json.to_data js)))
+	      (fun (filename,contents) ->
+	       let str = Yojson.Basic.stream_from_string ~fname:filename contents in
+	       let data = Seq.from_stream str in
+	       input#set (filename, data)))
   in
   Html.({ input_type; placeholder; input_update })
 
@@ -134,6 +137,7 @@ let error_message : exn -> string = function
   | Jsoniq.TypeError msg -> "Type error: " ^ msg
   | Jsoniq.Unbound x -> "Unbound variable: " ^ x
   | Jsoniq.Undefined msg -> "Undefined " ^ msg
+  | Yojson.Json_error msg -> "Syntax error in JSON file: " ^ msg
   | exn -> Printexc.to_string exn
 
 let _ =
