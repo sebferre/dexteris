@@ -16,7 +16,14 @@ object
       (fun k ref_l acc -> f acc k !ref_l)
       ht init
 end
-    
+
+let result_bind_list (f : 'a -> ('b,'e) Result.result) (lx : 'a list) : ('b list,'e) Result.result =
+  List.fold_right
+    (fun x res ->
+     Result.bind res (fun ly -> Result.bind (f x) (fun y -> Result.Ok (y::ly))))
+    lx (Ok [])
+
+  
 (* ======================================================= *)
 
 module Seq = Myseq
@@ -34,8 +41,46 @@ exception TODO
 
 type item = Yojson.Basic.t
 (* [`Null | `Bool of bool | `Int of int | `Float of float | `Assoc of (string * item) list | `List of item list ] *)
-	      
+
+let item_to_yojson (i : item) = (i :> Yojson.Safe.t)
+				  
+let rec item_of_yojson : Yojson.Safe.t -> (item,string) Result.result =
+  let open Result in
+  function
+  | `Null ->  Ok `Null
+  | `Int i -> Ok (`Int i)
+  | `Float f -> Ok (`Float f)
+  | `Bool b -> Ok (`Bool b)
+  | `String s -> Ok (`String s)
+  | `Assoc pairs ->
+     Result.bind
+       (result_bind_list
+	  (fun (s,x) -> Result.bind (item_of_yojson x) (fun y -> Ok (s,y)))
+	  pairs)
+       (fun pairs -> Ok (`Assoc pairs))
+(*     
+	 Option.bind (assoc item json)
+		     (fun pairs -> Some (`Assoc pairs)) *)
+(*	 
+	 let json = `List (List.map (fun (s,x) -> `Tuple [`String s; x]) pairs) in
+	 Option.bind (list (tuple2 (string,item)) json)
+		     (fun pairs -> Some (`Assoc pairs)) *)
+  | `List lx ->
+     Result.bind
+       (result_bind_list item_of_yojson lx)
+       (fun ly -> Ok (`List ly))
+  | _ -> Error "Invalid serialization of item"
+		    
 type data = item Seq.t
+
+let data_to_yojson d =
+  `List (List.map item_to_yojson (Seq.to_list d))
+let data_of_yojson = function
+  | `List lx ->
+     Result.bind
+       (result_bind_list item_of_yojson lx)
+       (fun ly -> Result.Ok (Seq.from_list ly))
+  | _ -> Result.Error "Invalid serialization of data"
 
 let pack (d : data) : item = `List (Seq.to_list d)
 let unpack (i : item) : data =
@@ -44,8 +89,8 @@ let unpack (i : item) : data =
   | _ -> failwith "Jsoniq.unpack" (* should not happen *)
 				   
 		 
-type var = string
-type order = DESC | ASC
+type var = string [@@deriving yojson]
+type order = DESC | ASC [@@deriving yojson]
 type func =
   | EQ | NE | LE | LT | GE | GT
   | Plus | Minus | Times | Div | IDiv | Mod
@@ -54,6 +99,7 @@ type func =
   | Range
   | Count | Sum | Avg
   | Defined of string * int
+			  [@@deriving yojson]
 
 type expr =
   | S of string
@@ -82,6 +128,7 @@ type expr =
   | Arrayify of expr
   | Let of var * expr * expr
   | DefFunc of string * var list * expr * expr
+					    [@@deriving yojson]
  and flower =
   | Return of expr
   | For of var * expr * bool * flower (* optional flag *)
@@ -91,6 +138,7 @@ type expr =
   | OrderBy of (expr * order) list * flower
   | FConcat of flower list
   | FIf of flower * flower * flower
+			       [@@deriving yojson]
 
 let flower_of_expr : expr -> flower = function
   | Flower f -> f

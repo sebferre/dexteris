@@ -266,7 +266,24 @@ let expr_path_of_focus (foc : focus) : expr * path =
 
 let focus_of_expr_path (e, path : expr * path) : focus =
   focus_of_path_expr Root (path,e)
-    
+
+let focus_to_yojson (foc : focus) : Yojson.Safe.t =
+  let e, path = expr_path_of_focus foc in
+  `Assoc [ "expression", Jsoniq.expr_to_yojson e;
+	   "path", Focus.path_to_yojson path ]
+
+let focus_of_yojson (x : Yojson.Safe.t) : (focus,string) Result.result =
+  match x with
+  | `Assoc ["expression", x_e; "path", x_path] ->
+     Result.bind
+       (expr_of_yojson x_e)
+       (fun e ->
+	Result.bind
+	  (path_of_yojson x_path)
+	  (fun path ->
+	   let foc = focus_of_expr_path (e,path) in
+	   Result.Ok foc))
+  | _ -> Result.Error "Invalid serialization of a focus"
       
 (* focus transformations and navigation paths *)
 			   

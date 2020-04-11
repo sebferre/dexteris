@@ -106,7 +106,7 @@ let render_place place k =
   w_focus#on_focus_up
     (fun () ->
      match Jsoniq_focus.focus_up place#focus with
-     | Some foc ->
+     | Some (foc,_) ->
 	let p = new Jsoniq_lis.place place#lis foc in
 	k ~push_in_history:false p
      | None -> ());

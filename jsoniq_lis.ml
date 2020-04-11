@@ -26,11 +26,19 @@ object
     | None -> None
 
   method abort = ()
+
+  method json = Focus.focus_to_yojson focus
 end
 
 and lis =
 object (self)
   inherit [place] Lis.lis
 
-  method initial_place = new place (self :> lis) Focus.initial_focus
+  method initial_place =
+    new place (self :> lis) Focus.initial_focus
+
+  method place_of_json json =
+    match Focus.focus_of_yojson json with
+    | Result.Ok foc -> new place (self :> lis) foc
+    | Result.Error msg -> invalid_arg msg
 end
