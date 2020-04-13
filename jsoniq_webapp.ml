@@ -92,9 +92,9 @@ let w_results : (Jsoniq.var, Jsoniq.item) Widget_table.widget =
 				 (Jsoniq_syntax.syn_data d))
       
 
-let suggestions_cols = ["col-md-3 col-xs-1";
-			"col-md-4 col-xs-1";
-			"col-md-5 col-xs-1"]
+let suggestions_cols = ["col-md-3 col-xs-12";
+			"col-md-4 col-xs-12";
+			"col-md-5 col-xs-12"]
       
 let render_place place k =
   let xml = Jsoniq_syntax.syn_focus place#focus in

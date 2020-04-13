@@ -51,15 +51,6 @@
 	  </button>
 	</span>
 
-	<span class="btn-group">
-	  <button id="button-save" class="btn btn-primary btn-md navbar-btn">
-	    <span class="glyphicon glyphicon-save" title="Click to save the query"></span>
-	  </button>
-	  <button id="button-open" class="btn btn-primary btn-md navbar-btn">
-	    <span class="glyphicon glyphicon-open" title="Click to load a saved query"></span>
-	  </button>
-	</span>
-	<input id="input-open" type="file" accept=".json,application/json" style="display:none"/>
       </div>
     </div>
 
@@ -77,6 +68,16 @@
 		  Your query and its <span class="highlighted">current focus</span>
 		  <!-- (click on different parts of the query to change it) -->
 		</a>
+		&nbsp;
+		<span class="btn-group">
+		  <button id="button-save" class="btn btn-primary btn-sm">
+		    <span class="glyphicon glyphicon-save" title="Click to save the query"></span>
+		  </button>
+		  <button id="button-open" class="btn btn-primary btn-sm">
+		    <span class="glyphicon glyphicon-open" title="Click to load a saved query"></span>
+		  </button>
+		</span>
+		<input id="input-open" type="file" accept=".json,application/json" style="display:none"/>
 	      </h5>
 	    </div>
 	    <div id="collapse-focus" class="panel-collapse collapse in">
