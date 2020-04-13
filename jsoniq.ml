@@ -629,8 +629,7 @@ and eval_flower (funcs : funcs) (ctx : env Seq.t) : flower -> data = function
 	 (List.map snd sorted_l_key_env) in
      eval_flower funcs ctx f
   | FConcat lf ->
-     Seq.concat
-       (List.map (eval_flower funcs ctx) lf)
+     Seq.from_list lf |> Seq.flat_map (eval_flower funcs ctx)
   | FIf (f1,f2,f3) ->
      if is_true (eval_flower funcs ctx f1)
      then eval_flower funcs ctx f2
