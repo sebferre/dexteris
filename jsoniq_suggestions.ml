@@ -96,12 +96,14 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       add `Val InsertObject;
       add `Val InsertContextEnv);      
     if Sem.TypSet.mem `Object allowed_typs then (
+      if not multiple_items then add `Op (InsertFunc ObjectKeys);
       add `Val InsertDot;
       add `Val InsertObjectify);
     Bintree.iter
       (fun k -> add `Val (InsertField k))
       fields;
     if Sem.TypSet.mem `Array allowed_typs then (
+      if not multiple_items then add `Op (InsertFunc ArrayLength);
       add `Val InsertArrayLookup);
     if Sem.TypSet.mem `Array focus_typs then (
       add `Val InsertArrayUnboxing);

@@ -96,6 +96,7 @@ type func =
   | Plus | Minus | Times | Div | IDiv | Mod
   | Neg
   | StringConcat | Substring
+  | ArrayLength | ObjectKeys
   | Range
   | Count | Sum | Avg
   | Defined of string * int
@@ -259,6 +260,7 @@ let arity_of_func : func -> int = function
   | Neg -> 1
   | Substring -> 3
   | Range -> 2
+  | ArrayLength | ObjectKeys -> 1
   | Count | Sum | Avg | StringConcat -> 1
   | Defined (name,n) -> n
 
@@ -320,6 +322,16 @@ let apply_func (func : func) (args : data list) : data =
      let start : int = match item_of_data start with Some (`Int pos) -> pos | _ -> 0 in
      let len : int = match item_of_data len with Some (`Int len) -> len | _ -> String.length str - start in
      Seq.return (`String (String.sub str start len))
+  | ArrayLength, [d1] ->
+     ( match item_of_data d1 with
+       | None -> Seq.empty
+       | Some (`List l) -> Seq.return (`Int (List.length l))
+       | _ -> raise (TypeError "array length: invalid argument type") )
+  | ObjectKeys, [d1] ->
+     ( match item_of_data d1 with
+       | None -> Seq.empty
+       | Some (`Assoc pairs) -> Seq.from_list (List.map (fun (k,_) -> `String k) pairs)
+       | _ -> raise (TypeError "object keys: invalid argument type") )
   | Range, [d1;d2] ->
      ( match item_of_data d1, item_of_data d2 with
        | None, _

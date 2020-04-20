@@ -60,6 +60,8 @@ let syn_Call func lxml =
   | Neg, [xml1] -> Kwd "-" :: xml1
   | StringConcat, [_] -> classic "concat" lxml
   | Substring, [_;_;_] -> classic "substr" lxml
+  | ArrayLength, [_] -> classic "length" lxml
+  | ObjectKeys, [_] -> classic "keys" lxml
   | Range, [xml1; xml2] -> xml1 @ Kwd "to" :: xml2
   | Count, [_] -> classic "count" lxml
   | Sum, [_] -> classic "sum" lxml
