@@ -45,6 +45,7 @@ type expr_ctx =
  (* DERIVED *)
 and flower_ctx =
   | Flower1 of expr_ctx
+  | FileData2 of string * data * flower_ctx
   | For2 of var * expr * bool * flower_ctx
   | FLet2 of var * expr * flower_ctx
   | Where2 of expr * flower_ctx
@@ -106,6 +107,7 @@ and focus_expr_up (e : expr) : expr_ctx -> focus * path = function
   | OrderBy1X (ll_rr,ctx,o,f) -> AtFlower (OrderBy (list_of_ctx (e,o) ll_rr, f), ctx), down_rights (List.length (fst ll_rr))
 and focus_flower_up (f : flower) : flower_ctx -> focus * path = function
   | Flower1 ctx -> AtExpr (Flower f, ctx), down_rights 0
+  | FileData2 (fname,d,ctx) -> AtFlower (FileData (fname,d,f), ctx), down_rights 0
   | For2 (x,e,opt,ctx) -> AtFlower (For (x,e,opt,f), ctx), down_rights 1
   | FLet2 (x,e,ctx) -> AtFlower (FLet (x,e,f), ctx), down_rights 1
   | Where2 (e,ctx) -> AtFlower (Where (e,f), ctx), down_rights 1
@@ -164,6 +166,7 @@ and focus_expr_right (e : expr) : expr_ctx -> focus option = function
   | OrderBy1X ((ll,[]),ctx,o,f) -> Some (AtFlower (f, OrderBy2 (List.rev ((e,o)::ll), ctx)))
 and focus_flower_right (f : flower) : flower_ctx -> focus option = function
   | Flower1 ctx -> None
+  | FileData2 (fname,d,ctx) -> None
   | For2 (x,e,opt,ctx) -> None
   | FLet2 (x,e,ctx) -> None
   | Where2 (e,ctx) -> None
@@ -238,6 +241,7 @@ let rec focus_of_path_expr (ctx : expr_ctx) : path * expr -> focus = function
 and focus_of_path_flower (ctx : flower_ctx) : path * flower -> focus = function
   | [], f -> AtFlower (f,ctx)
   | DOWN::path, Return e1 -> focus_of_path_expr (Return1 ctx) (path,e1)
+  | DOWN::path, FileData (fname,d,f) -> focus_of_path_flower (FileData2 (fname,d,ctx)) (path,f)
   | DOWN::RIGHT::path, For (x,e1,b,f) -> focus_of_path_flower (For2 (x,e1,b,ctx)) (path,f)
   | DOWN::path, For (x,e1,b,f) -> focus_of_path_expr (For1 (x,ctx,b,f)) (path,e1)
   | DOWN::RIGHT::path, FLet (x,e1,f) -> focus_of_path_flower (FLet2 (x,e1,ctx)) (path,f)
@@ -347,7 +351,6 @@ let rec reaching_expr : expr -> transf list = function
   | S s -> [InputString (new input s)]
   | Item i -> reaching_item i
   | Empty -> [] (* the default value *)
-  | FileData (filename,d) -> [InputFileData (new input (filename,d))] (* reaching_data d *)
   | Concat le -> reaching_list reaching_expr [InsertConcat] le (* assuming |le| > 1 *)
   | Flower f -> reaching_flower f
   | Exists (x,e1,e2) -> reaching_expr e1 @ InsertExists (new input x) :: reaching_expr e2 @ [FocusUp]
@@ -372,6 +375,7 @@ let rec reaching_expr : expr -> transf list = function
   | DefFunc (name,args,e1,e2) -> InsertDefFunc1 (new input name) :: List.map (fun x -> InsertArg (new input x)) args @ reaching_expr e1 @ FocusRight :: reaching_expr e2 @ [FocusUp]
 and reaching_flower : flower -> transf list = function
   | Return e -> reaching_expr e @ [FocusUp]
+  | FileData (filename,d,f) -> InputFileData (new input (filename,d)) (* reaching_data d *) :: reaching_flower f
   | For (x,e,opt,f) -> reaching_expr e @ InsertFor1 (new input x, new input opt) :: reaching_flower f @ [FocusUp]
   | FLet (x,e,f) -> reaching_expr e @ InsertLet1 (new input x) :: reaching_flower f @ [FocusUp]
   | Where (e,f) -> reaching_expr e @ InsertWhere1 :: reaching_flower f @ [FocusUp]
@@ -439,9 +443,6 @@ and apply_transf_expr = function
   | InputRange (in_a,in_b), _, ctx -> Some (Call (Range, [Item (`Int in_a#get); Item (`Int in_b#get)]), ctx)
   | InputFloat in_f, _, ctx -> Some (Item (`Float in_f#get), ctx)
   | InputString in_s, _, ctx -> Some (Item (`String in_s#get), ctx)
-  | InputFileData in_filedata, _, ctx ->
-     let filename, d = in_filedata#get in
-     Some (FileData (filename,d), ctx)
      
   | InsertNull, _, ctx -> Some (Item `Null, ctx)
 
@@ -508,6 +509,9 @@ and apply_transf_expr = function
   | InsertArg in_x, e1, DefFunc1 (name,args,ctx,e2) -> Some (e1, DefFunc1 (name, args@[in_x#get], ctx, e2))
   | InsertArg _, _, _ -> None
 
+  | InputFileData in_filedata, _, ctx ->
+     let filename, d = in_filedata#get in
+     Some (Empty, Return1 (FileData2 (filename, d, ctx_flower_of_expr ctx)))
   | InsertFor1 (in_x,in_opt), e, ctx -> Some (Empty, Return1 (For2 (in_x#get, e, in_opt#get, ctx_flower_of_expr ctx)))
   | InsertFor2 (in_x,in_opt), e, ctx -> Some (Empty, For1 (in_x#get, ctx_flower_of_expr ctx, in_opt#get, flower_of_expr e))
 

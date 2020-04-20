@@ -106,7 +106,6 @@ type expr =
   | S of string
   | Item of item
   | Empty
-  | FileData of string * data
   | Concat of expr list
   | Flower of flower
   | Exists of var * expr * expr
@@ -132,6 +131,7 @@ type expr =
 					    [@@deriving yojson]
  and flower =
   | Return of expr
+  | FileData of string * data * flower (* iterating over a file *)
   | For of var * expr * bool * flower (* optional flag *)
   | FLet of var * expr * flower
   | Where of expr * flower
@@ -397,7 +397,6 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
   | S s -> Seq.return (`String s)
   | Item i -> Seq.return i
   | Empty -> Seq.empty
-  | FileData (filename,d) -> d
   | Concat le -> Seq.from_list le |> Seq.flat_map (eval_expr funcs env)
   | Flower lf -> eval_flower funcs (Seq.return env) lf
   | Exists (x,e1,e2) ->
@@ -554,6 +553,22 @@ and eval_flower (funcs : funcs) (ctx : env Seq.t) : flower -> data = function
      ctx
      |> Seq.flat_map
 	  (fun env -> eval_expr funcs env e)
+  | FileData (filename,d,f) ->
+     let ctx =
+       ctx
+       |> Seq.flat_map
+	    (fun env ->
+	     d
+	     |> Seq.flat_map
+		  (function
+		    | `Assoc pairs ->
+		       let env =
+			 List.fold_left
+			   (fun env (k,i) -> (k, Seq.return i)::env)
+			   env pairs in
+		       Seq.return env
+		    | _ -> raise (TypeError "file elements should be objects"))) in
+     eval_flower funcs ctx f
   | For (x, e, optional, f) ->
      let ctx =
        ctx
@@ -655,32 +670,33 @@ module Test =
 		      
 let ex1 (csv : data) : expr =
   (* CSV has columns: dateTime, store, amount, consumer *)
-  Flower (For ("row", FileData ("example.csv",csv), false,
-       FLet ("date", Call (Substring,
-			  [Dot (Var "row", S "dateTime");
-			   Item (`Int 0); Item (`Int 10)]),
-	    FConcat
-	      [ GroupBy (["store"],
-			 Return (EObject
-				   [S "s", Call (StringConcat, [S "<store/"; Var "store"; S ">"]);
-				    S "p", S "ex:totalAmount";
-				    S "o", Call (Sum, [Dot (Var "row", S "amount")])]));
-		GroupBy (["date"],
-			 OrderBy ([Var "date", DESC],
-				  FLet ("uriDate", Call (StringConcat,
-							[S "<day/";
-							 Var "date";
-							 S ">"]),
-				       Return
-					 (Concat
-					    [EObject
-					       [S "s", Var "uriDate";
-						S "p", Item (`String "ex:date");
-						S "o", Var "date"];
-					     EObject
-					       [S "s", Var "uriDate";
-						S "p", S "ex:averageAmount";
-						S "o", Call (Avg, [Dot (Var "row", S "amount")])]]))))])))
+  Flower (FileData
+	    ("example.csv",csv,
+	     FLet ("date", Call (Substring,
+				 [Var "dateTime";
+				  Item (`Int 0); Item (`Int 10)]),
+		   FConcat
+		     [ GroupBy (["store"],
+				Return (EObject
+					  [S "s", Call (StringConcat, [S "<store/"; Var "store"; S ">"]);
+					   S "p", S "ex:totalAmount";
+					   S "o", Call (Sum, [Dot (Var "row", S "amount")])]));
+		       GroupBy (["date"],
+				OrderBy ([Var "date", DESC],
+					 FLet ("uriDate", Call (StringConcat,
+								[S "<day/";
+								 Var "date";
+								 S ">"]),
+					       Return
+						 (Concat
+						    [EObject
+						       [S "s", Var "uriDate";
+							S "p", Item (`String "ex:date");
+							S "o", Var "date"];
+						     EObject
+						       [S "s", Var "uriDate";
+							S "p", S "ex:averageAmount";
+							S "o", Call (Avg, [Dot (Var "row", S "amount")])]]))))])))
 
 (* CNL tentative version
   for each row in CSV

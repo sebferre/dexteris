@@ -149,7 +149,6 @@ and syn_expr e ctx : syn =
     | S s -> [Word (`String s)]
     | Item i -> syn_item i
     | Empty -> [Kwd "()"]
-    | FileData (filename,d) -> [Kwd "file"; Word (`String filename)]
     | Concat le ->
        syn_Concat
 	 (List.map
@@ -230,6 +229,11 @@ and syn_flower f ctx : syn =
     match f with
     | Return e1 ->
        syn_Return (syn_expr e1 (Return1 ctx))
+    | FileData (filename,d,f1) ->
+       syn_For [Kwd "fields"]
+	       [Kwd "file"; Word (`String filename)]
+	       false
+	       (syn_flower f1 (FileData2 (filename,d,ctx)))
     | For (x,e1,opt,f1) ->
        syn_For [Word (`Var x)]
 	       (syn_expr e1 (For1 (x,ctx,opt,f1)))
@@ -480,6 +484,13 @@ and syn_flower_ctx f ctx (xml_f : syn) : syn =
      syn_expr_ctx
        (Flower f) ctx
        (syn_Flower xml_f)
+  | FileData2 (filename,d,ctx) ->
+     syn_flower_ctx
+       (FileData (filename,d,f)) ctx
+       (syn_For [Kwd "fields"]
+		[Kwd "file"; Word (`String filename)]
+		false
+		xml_f)
   | For2 (x,e1,opt,ctx) ->
      syn_flower_ctx
        (For (x,e1,opt,f)) ctx
@@ -550,7 +561,6 @@ let syn_transf : transf -> syn = function
   | InputRange (i1,i2) -> Kwd "a" :: Kwd "range" :: Kwd "from " :: syn_Call Range [[Input (`Int i1)]; [Input (`Int i2)]]
   | InputFloat i -> [Kwd "a"; Kwd "float"; Input (`Float i)]
   | InputString i -> [Kwd "a"; Kwd "string"; Input (`String i)]
-  | InputFileData i -> [Kwd "a"; Kwd "file"; Input (`FileData i)]
   | InsertNull -> [Kwd "null"]
   | InsertConcat -> syn_Concat [[the_focus]; [ellipsis]]
   | InsertExists in_x -> syn_Exists [Input (`Ident in_x)] [the_focus] [ellipsis]
@@ -578,6 +588,7 @@ let syn_transf : transf -> syn = function
   | InsertDefFunc1 in_name -> syn_DefFunc [Input (`Ident in_name)] [] [the_focus] [ellipsis]
   | InsertDefFunc2 in_name -> syn_DefFunc [Input (`Ident in_name)] [] [ellipsis] [the_focus]
   | InsertArg in_x -> [Kwd "add"; Kwd "argument"; Input (`Ident in_x)]
+  | InputFileData i -> syn_For [Kwd "fields"] [Kwd "file"; Input (`FileData i)] false [the_focus]
   | InsertFor1 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [the_focus] false [ellipsis] (* TODO: optional *)
   | InsertFor2 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [ellipsis] false [the_focus] (* TODO: optional *)
   | InsertLet1 in_x -> syn_Let [Input (`Ident in_x)] [the_focus] [ellipsis]

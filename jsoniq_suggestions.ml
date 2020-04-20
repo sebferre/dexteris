@@ -38,7 +38,7 @@ let focus_types_lengths_fields (extent : Sem.extent) : Sem.TypSet.t * int Bintre
 let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion list list =
   let focus_typs, focus_lens, fields = focus_types_lengths_fields extent in
   let ctx_typs = sem.Sem.annot#typs in
-  let allows_any_type = sem.Sem.annot#allows_any_type in
+  (*  let allows_any_type = sem.Sem.annot#allows_any_type in *)
   let allowed_typs = Sem.TypSet.inter ctx_typs focus_typs in
   let multiple_items = Bintree.fold (fun n ok -> ok || n > 1) focus_lens false in
   let multiple_bindings = List.length extent.Sem.bindings > 1 in
@@ -54,7 +54,6 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     if Sem.TypSet.mem `Int ctx_typs then add `Val (InputRange (new input 0, new input 10));
     if Sem.TypSet.mem `Float ctx_typs then add `Val (InputFloat (new input 0.));
     if Sem.TypSet.mem `String ctx_typs then add `Val (InputString (new input ""));
-    if allows_any_type then add `Val (InputFileData (new input ("",Seq.empty)));
     add `Val InsertNull;
     add `Val InsertConcat;
     if multiple_items then (
@@ -62,6 +61,7 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       add `Flower InsertPred);
     if multiple_items then (
       add `Flower (InsertFor1 (new input "", new input false)));
+    add `Flower (InputFileData (new input ("",Seq.empty)));
     add `Flower (InsertFor2 (new input "", new input false));
     add `Flower (InsertLet1 (new input ""));
     add `Flower (InsertLet2 (new input ""));
