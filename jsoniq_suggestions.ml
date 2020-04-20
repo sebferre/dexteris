@@ -48,7 +48,7 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     add `Val FocusUp;
     List.iter
       (fun x -> if x <> Sem.field_focus then add `Val (InsertVar x))
-      sem.Sem.annot#env;
+      extent.Sem.vars;
     if Sem.TypSet.mem `Bool ctx_typs then ( add `Val (InsertBool false); add `Val (InsertBool true) );
     if Sem.TypSet.mem `Int ctx_typs then add `Val (InputInt (new input 0));
     if Sem.TypSet.mem `Int ctx_typs then add `Val (InputRange (new input 0, new input 10));
@@ -117,7 +117,7 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     if multiple_bindings then (
       List.iter
 	(fun x -> add `Flower (InsertGroupBy x)) (* TODO: suggest only variables not yet grouped *)
-	sem.Sem.annot#env;
+	extent.Sem.vars;
       if Sem.TypSet.mem `Bool focus_typs then add `Flower InsertWhere1;
       add `Flower (InsertOrderBy1 DESC);
       add `Flower (InsertOrderBy1 ASC));

@@ -33,15 +33,11 @@ let sem_to_expr sem =
 class annot =
   object
     val mutable funcs : (string * var list) list = [] (* defined functions in scope *)
-    val mutable env : var list = [] (* variables in scope *)
     val mutable typs : TypSet.t = all_typs (* allowed types at focus *)
 
     method funcs = funcs
-    method env = env
     method typs = typs
 
-    method add_var (x : var) : unit =
-      env <- x::env
     method add_func (name : string) (args : var list) : unit =
       funcs <- (name,args)::funcs
 
@@ -69,13 +65,14 @@ let rec expr_bind_list_in lxe1 e =
 			 
 let rec sem_focus (foc : focus) : sem =
   let annot = new annot in
-  annot#add_var field_focus;
   match foc with
   | AtExpr (e,ctx) ->
-     let e' = Objectify (Concat [ContextEnv; EObject [S field_focus, Arrayify e]]) in
+     let e' = Let (field_focus, e, ContextEnv) in
+     (*     let e' = Objectify (Concat [ContextEnv; EObject [S field_focus, Arrayify e]]) in *)
      sem_expr_ctx annot e' ctx
   | AtFlower (f,ctx) ->
-     let f' = Return (Objectify (Concat [ContextEnv; EObject [S field_focus, Arrayify (Flower f)]])) in
+     let f' = Return (Let (field_focus, Flower f, ContextEnv)) in
+     (*     let f' = Return (Objectify (Concat [ContextEnv; EObject [S field_focus, Arrayify (Flower f)]])) in *)
      sem_flower_ctx annot f' ctx
 and sem_expr_ctx annot e : expr_ctx -> sem = function
   | Root ->
@@ -86,14 +83,12 @@ and sem_expr_ctx annot e : expr_ctx -> sem = function
      annot#any_typ;
      sem_expr_ctx annot e ctx
   | Exists2 (x,e1,ctx) ->
-     annot#add_var x;
      (*annot#only_typs [`Bool];*)
      sem_expr_ctx annot (expr_bind_in x e1 e) ctx
   | ForAll1 (x,ctx,e2) ->
      annot#any_typ;
      sem_expr_ctx annot e ctx
   | ForAll2 (x,e1,ctx) ->
-     annot#add_var x;
      (*annot#only_typs [`Bool];*)
      sem_expr_ctx annot (expr_bind_in x e1 e) ctx
   | If1 (ctx,e2,e3) ->
@@ -118,11 +113,9 @@ and sem_expr_ctx annot e : expr_ctx -> sem = function
      annot#any_typ;
      sem_expr_ctx annot e ctx
   | Map2 (e1,ctx) ->
-     annot#add_var var_context; (* TODO: generate unique vars instead of var_context *)
      sem_expr_ctx annot (expr_bind_in var_context e1 e) ctx
   | Pred1 (ctx,e2) -> sem_expr_ctx annot e ctx
   | Pred2 (e1,ctx) ->
-     annot#add_var var_context; (* TODO: generate unique vars instead of var_context *)
      (*annot#only_typs [`Bool];*) (* annoying constraint when building *)
      sem_expr_ctx annot (expr_bind_in var_context e1 e) ctx
   | Dot1 (ctx,e2) ->
@@ -156,11 +149,9 @@ and sem_expr_ctx annot e : expr_ctx -> sem = function
      annot#any_typ;
      sem_expr_ctx annot e ctx
   | Let2 (x,e1,ctx) ->
-     annot#add_var x;
      sem_expr_ctx annot (Let (x,e1,e)) ctx
   | DefFunc1 (name,args,ctx,e2) -> (* add args' example values *)
      annot#add_func name args;
-     args |> List.iter annot#add_var;
      sem_expr_ctx annot (expr_bind_list_in (List.map (fun x -> (x,Item (`Int 0))) args) e) ctx
   | DefFunc2 (name,args,e1,ctx) ->
      annot#add_func name args;
@@ -181,10 +172,8 @@ and sem_expr_ctx annot e : expr_ctx -> sem = function
 and sem_flower_ctx annot f : flower_ctx -> sem = function
   | Flower1 ctx -> sem_expr_ctx annot (expr_of_flower f) ctx
   | For2 (x,e1,opt,ctx) ->
-     annot#add_var x;
      sem_flower_ctx annot (For (x,e1,opt,f)) ctx
   | FLet2 (x,e1,ctx) ->
-     annot#add_var x;
      sem_flower_ctx annot (FLet (x,e1,f)) ctx
   | Where2 (e1,ctx) -> sem_flower_ctx annot (Where (e1,f)) ctx
   | GroupBy1 (lx,ctx) -> sem_flower_ctx annot (GroupBy (lx,f)) ctx
@@ -199,20 +188,17 @@ and sem_flower_ctx annot f : flower_ctx -> sem = function
 type extent = { vars : var list; bindings : (var * item) list list }
 
 let extent (sem : sem) : extent =
-  let vars = sem.annot#env in
   let d = eval_expr [] [] sem.expr in
-  let bindings =
+  let rev_bindings =
     Seq.fold_left
       (fun bindings i ->
        match i with
-       | `Assoc pairs ->
-	  let binding =
-	    List.fold_left
-	      (fun binding (k,i) ->
-	       (k,i)::binding)
-	      [] pairs in
-	  binding::bindings
+       | `Assoc pairs -> pairs::bindings
        | _ -> assert false)
       [] d in
-  let bindings = List.rev bindings in
+  let bindings = List.rev rev_bindings in
+  let vars = (* assuming all bindings have same vars *)
+    match bindings with
+    | [] -> []
+    | binding::_ -> List.map fst binding in
   { vars; bindings }
