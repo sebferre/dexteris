@@ -28,36 +28,36 @@ let html_info_of_input (input : Jsoniq_syntax.input) : Html.input_info =
     | `Int input ->
        "number", "0",
        new Html.input_update
-	   (fun input_elt ->
+	   (fun input_elt k ->
 	    Jsutils.integer_of_input input_elt
-	    |> Option.iter input#set)
+	    |> Option.iter (fun i -> input#set i; k()))
     | `Float input ->
        "number", "0.0e+0",
        new Html.input_update
-	   (fun input_elt ->
+	   (fun input_elt k ->
 	    Jsutils.float_of_input input_elt
-	    |> Option.iter input#set)
+	    |> Option.iter (fun f -> input#set f; k ()))
     | `String input ->
        "text", "",
        new Html.input_update
-	   (fun input_elt ->
+	   (fun input_elt k ->
 	    Jsutils.string_of_input input_elt
-	    |> input#set)
+	    |> (fun s -> input#set s; k()))
     | `Ident input ->
        "text", "x",
        new Html.input_update
-	   (fun input_elt ->
+	   (fun input_elt k ->
 	    Jsutils.string_of_input input_elt
-	    |> input#set)
+	    |> (fun id -> input#set id; k ()))
     | `FileData input ->
        "file", "",
        new Html.input_update
-	   (fun input_elt ->
+	   (fun input_elt k ->
 	    Jsutils.file_string_of_input
 	      input_elt
 	      (fun (filename,contents) ->
 	       let data = Jsoniq_files.data_of_file filename contents in
-	       input#set (filename,data)))
+	       input#set (filename,data); k ()))
   in
   Html.({ input_type; placeholder; input_update })
 
