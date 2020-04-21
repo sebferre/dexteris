@@ -2,9 +2,18 @@
 
 open Jsoniq
 
+let rec objectify_data (d : data) : data =
+  d
+  |> Seq.flat_map
+       (function
+	 | `List li -> objectify_data (Seq.from_list li)
+	 | (`Assoc _ as i) -> Seq.return i
+	 | atom -> Seq.return (`Assoc [("?",atom)]))
+       
 let data_of_json ?fname (contents : string) : data =
   let str = Yojson.Basic.stream_from_string ?fname contents in
-  Seq.from_stream str
+  objectify_data (Seq.from_stream str)
+
 
 let data_of_csv (contents : string) : data =
   let rec aux ~header ch =
