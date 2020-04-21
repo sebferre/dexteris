@@ -7,9 +7,12 @@ class place (lis : lis) (focus : Focus.focus) =
 object
   inherit [lis,Focus.focus,Semantics.extent,Suggestions.suggestion] Lis.place lis focus
 
+  val mutable extent : Semantics.extent option = None
+								    
   method eval k_extent k_suggestions =
     let sem = Semantics.sem_focus focus in
     let ext = Semantics.extent sem in
+    extent <- Some ext;
     k_extent ext;
     let llsugg = Suggestions.suggestions focus sem ext in
     k_suggestions llsugg
@@ -28,6 +31,11 @@ object
   method abort = ()
 
   method json = Focus.focus_to_yojson focus
+
+  method results =
+    match extent with
+    | None -> failwith "Results are not yet available"
+    | Some ext -> Jsoniq_files.mime_contents_of_extent ext
 end
 
 and lis =

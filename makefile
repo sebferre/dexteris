@@ -2,7 +2,7 @@
 LIB=bintree.cmo myseq.cmo
 CORE=focus.cmo syntax.cmo lis.cmo
 WEBAPP=jsutils.cmo webapp.cmo html.cmo widget_focus.cmo widget_suggestions.cmo widget_table.cmo
-JSONIQ=jsoniq.cmo jsoniq_focus.cmo jsoniq_semantics.cmo jsoniq_syntax.cmo jsoniq_suggestions.cmo jsoniq_lis.cmo jsoniq_files.cmo
+JSONIQ=jsoniq.cmo jsoniq_focus.cmo jsoniq_semantics.cmo jsoniq_syntax.cmo jsoniq_suggestions.cmo jsoniq_files.cmo jsoniq_lis.cmo
 
 FLAGS= -package yojson,ppx_deriving_yojson,csv -I ../../../lib -I ../../core -I ../../core/webapp
 

@@ -2,6 +2,8 @@
 
 open Jsoniq
 
+module Semantics = Jsoniq_semantics
+
 let rec objectify_data (d : data) : data =
   d
   |> Seq.flat_map
@@ -51,3 +53,15 @@ let data_of_file (filename : string) (contents : string) : data =
   | ".csv" -> data_of_csv contents
   | _ -> failwith "Unexpected file extension (should be one of .json .csv)"
 
+let json_of_extent (ext : Semantics.extent) : Yojson.Basic.t =
+  `List
+   (List.map
+      (fun binding ->
+       `Assoc (List.remove_assoc Semantics.field_focus binding))
+      ext.Semantics.bindings)
+		  
+let mime_contents_of_extent (ext : Semantics.extent) : string * string =
+  let json = json_of_extent ext in
+  let contents = Yojson.Basic.to_string json in
+  let mime = "application/json" in
+  mime, contents
