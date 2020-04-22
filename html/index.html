@@ -37,17 +37,17 @@
     <div id="control-navig" class="navbar" data-spy="affix" data-offset-top="75">
       <div class="nav navbar-nav navbar-left">
 	<span class="btn-group">
-	  <button id="button-home" class="btn btn-primary btn-md navbar-btn">
-	    <span class="glyphicon glyphicon-home" title="Click to reset the query"></span>
+	  <button id="button-home" class="btn btn-primary btn-md navbar-btn" data-toggle="tooltip" title="Click to reset the query">
+	    <span class="glyphicon glyphicon-home"></span>
 	  </button>
-	  <button id="button-back" class="btn btn-primary btn-md navbar-btn">
-	    <span class="glyphicon glyphicon-arrow-left" title="Click to go back in navigation history"></span>
+	  <button id="button-back" class="btn btn-primary btn-md navbar-btn" data-toggle="tooltip" title="Click to go back in navigation history">
+	    <span class="glyphicon glyphicon-arrow-left"></span>
 	  </button>
-	  <button id="button-forward" class="btn btn-primary btn-md navbar-btn">
-	    <span class="glyphicon glyphicon-arrow-right" title="Click to go forward in navigation history"></span>
+	  <button id="button-forward" class="btn btn-primary btn-md navbar-btn" data-toggle="tooltip" title="Click to go forward in navigation history">
+	    <span class="glyphicon glyphicon-arrow-right"></span>
 	  </button>
-	  <button id="button-refresh" class="btn btn-primary btn-md navbar-btn">
-	    <span class="glyphicon glyphicon-refresh" title="Click to refresh the current view, e.g. after changing the configuration"></span>
+	  <button id="button-refresh" class="btn btn-primary btn-md navbar-btn" data-toggle="tooltip" title="Click to refresh the current view, e.g. after changing the configuration">
+	    <span class="glyphicon glyphicon-refresh"></span>
 	  </button>
 	</span>
 
@@ -70,11 +70,11 @@
 		</a>
 		&nbsp;
 		<span class="btn-group">
-		  <button id="button-save" class="btn btn-primary btn-sm">
-		    <span class="glyphicon glyphicon-save" title="Click to save the query"></span>
+		  <button id="button-save" class="btn btn-primary btn-sm" data-toggle="tooltip" title="Click to save the query">
+		    <span class="glyphicon glyphicon-save"></span>
 		  </button>
-		  <button id="button-open" class="btn btn-primary btn-sm">
-		    <span class="glyphicon glyphicon-open" title="Click to load a saved query"></span>
+		  <button id="button-open" class="btn btn-primary btn-sm" data-toggle="tooltip" title="Click to load a saved query">
+		    <span class="glyphicon glyphicon-open"></span>
 		  </button>
 		</span>
 		<input id="input-open" type="file" accept=".json,application/json" style="display:none"/>
@@ -128,8 +128,8 @@
 		</a>
 		&nbsp;
 		<span class="btn-group">
-		  <button id="button-save-results" class="btn btn-primary btn-sm">
-		    <span class="glyphicon glyphicon-save" title="Click to save the results"></span>
+		  <button id="button-save-results" class="btn btn-primary btn-sm" data-toggle="tooltip" title="Click to save the results">
+		    <span class="glyphicon glyphicon-save"></span>
 		  </button>
 		</span>
 	      </h5>
@@ -162,6 +162,12 @@
       </a>
       for more information.
     </footer>
+
+    <script>
+        $(function () {
+            $('[data-toggle="tooltip"]').tooltip();
+        });
+    </script>
 
   </body>
 </html>
