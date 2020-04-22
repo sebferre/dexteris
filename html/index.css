@@ -13,6 +13,11 @@ select {
     padding: 4px;
 }
 
+.panel-heading {
+    padding-top:5px;
+    padding-bottom:5px;
+}
+
 .suggestion-input {
     height: 10px;
     width:100px;
