@@ -183,10 +183,10 @@ let rec focus_next_Empty (foc : focus) : focus option =
   | AtExpr (Empty, ctx) -> Some foc
   | _ ->
      match focus_right foc with
-     | Some foc -> focus_next_Empty foc
+     | Some foc_right -> focus_next_Empty foc
      | None ->
 	match focus_up foc with
-	| Some (foc,_) -> focus_next_Empty foc
+	| Some (foc_up,_) -> focus_next_Empty foc_up
 	| None -> None
 			  
 
@@ -476,9 +476,14 @@ and apply_transf_expr = function
   | InsertNot, e, ctx -> Some (Not e, ctx)
 
   | InsertFunc func, e, ctx ->
-     ( match arity_of_func func with
-       | 0 -> Some (Call (func, []), ctx)
-       | n -> Some (e, CallX (func, ([],make_list (n-1) Empty), ctx)) )
+     let n = arity_of_func func in
+     if n = 0 then
+       Some (Call (func, []), ctx)
+     else if e=Empty then
+       Some (e, CallX (func, ([],make_list (n-1) Empty), ctx))
+     else if n > 1 then
+       Some (Empty, CallX (func, ([e],make_list (n-2) Empty), ctx))
+     else Some (Call (func, [e]), ctx)
 
   | InsertMap, e, ctx -> Some (Empty, Map2 (e, ctx))
   | InsertPred, e, ctx -> Some (Empty, Pred2 (e, ctx))
