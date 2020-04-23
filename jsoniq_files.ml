@@ -54,11 +54,16 @@ let data_of_file (filename : string) (contents : string) : data =
   | _ -> failwith "Unexpected file extension (should be one of .json .csv)"
 
 let json_of_extent (ext : Semantics.extent) : Yojson.Basic.t =
-  `List
-   (List.map
+  let elts =
+    List.map
       (fun binding ->
-       `Assoc (List.remove_assoc Semantics.field_focus binding))
-      ext.Semantics.bindings)
+       match binding with
+       | [(k,i)] when k = Semantics.field_focus -> i
+       | _ -> `Assoc binding)
+      ext.Semantics.bindings in
+  match elts with
+  | [elt] -> elt
+  | _ -> `List elts
 		  
 let mime_contents_of_extent (ext : Semantics.extent) : string * string =
   let json = json_of_extent ext in
