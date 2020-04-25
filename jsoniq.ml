@@ -136,6 +136,8 @@ type expr =
   | FLet of var * expr * flower
   | Where of expr * flower
   | GroupBy of var list * flower
+  | Project of var list * flower
+  | Slice of int * int option (* offset, limit? *) * flower
   | OrderBy of (expr * order) list * flower
   | FConcat of flower list
   | FIf of flower * flower * flower
@@ -633,6 +635,15 @@ and eval_flower (funcs : funcs) (ctx : env Seq.t) : flower -> data = function
 	  env::lenv)
 	 [] in
      let ctx = Seq.from_list lenv in
+     eval_flower funcs ctx f
+  | Project (lx,f) ->
+     let ctx =
+       ctx
+       |> Seq.map
+	    (fun env -> List.filter (fun (y,_) -> List.mem y lx) env) in
+     eval_flower funcs ctx f
+  | Slice (offset,limit,f) ->
+     let ctx = Seq.slice ~offset ?limit ctx in
      eval_flower funcs ctx f
   | OrderBy (leo, f) ->
      let le, lo = List.split leo in

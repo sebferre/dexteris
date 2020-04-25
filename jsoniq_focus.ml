@@ -50,6 +50,8 @@ and flower_ctx =
   | FLet2 of var * expr * flower_ctx
   | Where2 of expr * flower_ctx
   | GroupBy1 of var list * flower_ctx
+  | Project1 of var list * flower_ctx
+  | Slice1 of int * int option * flower_ctx
   | OrderBy2 of (expr * order) list * flower_ctx
   | FConcatX of flower list_ctx * flower_ctx
   | FIf1 of flower_ctx * flower * flower
@@ -112,6 +114,8 @@ and focus_flower_up (f : flower) : flower_ctx -> focus * path = function
   | FLet2 (x,e,ctx) -> AtFlower (FLet (x,e,f), ctx), down_rights 1
   | Where2 (e,ctx) -> AtFlower (Where (e,f), ctx), down_rights 1
   | GroupBy1 (lx,ctx) -> AtFlower (GroupBy (lx,f), ctx), down_rights 0
+  | Project1 (lx,ctx) -> AtFlower (Project (lx,f), ctx), down_rights 0
+  | Slice1 (offset,limit,ctx) -> AtFlower (Slice (offset,limit,f), ctx), down_rights 0 
   | OrderBy2 (leo,ctx) -> AtFlower (OrderBy (leo,f), ctx), down_rights (List.length leo)
   | FConcatX (ll_rr,ctx) -> AtFlower (FConcat (list_of_ctx f ll_rr), ctx), down_rights (List.length (fst ll_rr))
   | FIf1 (ctx,f2,f3) -> AtFlower (FIf (f,f2,f3), ctx), down_rights 0
@@ -171,6 +175,8 @@ and focus_flower_right (f : flower) : flower_ctx -> focus option = function
   | FLet2 (x,e,ctx) -> None
   | Where2 (e,ctx) -> None
   | GroupBy1 (lx,ctx) -> None
+  | Project1 (lx,ctx) -> None
+  | Slice1 (offset,limit,ctx) -> None
   | OrderBy2 (leo,ctx) -> None
   | FConcatX ((ll,f1::rr),ctx) -> Some (AtFlower (f1, FConcatX ((f::ll,rr),ctx)))
   | FConcatX ((_,[]),_) -> None
@@ -183,12 +189,12 @@ let rec focus_next_Empty (foc : focus) : focus option =
   | AtExpr (Empty, ctx) -> Some foc
   | _ ->
      match focus_right foc with
-     | Some foc_right -> focus_next_Empty foc
+     | Some foc_right -> focus_next_Empty foc_right
      | None ->
 	match focus_up foc with
 	| Some (foc_up,_) -> focus_next_Empty foc_up
 	| None -> None
-			  
+	  
 
 (* conversions between focus and (expr,path) *)
 			  
@@ -336,6 +342,8 @@ type transf =
   | InsertWhere1
   | InsertWhere2
   | InsertGroupBy of var
+  | InsertProject of var
+  | InsertSlice of int input * int input
   | InsertOrderBy1 of order
   | InsertOrderBy2 of order
 
@@ -380,6 +388,10 @@ and reaching_flower : flower -> transf list = function
   | FLet (x,e,f) -> reaching_expr e @ InsertLet1 (new input x) :: reaching_flower f @ [FocusUp]
   | Where (e,f) -> reaching_expr e @ InsertWhere1 :: reaching_flower f @ [FocusUp]
   | GroupBy (lx,f) -> List.map (fun x -> InsertGroupBy x) lx @ reaching_flower f @ [FocusUp]
+  | Project (lx,f) -> List.map (fun x -> InsertProject x) lx @ reaching_flower f @ [FocusUp]
+  | Slice (offset,limit,f) ->
+     let l = match limit with None -> 0 | Some l -> l in
+     InsertSlice (new input offset, new input l) :: reaching_flower f @ [FocusUp]
   | OrderBy (leo,f) -> List.concat (List.map (fun (e,o) -> reaching_expr e @ [InsertOrderBy1 o]) leo) @ reaching_flower f @ [FocusUp]
   | FConcat lf -> reaching_list reaching_flower [InsertConcat] lf
   | FIf (f1,f2,f3) -> reaching_flower f1 @ InsertIf1 :: reaching_flower f2 @ FocusRight :: reaching_flower f3 @ [FocusUp]
@@ -421,7 +433,14 @@ let rec delete (foc : focus) : focus option =
        | None -> None
        | Some (foc_up,_) -> delete foc_up )
   | AtFlower (f, ctx) -> Some (AtExpr (Empty, Return1 ctx))
-			  
+
+let rec list_switch x = function
+  | [] -> [x]
+  | x1::lx1 ->
+     if x1 = x
+     then lx1
+     else x1::list_switch x lx1
+			      
 let rec apply_transf (transf : transf) (foc : focus) : focus option =
   match transf with
   | FocusUp -> Option.map fst (focus_up foc)
@@ -530,9 +549,18 @@ and apply_transf_expr = function
   | InsertWhere1, e, ctx -> Some (Empty, Return1 (Where2 (e, ctx_flower_of_expr ctx)))
   | InsertWhere2, e, ctx -> Some (Empty, Where1 (ctx_flower_of_expr ctx, flower_of_expr e))
 
-  | InsertGroupBy x, e, Return1 (GroupBy1 (lx,ctx)) -> Some (e, Return1 (GroupBy1 (lx@[x],ctx)))					    
-  | InsertGroupBy x, Flower (GroupBy (lx,f)), ctx -> Some (Flower (GroupBy (lx@[x],f)), ctx)						 
+  | InsertGroupBy x, e, Return1 (GroupBy1 (lx,ctx)) -> Some (e, Return1 (GroupBy1 (list_switch x lx,ctx)))					    
+  | InsertGroupBy x, Flower (GroupBy (lx,f)), ctx -> Some (Flower (GroupBy (list_switch x lx,f)), ctx)						 
   | InsertGroupBy x, e, ctx -> Some (e, Return1 (GroupBy1 ([x], ctx_flower_of_expr ctx)))
+
+  | InsertProject x, e, Return1 (Project1 (lx,ctx)) -> Some (e, Return1 (Project1 (list_switch x lx,ctx)))					    
+  | InsertProject x, Flower (Project (lx,f)), ctx -> Some (Flower (Project (list_switch x lx,f)), ctx)						 
+  | InsertProject x, e, ctx -> Some (Flower (Project ([x], flower_of_expr e)), ctx)
+
+  | InsertSlice (in_offset,in_limit), e, ctx ->
+     let offset = in_offset#get in
+     let limit = match in_limit#get with 0 -> None | l -> Some l in
+     Some (e, Return1 (Slice1 (offset, limit, ctx_flower_of_expr ctx)))
 
   | InsertOrderBy1 o, e, Return1 (OrderBy2 (leo, ctx)) -> Some (Empty, Return1 (OrderBy2 (leo@[e,o], ctx)))
   | InsertOrderBy1 o, e, ctx -> Some (Empty, Return1 (OrderBy2 ([e,o], ctx_flower_of_expr ctx)))

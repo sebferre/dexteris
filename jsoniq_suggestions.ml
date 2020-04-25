@@ -119,8 +119,12 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
 	(fun x -> add `Flower (InsertGroupBy x)) (* TODO: suggest only variables not yet grouped *)
 	extent.Sem.vars;
       if Sem.TypSet.mem `Bool focus_typs then add `Flower InsertWhere1;
+      add `Flower (InsertSlice (new input 0, new input 0));
       add `Flower (InsertOrderBy1 DESC);
       add `Flower (InsertOrderBy1 ASC));
+    List.iter
+      (fun x -> add `Flower (InsertProject x))
+      extent.Sem.vars;
     add `Flower (InsertOrderBy2 DESC);
     add `Flower (InsertOrderBy2 ASC);
   in

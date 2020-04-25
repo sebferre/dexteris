@@ -130,6 +130,12 @@ let syn_Where xml1 xml2 : syn =
 let syn_GroupBy lx xml1 : syn =
   [Block [Kwd "group" :: Kwd "by" :: Enum (", ", List.map (fun x -> [Word (`Var x)]) lx) :: [];
 	  xml1]]
+let syn_Project lx xml1 : syn =
+  [Block [Kwd "project" :: Kwd "on" :: Enum (", ", List.map (fun x -> [Word (`Var x)]) lx) :: [];
+	  xml1]]
+let syn_Slice xml_offset xml_limit xml1 : syn =
+  [Block [Kwd "offset" :: xml_offset @ Kwd "limit" :: xml_limit;
+	  xml1]]
 let syn_OrderBy xml_orders xml2 : syn =
   [Block [Kwd "order" :: Kwd "by" :: Enum (", ", xml_orders) :: [];
 	  xml2]]
@@ -249,6 +255,12 @@ and syn_flower f ctx : syn =
     | GroupBy (lx,f1) ->
        syn_GroupBy lx
 		   (syn_flower f1 (GroupBy1 (lx,ctx)))
+    | Project (lx,f1) ->
+       syn_Project lx
+		   (syn_flower f1 (Project1 (lx,ctx)))
+    | Slice (o,l,f1) ->
+       syn_Slice [Word (`Int o)] [match l with None -> Kwd "none" | Some l -> Word (`Int l)]
+		 (syn_flower f1 (Slice1 (o,l,ctx)))
     | OrderBy (leo,f1) ->
        syn_OrderBy (List.map
 		      (fun ((e,o),ll_rr) ->
@@ -513,6 +525,14 @@ and syn_flower_ctx f ctx (xml_f : syn) : syn =
      syn_flower_ctx
        (GroupBy (lx,f)) ctx
        (syn_GroupBy lx xml_f)
+  | Project1 (lx,ctx) ->
+     syn_flower_ctx
+       (Project (lx,f)) ctx
+       (syn_Project lx xml_f)
+  | Slice1 (o,l,ctx) ->
+     syn_flower_ctx
+       (Slice (o,l,f)) ctx
+       (syn_Slice [Word (`Int o)] [match l with None -> Kwd "none" | Some l -> Word (`Int l)] xml_f)
   | OrderBy2 (leo,ctx) ->
      syn_flower_ctx
        (OrderBy (leo,f)) ctx
@@ -596,6 +616,8 @@ let syn_transf : transf -> syn = function
   | InsertWhere1 -> syn_Where [the_focus] [ellipsis]
   | InsertWhere2 -> syn_Where [ellipsis] [the_focus]
   | InsertGroupBy x -> syn_GroupBy [x] [the_focus]
+  | InsertProject x -> syn_Project [x] [the_focus]
+  | InsertSlice (in_offset,in_limit) -> syn_Slice [Input (`Int in_offset)] [Input (`Int in_limit)] [the_focus]
   | InsertOrderBy1 o -> syn_OrderBy [syn_order [the_focus] o] [ellipsis]
   | InsertOrderBy2 o -> syn_OrderBy [syn_order [ellipsis] o] [the_focus]
 				    

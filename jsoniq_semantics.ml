@@ -179,6 +179,8 @@ and sem_flower_ctx annot f : flower_ctx -> sem = function
      sem_flower_ctx annot (FLet (x,e1,f)) ctx
   | Where2 (e1,ctx) -> sem_flower_ctx annot (Where (e1,f)) ctx
   | GroupBy1 (lx,ctx) -> sem_flower_ctx annot (GroupBy (lx,f)) ctx
+  | Project1 (lx,ctx) -> sem_flower_ctx annot (Project (lx,f)) ctx
+  | Slice1 (o,l,ctx) -> sem_flower_ctx annot (Slice (o,l,f)) ctx
   | OrderBy2 (leo,ctx) -> sem_flower_ctx annot (OrderBy (leo,f)) ctx
   | FConcatX (ll_rr,ctx) -> sem_flower_ctx annot f ctx
   | FIf1 (ctx,e2,e3) ->
