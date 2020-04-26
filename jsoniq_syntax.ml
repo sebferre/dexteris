@@ -69,7 +69,9 @@ let syn_Call func lxml =
   | Defined (name,arity), lxml -> classic name lxml
   | _ -> failwith "syn_Call: invalid number of arguments or unexpected function"
 			       
-let syn_Flower xml : syn = xml
+let syn_Flower xml : syn =
+  [Block [[Kwd "collect"];
+	  [Indent xml]]]
 let syn_Concat lxml : syn =
   [Enum (", ", lxml)]
 let syn_Exists xmlx xml1 xml2 : syn =
