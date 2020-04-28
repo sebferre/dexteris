@@ -311,7 +311,8 @@ type transf =
   | InputString of string input
   | InputFileData of (string * data) input
   | InsertNull
-  | InsertConcat
+  | InsertConcat1
+  | InsertConcat2
   | InsertExists of var input
   | InsertForAll of var input
   | InsertIf1 | InsertIf2 | InsertIf3
@@ -359,7 +360,7 @@ let rec reaching_expr : expr -> transf list = function
   | S s -> [InputString (new input s)]
   | Item i -> reaching_item i
   | Empty -> [] (* the default value *)
-  | Concat le -> reaching_list reaching_expr [InsertConcat] le (* assuming |le| > 1 *)
+  | Concat le -> reaching_list reaching_expr [InsertConcat1] le (* assuming |le| > 1 *)
   | Flower f -> reaching_flower f
   | Exists (x,e1,e2) -> reaching_expr e1 @ InsertExists (new input x) :: reaching_expr e2 @ [FocusUp]
   | ForAll (x,e1,e2) -> reaching_expr e1 @ InsertForAll (new input x) :: reaching_expr e2 @ [FocusUp]
@@ -376,7 +377,7 @@ let rec reaching_expr : expr -> transf list = function
   | Var x -> [InsertVar x]
   | ContextItem -> [InsertContextItem]
   | ContextEnv -> [InsertContextEnv]
-  | EObject pairs -> InsertObject :: reaching_list reaching_pair [InsertConcat] pairs
+  | EObject pairs -> InsertObject :: reaching_list reaching_pair [InsertConcat1] pairs
   | Objectify e -> reaching_expr e @ [InsertObjectify]
   | Arrayify e -> reaching_expr e @ [InsertArrayify]
   | Let (x,e1,e2) -> reaching_expr e1 @ InsertLet1 (new input x) :: reaching_expr e2 @ [FocusUp]
@@ -393,18 +394,18 @@ and reaching_flower : flower -> transf list = function
      let l = match limit with None -> 0 | Some l -> l in
      InsertSlice (new input offset, new input l) :: reaching_flower f @ [FocusUp]
   | OrderBy (leo,f) -> List.concat (List.map (fun (e,o) -> reaching_expr e @ [InsertOrderBy1 o]) leo) @ reaching_flower f @ [FocusUp]
-  | FConcat lf -> reaching_list reaching_flower [InsertConcat] lf
+  | FConcat lf -> reaching_list reaching_flower [InsertConcat1] lf
   | FIf (f1,f2,f3) -> reaching_flower f1 @ InsertIf1 :: reaching_flower f2 @ FocusRight :: reaching_flower f3 @ [FocusUp]
 and reaching_data (d : data) : transf list =
-  reaching_list reaching_item [InsertConcat] (Seq.to_list d)
+  reaching_list reaching_item [InsertConcat1] (Seq.to_list d)
 and reaching_item : item -> transf list = function
   | `Bool b -> [InsertBool b]
   | `Int n -> [InputInt (new input n)]
   | `Float f -> [InputFloat (new input f)]
   | `String s -> [InputString (new input s)]
   | `Null -> [InsertNull]
-  | `Assoc pairs -> InsertObject :: reaching_list reaching_pair [InsertConcat] (List.map (fun (k,i) -> S k, Item i) pairs)
-  | `List li -> InsertArray :: reaching_list reaching_item [InsertConcat] li
+  | `Assoc pairs -> InsertObject :: reaching_list reaching_pair [InsertConcat1] (List.map (fun (k,i) -> S k, Item i) pairs)
+  | `List li -> InsertArray :: reaching_list reaching_item [InsertConcat1] li
 and reaching_pair (e1, e2: expr * expr) : transf list =
   reaching_expr e1 @ FocusRight :: reaching_expr e2
 
@@ -465,13 +466,17 @@ and apply_transf_expr = function
      
   | InsertNull, _, ctx -> Some (Item `Null, ctx)
 
-  | InsertConcat, e, EObjectX1 ((ll,rr), ctx, e2) -> Some (Empty, EObjectX1 (((e,e2)::ll,rr), ctx, Empty))
-  | InsertConcat, e, EObjectX2 ((ll,rr), e1, ctx) -> Some (Empty, EObjectX1 (((e1,e)::ll,rr), ctx, Empty))
+  | InsertConcat1, e, EObjectX1 ((ll,rr), ctx, e2) -> Some (Empty, EObjectX1 (((e,e2)::ll,rr), ctx, Empty))
+  | InsertConcat1, e, EObjectX2 ((ll,rr), e1, ctx) -> Some (Empty, EObjectX1 (((e1,e)::ll,rr), ctx, Empty))
 
-  | InsertConcat, Empty, _ -> None
-  | InsertConcat, e, ConcatX ((ll,rr), ctx) -> Some (Empty, ConcatX ((e::ll,rr), ctx))
-  | InsertConcat, Concat le, ctx -> Some (Empty, ConcatX ((List.rev le,[]), ctx))
-  | InsertConcat, e, ctx -> Some (Empty, ConcatX (([e],[]), ctx))
+  | InsertConcat1, Empty, _ -> None
+  | InsertConcat1, e, ConcatX ((ll,rr), ctx) -> Some (Empty, ConcatX ((e::ll,rr), ctx))
+  | InsertConcat1, Concat le, ctx -> Some (Empty, ConcatX ((List.rev le,[]), ctx))
+  | InsertConcat1, e, ctx -> Some (Empty, ConcatX (([e],[]), ctx))
+  | InsertConcat2, Empty, _ -> None
+  | InsertConcat2, e, ConcatX ((ll,rr), ctx) -> Some (Empty, ConcatX ((ll,e::rr), ctx))
+  | InsertConcat2, Concat le, ctx -> Some (Empty, ConcatX (([],le), ctx))
+  | InsertConcat2, e, ctx -> Some (Empty, ConcatX (([],[e]), ctx))
 
   | InsertExists in_x, Empty, ctx -> Some (Empty, Exists1 (in_x#get,ctx,Empty))
   | InsertExists in_x, e, ctx -> Some (Empty, Exists2 (in_x#get,e,ctx))

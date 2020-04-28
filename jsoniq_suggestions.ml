@@ -46,6 +46,8 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
   let add kind tr = transfs := (kind,tr) :: !transfs in
   let () =
     add `Val FocusUp;
+    add `Val InsertConcat1;
+    add `Val InsertConcat2;
     List.iter
       (fun x -> if x <> Sem.field_focus then add `Val (InsertVar x))
       extent.Sem.vars;
@@ -55,7 +57,6 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     if Sem.TypSet.mem `Float ctx_typs then add `Val (InputFloat (new input 0.));
     if Sem.TypSet.mem `String ctx_typs then add `Val (InputString (new input ""));
     add `Val InsertNull;
-    add `Val InsertConcat;
     if multiple_items then (
       add `Flower InsertMap;
       add `Flower InsertPred);
