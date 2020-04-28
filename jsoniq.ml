@@ -503,8 +503,12 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
 	   match i with
 	   | `List li -> Seq.from_list li
 	   | _ -> Seq.empty)
-  | Var x -> (try List.assoc x env with _ -> raise (Unbound x))
-  | ContextItem -> (try List.assoc var_context env with _ -> raise (Unbound var_context))
+  | Var x ->
+     (try List.assoc x env
+      with _ -> Seq.return `Null (*raise (Unbound x)*))
+  | ContextItem ->
+     (try List.assoc var_context env
+      with _ -> Seq.return `Null (*raise (Unbound var_context)*))
   | ContextEnv -> Seq.return (item_of_env env)
   | EObject lkv ->
      let pairs =
