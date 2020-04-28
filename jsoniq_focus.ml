@@ -424,17 +424,108 @@ let ctx_expr_of_flower = function
 		     
 let rec delete (foc : focus) : focus option =
   match foc with
-  | AtExpr (Empty,ctx) ->
-     ( match focus_up foc with
+  | AtExpr (Empty,ctx) -> delete_ctx_expr ctx
+     (* match focus_up foc with
        | None -> None
-       | Some (foc_up,_) -> delete foc_up )
+       | Some (foc_up,_) -> delete foc_up *)
+  (*  | AtExpr (_, ArrayUnboxing1 ctx) -> Some (AtExpr (Empty,ctx)) *)
   | AtExpr (_,ctx) -> Some (AtExpr (Empty, ctx))
-  | AtFlower (Return Empty, ctx) ->
-     ( match focus_up foc with
+  | AtFlower (Return Empty, ctx) -> delete_ctx_flower ctx
+     (* match focus_up foc with
        | None -> None
-       | Some (foc_up,_) -> delete foc_up )
-  | AtFlower (f, ctx) -> Some (AtExpr (Empty, Return1 ctx))
+       e| Some (foc_up,_) -> delete foc_up *)
+  | AtFlower (f, ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
+and delete_ctx_expr : expr_ctx -> focus option = function
+  | Root -> None
+  | ConcatX (ll_rr,ctx) ->
+     let e =
+       match Focus.list_of_ctx_none ll_rr with
+       | [] -> Empty
+       | [e] -> e
+       | le -> Concat le in
+     Some (AtExpr (e, ctx))
+  | Exists1 (x,ctx,e2) -> Some (AtExpr (e2,ctx))
+  | Exists2 (x,e1,ctx) -> Some (AtExpr (e1,ctx))
+  | ForAll1 (x,ctx,e2) -> Some (AtExpr (e2,ctx))
+  | ForAll2 (x,e1,ctx) -> Some (AtExpr (e1,ctx))
+  | If1 (ctx,e2,e3) -> Some (AtExpr (e3, ctx))
+  | If2 (e1,ctx,e3) -> Some (AtExpr (e3,ctx))
+  | If3 (e1,e2,ctx) -> Some (AtExpr (e2,ctx))
+  | OrX (ll_rr,ctx) ->
+     let e =
+       match Focus.list_of_ctx_none ll_rr with
+       | [] -> Empty
+       | [e] -> e
+       | le -> Or le in
+     Some (AtExpr (e,ctx))
+  | AndX (ll_rr,ctx) ->
+     let e =
+       match Focus.list_of_ctx_none ll_rr with
+       | [] -> Empty
+       | [e] -> e
+       | le -> And le in
+     Some (AtExpr (e,ctx))
+  | Not1 ctx -> Some (AtExpr (Empty,ctx))
+  | CallX (func,ll_rr,ctx) -> Some (AtExpr (Empty,ctx))
+  | Map1 (ctx,e2) -> Some (AtExpr (Empty,ctx))
+  | Map2 (e1,ctx) -> Some (AtExpr (e1,ctx))
+  | Pred1 (ctx,e2) -> Some (AtExpr (Empty,ctx))
+  | Pred2 (e1,ctx) -> Some (AtExpr (e1,ctx))
+  | Dot1 (ctx,e2) -> Some (AtExpr (Empty,ctx))
+  | Dot2 (e1,ctx) -> Some (AtExpr (e1,ctx))
+  | ArrayLookup1 (ctx,e2) -> Some (AtExpr (Empty,ctx))
+  | ArrayLookup2 (e1,ctx) -> Some (AtExpr (e1,ctx))
+  | ArrayUnboxing1 ctx -> Some (AtExpr (Empty,ctx))
+  | EObjectX1 (ll_rr,ctx,e2) ->
+     let e =
+       match Focus.list_of_ctx_none ll_rr with
+       | [] -> Empty
+       | pairs -> EObject pairs in
+     Some (AtExpr (e,ctx))
+  | EObjectX2 (ll_rr,e1,ctx) ->
+     let e =
+       match Focus.list_of_ctx_none ll_rr with
+       | [] -> Empty
+       | pairs -> EObject pairs in
+     Some (AtExpr (e,ctx))
+  | Objectify1 ctx -> Some (AtExpr (Empty,ctx))
+  | Arrayify1 ctx -> Some (AtExpr (Empty,ctx))
+  | Let1 (x,ctx,e2) -> Some (AtExpr (e2,ctx))
+  | Let2 (x,e1,ctx) -> Some (AtExpr (e1,ctx))
+  | DefFunc1 (f,lx,ctx,e2) -> Some (AtExpr (e2,ctx))
+  | DefFunc2 (f,lx,e1,ctx) -> Some (AtExpr (e1,ctx))
+  | Return1 ctx -> delete_ctx_flower ctx
+  | For1 (x,ctx,opt,f) -> Some (AtFlower (f,ctx))
+  | FLet1 (x,ctx,f) -> Some (AtFlower (f,ctx))
+  | Where1 (ctx,f) -> Some (AtFlower (f,ctx))
+  | OrderBy1X (ll_rr,ctx,o,f1) ->
+     let f =
+       match Focus.list_of_ctx_none ll_rr with
+       | [] -> f1
+       | leo -> OrderBy (leo,f1) in
+     Some (AtFlower (f,ctx))
+and delete_ctx_flower : flower_ctx -> focus option = function
+  | Flower1 ctx -> delete_ctx_expr ctx
+  | FileData2 (fname,d,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
+  | For2 (x,e,opt,ctx) -> Some (AtExpr (e, ctx_expr_of_flower ctx))
+  | FLet2 (x,e,ctx) -> Some (AtExpr (e, ctx_expr_of_flower ctx))
+  | Where2 (e,ctx) -> Some (AtExpr (e, ctx_expr_of_flower ctx))
+  | GroupBy1 (lx,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
+  | Project1 (lx,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
+  | Slice1 (o,l,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
+  | OrderBy2 (leo,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
+  | FConcatX (ll_rr,ctx) ->
+     let f =
+       match Focus.list_of_ctx_none ll_rr with
+       | [] -> Return Empty
+       | [f] -> f
+       | lf -> FConcat lf in
+     Some (AtFlower (f, ctx))
+  | FIf1 (ctx,f2,f3) -> Some (AtFlower (f3, ctx))
+  | FIf2 (f1,ctx,f3) -> Some (AtFlower (f3,ctx))
+  | FIf3 (f1,f2,ctx) -> Some (AtFlower (f2,ctx))
 
+			     
 let rec list_switch x = function
   | [] -> [x]
   | x1::lx1 ->
