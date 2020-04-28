@@ -23,7 +23,21 @@ let result_bind_list (f : 'a -> ('b,'e) Result.result) (lx : 'a list) : ('b list
      Result.bind res (fun ly -> Result.bind (f x) (fun y -> Result.Ok (y::ly))))
     lx (Ok [])
 
-  
+let rec list_sort (cmp : 'a -> 'a -> int) (l : 'a list) : 'a list =
+  match l with
+  | [] -> []
+  | [x] -> [x]
+  | x::r ->
+     let ll, rr = list_partition cmp x r [] [] in
+     list_sort cmp ll @ x :: list_sort cmp rr
+and list_partition cmp x r ll rr =
+  match r with
+  | [] -> ll, rr
+  | y::r1 ->
+     if cmp x y > 0
+     then list_partition cmp x r1 (y::ll) rr
+     else list_partition cmp x r1 ll (y::rr)
+    
 (* ======================================================= *)
 
 module Seq = Myseq
@@ -662,7 +676,7 @@ and eval_flower (funcs : funcs) (ctx : env Seq.t) : flower -> data = function
 	     (ordering_key, env) :: res)
 	    [] in
      let sorted_l_key_env =
-       List.sort
+       list_sort
 	 (fun (k1,env1) (k2,env2) ->
 	  compare_ordering_key lo k1 k2)
 	 l_key_env in

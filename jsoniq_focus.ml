@@ -167,7 +167,7 @@ and focus_expr_right (e : expr) : expr_ctx -> focus option = function
   | FLet1 (x,ctx,f) -> Some (AtFlower (f, FLet2 (x,e,ctx)))
   | Where1 (ctx,f) -> Some (AtFlower (f, Where2 (e,ctx)))
   | OrderBy1X ((ll,(e1,o1)::rr),ctx,o,f) -> Some (AtExpr (e1, OrderBy1X (((e,o)::ll,rr),ctx,o1,f)))
-  | OrderBy1X ((ll,[]),ctx,o,f) -> Some (AtFlower (f, OrderBy2 (List.rev ((e,o)::ll), ctx)))
+  | OrderBy1X ((ll,[]),ctx,o,f) -> Some (AtFlower (f, OrderBy2 (Focus.list_of_ctx (e,o) (ll,[]), ctx)))
 and focus_flower_right (f : flower) : flower_ctx -> focus option = function
   | Flower1 ctx -> None
   | FileData2 (fname,d,ctx) -> None
