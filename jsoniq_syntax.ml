@@ -29,11 +29,13 @@ let rec syn_item : item -> syn = function
 	     [Enum (", ",
 		    List.map syn_item li)],
 	     "]")]
-	      
+
+let seq_sep = "; "
+       
 let syn_data (d : data) : syn =
   if Seq.is_empty d
   then [Kwd "()"]
-  else [Enum (", ", Seq.to_list (Seq.map syn_item d))]
+  else [Enum (seq_sep, Seq.to_list (Seq.map syn_item d))]
 			      
 let syn_args lxml =
   [Quote ("(", [Enum (", ", lxml)], ")")]
@@ -73,7 +75,7 @@ let syn_Flower xml : syn =
   [Block [[Kwd "collect"];
 	  [Indent xml]]]
 let syn_Concat lxml : syn =
-  [Enum (", ", lxml)]
+  [Enum (seq_sep, lxml)]
 let syn_Exists xmlx xml1 xml2 : syn =
   Kwd "some" :: xmlx @ Kwd "in" :: xml1 @ [Indent (Kwd "satisfies" :: xml2)]
 let syn_ForAll xmlx xml1 xml2 : syn =
