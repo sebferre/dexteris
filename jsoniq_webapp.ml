@@ -6,13 +6,20 @@ module Lis = Jsoniq_lis
 let make_lis (args : (string * string) list) = new Lis.lis
 
 (* rendering words and inputs into HTML *)
+
+let html_of_var v =
+  if v = "" then "?"
+  else if v = "$" then "this"
+  else if v = "#$" then "rank of this"
+  else if v.[0] = '#' then "rank of " ^ String.sub v 1 (String.length v - 1)
+  else v
 						   
 let html_of_word : Jsoniq_syntax.word -> Html.t = function
   | `Bool b -> string_of_bool b
   | `Int i -> string_of_int i
   | `Float f -> string_of_float f
   | `String s -> "\"" ^ Jsutils.escapeHTML s ^ "\""
-  | `Var v -> v
+  | `Var v -> html_of_var v
   | `ContextItem -> "_"
   | `ContextEnv -> "*"
   | `Order Jsoniq.ASC -> "ASC"
