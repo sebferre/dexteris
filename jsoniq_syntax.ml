@@ -75,9 +75,9 @@ let syn_Flower xml : syn =
 let syn_Concat lxml : syn =
   [Enum (", ", lxml)]
 let syn_Exists xmlx xml1 xml2 : syn =
-  Kwd "some" :: xmlx @ Kwd "in" :: xml1 @ Kwd "satisfies" :: xml2
+  Kwd "some" :: xmlx @ Kwd "in" :: xml1 @ [Indent (Kwd "satisfies" :: xml2)]
 let syn_ForAll xmlx xml1 xml2 : syn =
-  Kwd "every" :: xmlx @ Kwd "in" :: xml1 @ Kwd "satisfies" :: xml2
+  Kwd "every" :: xmlx @ Kwd "in" :: xml1 @ [Indent (Kwd "satisfies" :: xml2)]
 let syn_If xml1 xml2 xml3 : syn =
   [Block [Kwd "if" :: xml1;
 	  Kwd "then" :: xml2;
