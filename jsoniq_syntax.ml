@@ -32,14 +32,25 @@ let rec syn_item : item -> syn = function
 
 let seq_sep = "; "
        
-let syn_data (d : data) : syn =
-  let li = Seq.to_list d in
+let syn_data ~(limit : int) (d : data) : syn =
+  assert (limit > 1);
+  let li, r_opt = Seq.take limit d in
+  let xml_rest =
+    match r_opt with
+    | None -> []
+    | Some _ -> [Kwd "..."] in
   match li with
   | [] -> [Kwd "()"]
   | [i] -> syn_item i
-  | (`List _ | `Assoc _)::_ -> [Block (List.map syn_item li)]
-  | _ -> [Enum (seq_sep, List.map syn_item li)]
-    
+  | (`List _ | `Assoc _)::_ ->
+     [Block (List.fold_right
+	       (fun i lxml -> syn_item i :: lxml)
+	       li [xml_rest])]
+  | _ ->
+     [Enum (seq_sep,
+	    List.fold_right
+	      (fun i lxml -> syn_item i :: lxml)
+	      li [xml_rest])]
 			      
 let syn_args lxml =
   [Quote ("(", [Enum (", ", lxml)], ")")]

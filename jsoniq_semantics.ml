@@ -189,10 +189,21 @@ and sem_flower_ctx annot f : flower_ctx -> sem = function
   | FIf2 (e1,ctx,e3) -> sem_flower_ctx annot f ctx
   | FIf3 (e1,e2,ctx) -> sem_flower_ctx annot f ctx
 
-type extent = { vars : var list; bindings : (var * item) list list }
+type extent = { vars : var list; bindings : (var * item) list Seq.t }
 
 let extent (sem : sem) : extent =
   let d = eval_expr [] [] sem.expr in
+  let bindings =
+    Seq.map
+      (function
+	| `Assoc pairs -> pairs
+	| _ -> assert false)
+      d in
+  let vars =
+    match Seq.hd_opt bindings with
+    | None -> []
+    | Some binding -> List.map fst binding in
+(*    
   let rev_bindings =
     Seq.fold_left
       (fun bindings i ->
@@ -205,4 +216,5 @@ let extent (sem : sem) : extent =
     match bindings with
     | [] -> []
     | binding::_ -> List.map fst binding in
+ *)
   { vars; bindings }

@@ -96,7 +96,7 @@ let w_results : (Jsoniq.var, Jsoniq.item) Widget_table.widget =
       ~html_of_cell:(fun i ->
 		     let d = Jsoniq.unpack i in
 		     Html.syntax ~html_of_word
-				 (Jsoniq_syntax.syn_data d))
+				 (Jsoniq_syntax.syn_data ~limit:10 d))
       
 
 let suggestions_cols = ["col-md-3 col-xs-12";
@@ -126,11 +126,13 @@ let render_place place k =
      | None -> ());
   place#eval
     (fun ext ->
-     w_results#set_contents
-       (List.filter (* filtering out position vars for legibility *)
-	  (fun x -> not (Jsoniq.is_var_position x))
-	  ext.Jsoniq_semantics.vars)
-       ext.Jsoniq_semantics.bindings)
+     let limit = 20 in (* TODO: add widget for that *)
+     let visible_vars =
+       List.filter (* filtering out position vars for legibility *)
+	 (fun x -> not (Jsoniq.is_var_position x))
+	 ext.Jsoniq_semantics.vars in
+     let l_bindings, _ = Seq.take limit ext.Jsoniq_semantics.bindings in
+     w_results#set_contents visible_vars l_bindings)
     (fun suggestions ->
      w_suggestions#set_suggestions suggestions_cols suggestions;
      w_suggestions#on_suggestion_selection

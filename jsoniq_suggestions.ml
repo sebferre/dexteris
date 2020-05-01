@@ -6,9 +6,9 @@ module Sem = Jsoniq_semantics
 
 type suggestion = transf
 
-let focus_types_lengths_fields (extent : Sem.extent) : Sem.TypSet.t * int Bintree.t * string Bintree.t =
+let focus_types_lengths_fields (extent : Sem.extent) : Sem.TypSet.t * int Bintree.t * string Bintree.t * int =
   List.fold_left
-    (fun (typs,lens,fields) binding ->
+    (fun (typs,lens,fields,nbindings) binding ->
      try
        let i0 = List.assoc Sem.field_focus binding in
        match i0 with
@@ -29,19 +29,20 @@ let focus_types_lengths_fields (extent : Sem.extent) : Sem.TypSet.t * int Bintre
 		 | `List _ -> Sem.TypSet.add `Array typs, fields in
 	       typs, len+1, fields)
 	      (typs,0,fields) li in
-	  typs, Bintree.add len lens, fields
+	  typs, Bintree.add len lens, fields, nbindings+1
        | _ -> assert false
-     with Not_found -> typs, lens, fields)
-    (Sem.TypSet.empty, Bintree.empty, Bintree.empty) extent.Sem.bindings
+     with Not_found -> typs, lens, fields, nbindings)
+    (Sem.TypSet.empty, Bintree.empty, Bintree.empty, 0)
+    (fst (Seq.take 20 extent.Sem.bindings))
 
     
 let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion list list =
-  let focus_typs, focus_lens, fields = focus_types_lengths_fields extent in
+  let focus_typs, focus_lens, fields, nbindings = focus_types_lengths_fields extent in
   let ctx_typs = sem.Sem.annot#typs in
   (*  let allows_any_type = sem.Sem.annot#allows_any_type in *)
   let allowed_typs = Sem.TypSet.inter ctx_typs focus_typs in
   let multiple_items = Bintree.fold (fun n ok -> ok || n > 1) focus_lens false in
-  let multiple_bindings = List.length extent.Sem.bindings > 1 in
+  let multiple_bindings = nbindings > 1 in
   let transfs = ref [] in
   let add kind tr = transfs := (kind,tr) :: !transfs in
   let () =
