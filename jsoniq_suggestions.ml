@@ -7,33 +7,33 @@ module Sem = Jsoniq_semantics
 type suggestion = transf
 
 let focus_types_lengths_fields (extent : Sem.extent) : Sem.TypSet.t * int Bintree.t * string Bintree.t * int =
+  let max_bindings = 20 in
+  let max_items_per_cell = 20 in
   List.fold_left
     (fun (typs,lens,fields,nbindings) binding ->
      try
-       let i0 = List.assoc Sem.field_focus binding in
-       match i0 with
-       | `List li ->
-	  let typs, len, fields =
-	    List.fold_left
-	      (fun (typs,len,fields) i ->
-	       let typs, fields =
-		 match i with
-		 | `Bool _ -> Sem.TypSet.add `Bool typs, fields
-		 | `Int _ -> Sem.TypSet.add `Int typs, fields
-		 | `Float _ -> Sem.TypSet.add `Float typs, fields
-		 | `String _ -> Sem.TypSet.add `String typs, fields
-		 | `Null -> typs, fields
-		 | `Assoc pairs ->
-		    Sem.TypSet.add `Object typs,
-		    List.fold_left (fun fields (k,_) -> Bintree.add k fields) fields pairs
-		 | `List _ -> Sem.TypSet.add `Array typs, fields in
-	       typs, len+1, fields)
-	      (typs,0,fields) li in
-	  typs, Bintree.add len lens, fields, nbindings+1
-       | _ -> assert false
+       let d0 = List.assoc Sem.field_focus binding in
+       let li, _ = Seq.take max_items_per_cell d0 in
+       let typs, len, fields =
+	 List.fold_left
+	   (fun (typs,len,fields) i ->
+	    let typs, fields =
+	      match i with
+	      | `Bool _ -> Sem.TypSet.add `Bool typs, fields
+	      | `Int _ -> Sem.TypSet.add `Int typs, fields
+	      | `Float _ -> Sem.TypSet.add `Float typs, fields
+	      | `String _ -> Sem.TypSet.add `String typs, fields
+	      | `Null -> typs, fields
+	      | `Assoc pairs ->
+		 Sem.TypSet.add `Object typs,
+		 List.fold_left (fun fields (k,_) -> Bintree.add k fields) fields pairs
+	      | `List _ -> Sem.TypSet.add `Array typs, fields in
+	    typs, len+1, fields)
+	   (typs,0,fields) li in
+       typs, Bintree.add len lens, fields, nbindings+1
      with Not_found -> typs, lens, fields, nbindings)
     (Sem.TypSet.empty, Bintree.empty, Bintree.empty, 0)
-    (fst (Seq.take 20 extent.Sem.bindings))
+    (fst (Seq.take max_bindings extent.Sem.bindings))
 
     
 let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion list list =

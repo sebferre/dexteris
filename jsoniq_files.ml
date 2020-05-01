@@ -53,13 +53,21 @@ let data_of_file (filename : string) (contents : string) : data =
   | ".csv" -> data_of_csv contents
   | _ -> failwith "Unexpected file extension (should be one of .json .csv)"
 
+		  
+			      
 let json_of_extent (ext : Semantics.extent) : Yojson.Basic.t =
+  let pack (d : data) : item = `List (Seq.to_list d) in
   let rev_elts =
     Seq.fold_left
       (fun res binding ->
        match binding with
-       | [(k,i)] when k = Semantics.field_focus -> i::res
-       | _ -> `Assoc binding :: res)
+       | [(k,d)] when k = Semantics.field_focus -> (pack d)::res
+       | _ ->
+	  let pairs =
+	    List.map
+	      (fun (k,d) -> (k, pack d))
+	      binding in
+	  `Assoc pairs :: res)
       [] ext.Semantics.bindings in
   match rev_elts with
   | [elt] -> elt

@@ -84,7 +84,7 @@ let w_suggestions : Jsoniq_suggestions.suggestion Widget_suggestions.widget =
 				       ~html_of_word ~html_info_of_input
 				       (Jsoniq_syntax.syn_transf sugg))
 			     
-let w_results : (Jsoniq.var, Jsoniq.item) Widget_table.widget =
+let w_results : (Jsoniq.var, Jsoniq.data) Widget_table.widget =
   new Widget_table.widget
       ~id:"lis-results"
       ~html_of_column:(fun x ->
@@ -93,10 +93,9 @@ let w_results : (Jsoniq.var, Jsoniq.item) Widget_table.widget =
 			 then Some "highlighted"
 			 else None in
 		       None, classe_opt, None, x)
-      ~html_of_cell:(fun i ->
-		     let d = Jsoniq.unpack i in
+      ~html_of_cell:(fun d ->
 		     Html.syntax ~html_of_word
-				 (Jsoniq_syntax.syn_data ~limit:10 d))
+				 (Jsoniq_syntax.syn_data ~limit:20 d))
       
 
 let suggestions_cols = ["col-md-3 col-xs-12";
