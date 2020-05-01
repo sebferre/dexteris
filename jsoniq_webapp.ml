@@ -103,7 +103,9 @@ let suggestions_cols = ["col-md-3 col-xs-12";
 			"col-md-5 col-xs-12"]
       
 let render_place place k =
+  Jsutils.firebug "XML of place";
   let xml = Jsoniq_syntax.syn_focus place#focus in
+  Jsutils.firebug "focus#set_syntax";
   w_focus#set_syntax xml;
   w_focus#on_focus_change
     (fun foc ->
@@ -123,16 +125,20 @@ let render_place place k =
 	let p = new Jsoniq_lis.place place#lis foc in
 	k ~push_in_history:true p
      | None -> ());
+  Jsutils.firebug "place#eval";
   place#eval
     (fun ext ->
+     Jsutils.firebug "ext computed";
      let limit = 20 in (* TODO: add widget for that *)
      let visible_vars =
        List.filter (* filtering out position vars for legibility *)
 	 (fun x -> not (Jsoniq.is_var_position x))
 	 ext.Jsoniq_semantics.vars in
      let l_bindings, _ = Seq.take limit ext.Jsoniq_semantics.bindings in
+     Jsutils.firebug "results#set_contents";
      w_results#set_contents visible_vars l_bindings)
     (fun suggestions ->
+     Jsutils.firebug "suggestions#set_suggestions";
      w_suggestions#set_suggestions suggestions_cols suggestions;
      w_suggestions#on_suggestion_selection
        (fun sugg ->

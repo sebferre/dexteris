@@ -11,6 +11,14 @@ type input = [ `Int of int Focus.input
 	     | `FileData of (string * data) Focus.input ]
 type syn = (word,input,focus) xml
 
+let rec syn_list ~limit (f : 'a -> syn) (l : 'a list) : syn list =
+  match l with
+  | [] -> []
+  | x::r ->
+     if limit=0
+     then [ [Kwd "..."] ]
+     else f x :: syn_list ~limit:(limit-1) f r
+			      
 let rec syn_item : item -> syn = function
   | `Bool b -> [Word (`Bool b)]
   | `Int i -> [Word (`Int i)]
@@ -20,14 +28,14 @@ let rec syn_item : item -> syn = function
   | `Assoc pairs ->
      [Quote ("{",
 	     [Enum (", ",
-		    List.map
+		    syn_list ~limit:20
 		      (fun (k,i) -> Word (`String k) :: Kwd ":" :: syn_item i)
 		      pairs)],
 	     "}")]
   | `List li ->
      [Quote ("[",
 	     [Enum (", ",
-		    List.map syn_item li)],
+		    syn_list ~limit:10 syn_item li)],
 	     "]")]
 
 let seq_sep = "; "
