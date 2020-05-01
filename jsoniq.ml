@@ -388,6 +388,9 @@ let apply_func (func : func) (args : data list) : data =
 
 let var_context = "$"
 
+let var_position x = "#" ^ x
+let is_var_position x = x <> "" && x.[0] = '#'
+
 type env = (var * data) list
 type funcs = (string * (env * var list * expr)) list
 
@@ -416,22 +419,24 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
   | Concat le -> Seq.from_list le |> Seq.flat_map (eval_expr funcs env)
   | Flower lf -> eval_flower funcs (Seq.return env) lf
   | Exists (x,e1,e2) ->
+     let pos_x = var_position x in
      let ok =
-       eval_expr funcs env e1
+       Seq.with_position (eval_expr funcs env e1)
        |> Seq.fold_left
-	    (fun ok i1 ->
+	    (fun ok (pos,i1) ->
 	     ok
-	     || let env = (x, Seq.return i1)::env in
+	     || let env = (x, Seq.return i1)::(pos_x, Seq.return (`Int pos))::env in
 		is_true (eval_expr funcs env e2))
 	    false in
      Seq.return (`Bool ok)
   | ForAll (x,e1,e2) ->
+     let pos_x = var_position x in
      let ok =
-       eval_expr funcs env e1
+       Seq.with_position (eval_expr funcs env e1)
        |> Seq.fold_left
-	    (fun ok i1 ->
+	    (fun ok (pos,i1) ->
 	     ok
-	     && let env = (x, Seq.return i1)::env in
+	     && let env = (x, Seq.return i1)::(pos_x, Seq.return (`Int pos))::env in
 		is_true (eval_expr funcs env e2))
 	    true in
      Seq.return (`Bool ok)
@@ -473,17 +478,21 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> data = function
      let ld = List.map (eval_expr funcs env) le in
      (try apply_func func ld with _ -> Seq.empty)
   | Map (e1,e2) ->
-     eval_expr funcs env e1
+     let pos_x = var_position var_context in
+     Seq.with_position (eval_expr funcs env e1)
      |> Seq.flat_map
-	  (fun i ->
-	   let env = (var_context, Seq.return i) :: env in
+	  (fun (pos,i) ->
+	   let env = (var_context, Seq.return i) :: (pos_x, Seq.return (`Int pos)) :: env in
 	   eval_expr funcs env e2)
   | Pred (e1,e2) ->
-     eval_expr funcs env e1
-     |> Seq.filter
-	  (fun i ->
-	   let env = (var_context, Seq.return i) :: env in
-	   is_true (eval_expr funcs env e2))
+     let pos_x = var_position var_context in
+     Seq.with_position (eval_expr funcs env e1)
+     |> Seq.flat_map
+	  (fun (pos,i) ->
+	   let env = (var_context, Seq.return i) :: (pos_x, Seq.return (`Int pos)) :: env in
+	   if is_true (eval_expr funcs env e2)
+	   then Seq.return i
+	   else Seq.empty)
   | Dot (e1,e2) ->
      eval_expr funcs env e1
      |> Seq.flat_map
@@ -574,22 +583,25 @@ and eval_flower (funcs : funcs) (ctx : env Seq.t) : flower -> data = function
      |> Seq.flat_map
 	  (fun env -> eval_expr funcs env e)
   | FileData (filename,d,f) ->
+     let pos_x = "row in " ^ filename in
      let ctx =
        ctx
        |> Seq.flat_map
 	    (fun env ->
-	     d
+	     Seq.with_position d
 	     |> Seq.flat_map
 		  (function
-		    | `Assoc pairs ->
+		    | (pos, `Assoc pairs) ->
 		       let env =
 			 List.fold_left
 			   (fun env (k,i) -> (k, Seq.return i)::env)
-			   env pairs in
+			   ((pos_x, Seq.return (`Int pos))::env)
+			   pairs in
 		       Seq.return env
 		    | _ -> raise (TypeError "file elements should be objects"))) in
      eval_flower funcs ctx f
   | For (x, e, optional, f) ->
+     let pos_x = var_position x in
      let ctx =
        ctx
        |> Seq.flat_map
@@ -598,10 +610,12 @@ and eval_flower (funcs : funcs) (ctx : env Seq.t) : flower -> data = function
 	     if optional && Seq.is_empty d
 	     then Seq.return env
 	     else
-	       d
+	       Seq.with_position d
 	       |> Seq.flat_map
-		    (fun i ->
-		     Seq.return ((x, Seq.return i)::env))) in
+		    (fun (pos,i) ->
+		     Seq.return ((x, Seq.return i)
+				 ::(pos_x, Seq.return (`Int pos))
+				 ::env))) in
      eval_flower funcs ctx f
   | FLet (x,e, f) ->
      let ctx =

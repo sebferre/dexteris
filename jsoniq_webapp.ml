@@ -120,7 +120,9 @@ let render_place place k =
   place#eval
     (fun ext ->
      w_results#set_contents
-       ext.Jsoniq_semantics.vars
+       (List.filter (* filtering out position vars for legibility *)
+	  (fun x -> not (Jsoniq.is_var_position x))
+	  ext.Jsoniq_semantics.vars)
        ext.Jsoniq_semantics.bindings)
     (fun suggestions ->
      w_suggestions#set_suggestions suggestions_cols suggestions;
