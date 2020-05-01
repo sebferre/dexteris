@@ -33,9 +33,13 @@ let rec syn_item : item -> syn = function
 let seq_sep = "; "
        
 let syn_data (d : data) : syn =
-  if Seq.is_empty d
-  then [Kwd "()"]
-  else [Enum (seq_sep, Seq.to_list (Seq.map syn_item d))]
+  let li = Seq.to_list d in
+  match li with
+  | [] -> [Kwd "()"]
+  | [i] -> syn_item i
+  | (`List _ | `Assoc _)::_ -> [Block (List.map syn_item li)]
+  | _ -> [Enum (seq_sep, List.map syn_item li)]
+    
 			      
 let syn_args lxml =
   [Quote ("(", [Enum (", ", lxml)], ")")]
@@ -72,8 +76,7 @@ let syn_Call func lxml =
   | _ -> failwith "syn_Call: invalid number of arguments or unexpected function"
 			       
 let syn_Flower xml : syn =
-  [Block [[Kwd "collect"];
-	  [Indent xml]]]
+  [Kwd "collect"; Indent xml]
 let syn_Concat lxml : syn =
   [Enum (seq_sep, lxml)]
 let syn_Exists xmlx xml1 xml2 : syn =
