@@ -8,7 +8,9 @@ type input = [ `Int of int Focus.input
 	     | `Float of float Focus.input
 	     | `String of string Focus.input
 	     | `Ident of string Focus.input
+	     | `Select of string list * string Focus.input
 	     | `FileData of (string * data) Focus.input ]
+
 type syn = (word,input,focus) xml
 
 let rec syn_list ~limit (f : 'a -> syn) (l : 'a list) : syn list =
@@ -64,8 +66,10 @@ let syn_args lxml =
   [Quote ("(", [Enum (", ", lxml)], ")")]
 let syn_pair xml1 xml2 : syn =
   xml1 @ Kwd ":" :: xml2
+let syn_order_raw xml1 xml2 : syn =
+  xml1 @ xml2
 let syn_order xml1 o : syn =
-  xml1 @ [Word (`Order o)]
+  syn_order_raw xml1 [Word (`Order o)]
 
 let syn_Call func lxml =
   let classic name lxml = Word (`Func name) :: syn_args lxml in
@@ -153,12 +157,20 @@ let syn_Let xmlx xml1 xml2 : syn =
 let syn_Where xml1 xml2 : syn =
   [Block [Kwd "where" :: xml1;
 	  xml2]]
-let syn_GroupBy lx xml1 : syn =
-  [Block [Kwd "group" :: Kwd "by" :: Enum (", ", List.map (fun x -> [Word (`Var x)]) lx) :: [];
-	  xml1]]
-let syn_Project lx xml1 : syn =
-  [Block [Kwd "project" :: Kwd "on" :: Enum (", ", List.map (fun x -> [Word (`Var x)]) lx) :: [];
-	  xml1]]
+let syn_GroupBy_raw xml1 xml2 : syn =
+  [Block [Kwd "group" :: Kwd "by" :: xml1;
+	  xml2]] 
+let syn_GroupBy lx xml2 : syn =
+  syn_GroupBy_raw
+    [Enum (", ", List.map (fun x -> [Word (`Var x)]) lx)]
+    xml2
+let syn_Project_raw xml1 xml2 : syn =
+  [Block [Kwd "project" :: Kwd "on" :: xml1;
+	  xml2]]
+let syn_Project lx xml2 : syn =
+  syn_Project_raw
+    [Enum (", ", List.map (fun x -> [Word (`Var x)]) lx)]
+    xml2
 let syn_Slice xml_offset xml_limit xml1 : syn =
   [Block [Kwd "offset" :: xml_offset @ Kwd "limit" :: xml_limit;
 	  xml1]]
@@ -642,10 +654,11 @@ let syn_transf : transf -> syn = function
   | InsertLet2 in_x -> syn_Let [Input (`Ident in_x)] [ellipsis] [the_focus]
   | InsertWhere1 -> syn_Where [the_focus] [ellipsis]
   | InsertWhere2 -> syn_Where [ellipsis] [the_focus]
-  | InsertGroupBy x -> syn_GroupBy [x] [the_focus]
-  | InsertProject x -> syn_Project [x] [the_focus]
+  | InsertGroupBy (lx, in_x) -> syn_GroupBy_raw [Input (`Select (lx, in_x))] [the_focus]
+  (*  | InsertProject x -> syn_Project [x] [the_focus] *)
+  | InsertProject (lx, in_x) -> syn_Project_raw [Input (`Select (lx, in_x))] [the_focus]
   | InsertSlice (in_offset,in_limit) -> syn_Slice [Input (`Int in_offset)] [Input (`Int in_limit)] [the_focus]
-  | InsertOrderBy1 o -> syn_OrderBy [syn_order [the_focus] o] [ellipsis]
-  | InsertOrderBy2 o -> syn_OrderBy [syn_order [ellipsis] o] [the_focus]
+  | InsertOrderBy1 in_o -> syn_OrderBy [syn_order_raw [the_focus] [Input (`Select (order_strings, in_o))]] [ellipsis]
+  | InsertOrderBy2 in_o -> syn_OrderBy [syn_order_raw [ellipsis] [Input (`Select (order_strings, in_o))]] [the_focus]
 				    
 	   

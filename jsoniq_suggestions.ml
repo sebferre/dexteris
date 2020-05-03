@@ -117,18 +117,19 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     add `Flower (InsertArg (new input ""));
     add `Flower InsertWhere2;
     if multiple_bindings then (
-      List.iter
-	(fun x -> add `Flower (InsertGroupBy x)) (* TODO: suggest only variables not yet grouped *)
-	extent.Sem.vars;
+      let group_by_vars = (* TODO: suggest only variables not yet grouped *)
+	List.filter ((<>) Sem.field_focus) extent.Sem.vars in
+      if group_by_vars <> [] then
+	add `Flower (InsertGroupBy (group_by_vars, new input (List.hd group_by_vars))); 
       if Sem.TypSet.mem `Bool focus_typs then add `Flower InsertWhere1;
       add `Flower (InsertSlice (new input 0, new input 0));
-      add `Flower (InsertOrderBy1 DESC);
-      add `Flower (InsertOrderBy1 ASC));
-    List.iter
+      add `Flower (InsertOrderBy1 (new input (string_of_order ASC))));
+    if extent.Sem.vars <> [] then
+      add `Flower (InsertProject (extent.Sem.vars, new input (List.hd extent.Sem.vars)));
+(*    List.iter
       (fun x -> add `Flower (InsertProject x))
-      extent.Sem.vars;
-    add `Flower (InsertOrderBy2 DESC);
-    add `Flower (InsertOrderBy2 ASC);
+      extent.Sem.vars; *)
+    add `Flower (InsertOrderBy2 (new input (string_of_order ASC)));
   in
   let lsugg_val, lsugg_op, lsugg_flower =
     List.fold_left

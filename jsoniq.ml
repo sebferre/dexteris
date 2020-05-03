@@ -110,6 +110,16 @@ type func =
   | Defined of string * int
 			  [@@deriving yojson]
 
+let asc = "ascending"
+let desc = "descending"
+let order_strings = [asc; desc]
+let string_of_order = function
+  | ASC -> asc
+  | DESC -> desc
+let order_of_string s =
+  if s = asc then ASC
+  else DESC
+
 type expr =
   | S of string
   | Item of item

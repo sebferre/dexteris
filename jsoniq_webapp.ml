@@ -22,51 +22,53 @@ let html_of_word : Jsoniq_syntax.word -> Html.t = function
   | `Var v -> html_of_var v
   | `ContextItem -> "_"
   | `ContextEnv -> "*"
-  | `Order Jsoniq.ASC -> "ASC"
-  | `Order Jsoniq.DESC -> "DESC"
+  | `Order o -> string_of_order o
   | `Func name -> name
   | `TheFocus -> Html.span ~classe:"highlighted" "__"
   | `Ellipsis -> "..."
 			    
 let html_info_of_input (input : Jsoniq_syntax.input) : Html.input_info =
   (* exceptions are captured by caller of updates *)
-  let input_type, placeholder, input_update =
-    match input with
-    | `Int input ->
-       "number", "0",
-       new Html.input_update
-	   (fun input_elt k ->
-	    Jsutils.integer_of_input input_elt
-	    |> Option.iter (fun i -> input#set i; k()))
-    | `Float input ->
-       "number", "0.0e+0",
-       new Html.input_update
-	   (fun input_elt k ->
-	    Jsutils.float_of_input input_elt
-	    |> Option.iter (fun f -> input#set f; k ()))
-    | `String input ->
-       "text", "",
-       new Html.input_update
-	   (fun input_elt k ->
-	    Jsutils.string_of_input input_elt
-	    |> (fun s -> input#set s; k()))
-    | `Ident input ->
-       "text", "x",
-       new Html.input_update
-	   (fun input_elt k ->
-	    Jsutils.string_of_input input_elt
-	    |> (fun id -> input#set id; k ()))
-    | `FileData input ->
-       "file", "",
-       new Html.input_update
-	   (fun input_elt k ->
-	    Jsutils.file_string_of_input
-	      input_elt
-	      (fun (filename,contents) ->
-	       let data = Jsoniq_files.data_of_file filename contents in
-	       input#set (filename,data); k ()))
-  in
-  Html.({ input_type; placeholder; input_update })
+  match input with
+  | `Int input ->
+     Html.inputElt_info
+       "number" "0"
+       (fun input_elt k ->
+	Jsutils.integer_of_input input_elt
+	|> Option.iter (fun i -> input#set i; k()))
+  | `Float input ->
+     Html.inputElt_info
+       "number" "0.0e+0"
+       (fun input_elt k ->
+	Jsutils.float_of_input input_elt
+	|> Option.iter (fun f -> input#set f; k ()))
+  | `String input ->
+     Html.inputElt_info
+       "text" ""
+       (fun input_elt k ->
+	Jsutils.string_of_input input_elt
+	|> (fun s -> input#set s; k()))
+  | `Ident input ->
+     Html.inputElt_info
+       "text" "x"
+       (fun input_elt k ->
+	Jsutils.string_of_input input_elt
+	|> (fun id -> input#set id; k ()))
+  | `Select (values, input) ->
+     Html.selectElt_info
+       values
+       (fun select_elt k ->
+	Jsutils.string_of_select select_elt
+	|> (fun x -> input#set x; k ()))
+  | `FileData input ->
+     Html.inputElt_info
+       "file" ""
+       (fun input_elt k ->
+	Jsutils.file_string_of_input
+	  input_elt
+	  (fun (filename,contents) ->
+	   let data = Jsoniq_files.data_of_file filename contents in
+	   input#set (filename,data); k ()))
 
       
 (* UI widgets *)
