@@ -2,7 +2,9 @@
 module Focus = Jsoniq_focus
 module Semantics = Jsoniq_semantics
 module Suggestions = Jsoniq_suggestions
-	       
+
+let library = Jsoniq_functions.library
+		       
 class place (lis : lis) (focus : Focus.focus) =
 object
   inherit [lis,Focus.focus,Semantics.extent,Suggestions.suggestion] Lis.place lis focus
@@ -11,7 +13,7 @@ object
 								    
   method eval k_extent k_suggestions =
     let sem = Semantics.sem_focus focus in
-    let ext = Semantics.extent sem in
+    let ext = Semantics.extent library sem in
     extent <- Some ext;
     k_extent ext;
     let llsugg = Suggestions.suggestions focus sem ext in

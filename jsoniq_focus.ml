@@ -18,7 +18,7 @@ type expr_ctx =
   | OrX of expr list_ctx * expr_ctx
   | AndX of expr list_ctx * expr_ctx
   | Not1 of expr_ctx
-  | CallX of func * expr list_ctx * expr_ctx
+  | CallX of string * expr list_ctx * expr_ctx
   | Map1 of expr_ctx * expr
   | Map2 of expr * expr_ctx
   | Pred1 of expr_ctx * expr
@@ -319,7 +319,7 @@ type transf =
   | InsertOr
   | InsertAnd
   | InsertNot
-  | InsertFunc of func
+  | InsertFunc of string * int (* name, arity *)
   | InsertMap
   | InsertPred
   | InsertDot
@@ -369,7 +369,7 @@ let rec reaching_expr : expr -> transf list = function
   | Or le -> reaching_list reaching_expr [InsertOr] le
   | And le -> reaching_list reaching_expr [InsertAnd] le
   | Not e -> reaching_expr e @ [InsertNot]
-  | Call (func,le) -> InsertFunc func :: reaching_list reaching_expr [FocusRight] le
+  | Call (func,le) -> InsertFunc (func, List.length le) :: reaching_list reaching_expr [FocusRight] le
   | Map (e1,e2) -> reaching_expr e1 @ InsertMap :: reaching_expr e2 @ [FocusUp]
   | Pred (e1,e2) -> reaching_expr e1 @ InsertPred :: reaching_expr e2 @ [FocusUp]
   | Dot (e1,e2) -> reaching_expr e1 @ InsertDot :: reaching_expr e2 @ [FocusUp]
@@ -552,7 +552,7 @@ and apply_transf_expr = function
   | (FocusUp | FocusRight | Delete), _, _ -> assert false
   | InsertBool b, _, ctx -> Some (Item (`Bool b), ctx)
   | InputInt in_n, _, ctx -> Some (Item (`Int in_n#get), ctx)
-  | InputRange (in_a,in_b), _, ctx -> Some (Call (Range, [Item (`Int in_a#get); Item (`Int in_b#get)]), ctx)
+  | InputRange (in_a,in_b), _, ctx -> Some (Call ("range", [Item (`Int in_a#get); Item (`Int in_b#get)]), ctx)
   | InputFloat in_f, _, ctx -> Some (Item (`Float in_f#get), ctx)
   | InputString in_s, _, ctx -> Some (Item (`String in_s#get), ctx)
      
@@ -591,8 +591,7 @@ and apply_transf_expr = function
   | InsertNot, e, Not1 ctx -> Some (e,ctx)
   | InsertNot, e, ctx -> Some (Not e, ctx)
 
-  | InsertFunc func, e, ctx ->
-     let n = arity_of_func func in
+  | InsertFunc (func,n), e, ctx ->
      if n = 0 then
        Some (Call (func, []), ctx)
      else if e=Empty then

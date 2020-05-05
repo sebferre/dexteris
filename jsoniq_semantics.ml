@@ -5,9 +5,9 @@ open Jsoniq_focus
 type typ = [`Bool | `Int | `Float | `String | `Object | `Array]
 
 module TypSet = Set.Make(struct type t = typ let compare = Stdlib.compare end)
-	     
-let all_typs : TypSet.t =
-  List.fold_right TypSet.add [`Bool; `Int; `Float; `String; `Object; `Array] TypSet.empty
+
+let list_all_typs = [`Bool; `Int; `Float; `String; `Object; `Array]
+let all_typs : TypSet.t = TypSet.of_list list_all_typs
        
 (*
 type 'a sem = { expr : 'a;
@@ -191,8 +191,8 @@ and sem_flower_ctx annot f : flower_ctx -> sem = function
 
 type extent = { vars : var list; bindings : env Seq.t }
 
-let extent (sem : sem) : extent =
-  let res = eval_expr [] [] sem.expr in
+let extent (library : #Jsoniq.library) (sem : sem) : extent =
+  let res = eval_expr library [] [] sem.expr in
   let bindings = Seq.map (fun (_,env) -> env) res in
   let vars =
     match Seq.hd_opt bindings with

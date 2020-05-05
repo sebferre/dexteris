@@ -96,19 +96,9 @@ let data_of_yojson = function
        (fun ly -> Result.Ok (Seq.from_list ly))
   | _ -> Result.Error "Invalid serialization of data"
 
-		 
+		      
 type var = string [@@deriving yojson]
 type order = DESC | ASC [@@deriving yojson]
-type func =
-  | EQ | NE | LE | LT | GE | GT
-  | Plus | Minus | Times | Div | IDiv | Mod
-  | Neg
-  | StringConcat | Substring
-  | ArrayLength | ObjectKeys
-  | Range
-  | Count | Sum | Avg
-  | Defined of string * int
-			  [@@deriving yojson]
 
 let asc = "ascending"
 let desc = "descending"
@@ -132,7 +122,7 @@ type expr =
   | Or of expr list
   | And of expr list
   | Not of expr
-  | Call of func * expr list
+  | Call of string * expr list
   | Map of expr * expr
   | Pred of expr * expr
   | Dot of expr * expr
@@ -274,121 +264,6 @@ let rec compare_ordering_key (lo : order list) (k1 : item option list) (k2 : ite
      else c
   | _ -> invalid_arg "compare_ordering_key: argument lists have different lengths"
 
-let arity_of_func : func -> int = function
-  | EQ | NE | LE | LT | GE | GT -> 2
-  | Plus | Minus | Times | Div | IDiv | Mod -> 2
-  | Neg -> 1
-  | Substring -> 3
-  | Range -> 2
-  | ArrayLength | ObjectKeys -> 1
-  | Count | Sum | Avg | StringConcat -> 1
-  | Defined (name,n) -> n
-
-
-let apply_func (func : func) (args : data list) : data =
-  match func, args with
-  | (EQ|NE|GT|GE|LT|LE), [d1;d2] ->
-     let c : int = compare_data d1 d2 in
-     let ok = 
-       match func with
-       | EQ -> c = 0
-       | NE -> c <> 0
-       | LT -> c < 0
-       | LE -> c <= 0
-       | GT -> c > 0
-       | GE -> c >= 0
-       | _ -> assert false in
-     Seq.return (`Bool ok)
-  | (Plus|Minus|Times|Div), [d1; d2] ->
-     ( match item_of_data d1, item_of_data d2 with
-       | None, _
-       | _, None -> Seq.empty
-       | Some i1, Some i2 ->
-	  let opn, opf =
-	    match func with
-	    | Plus -> (+), (+.)
-	    | Minus -> (-), (-.)
-	    | Times -> ( * ), ( *. )
-	    | Div -> (/), (/.)
-	    | _ -> assert false in
-	  let i =
-	    match i1, i2 with
-	    | `Int n1, `Int n2 -> `Int (opn n1 n2)
-	    | `Int n1, `Float f2 -> `Float (opf (float n1) f2)
-	    | `Float f1, `Int n2 -> `Float (opf f1 (float n2))
-	    | `Float f1, `Float f2 -> `Float (opf f1 f2)
-	    | _ -> raise (TypeError "apply_func: invalid types in arguments") in
-	  Seq.return i )
-  | (IDiv|Mod), [d1;d2] ->
-     ( match item_of_data d1, item_of_data d2 with
-       | None, _
-       | _, None -> Seq.empty
-       | Some (`Int n1), Some (`Int n2) ->
-	  let n =
-	    match func with
-	    | IDiv -> n1 / n2
-	    | Mod -> n1 mod n2
-	    | _ -> assert false in
-	  Seq.return (`Int n)
-       | _ -> raise (TypeError "apply_func: invalid types in arguments") )
-  | Neg, [arg] ->
-     ( match item_of_data arg with
-       | None -> Seq.empty
-       | Some (`Int n1) -> Seq.return (`Int (- n1))
-       | Some (`Float f1) -> Seq.return (`Float (-. f1))
-       | _ -> raise (TypeError "apply_func: invalid types in arguments") )
-  | Substring, [str; start; len] ->
-     let str : string = match item_of_data str with Some (`String s) -> s | _ -> raise (TypeError "substring: undefined string") in
-     let start : int = match item_of_data start with Some (`Int pos) -> pos | _ -> 0 in
-     let len : int = match item_of_data len with Some (`Int len) -> len | _ -> String.length str - start in
-     Seq.return (`String (String.sub str start len))
-  | ArrayLength, [d1] ->
-     ( match item_of_data d1 with
-       | None -> Seq.empty
-       | Some (`List l) -> Seq.return (`Int (List.length l))
-       | _ -> raise (TypeError "array length: invalid argument type") )
-  | ObjectKeys, [d1] ->
-     ( match item_of_data d1 with
-       | None -> Seq.empty
-       | Some (`Assoc pairs) -> Seq.from_list (List.map (fun (k,_) -> `String k) pairs)
-       | _ -> raise (TypeError "object keys: invalid argument type") )
-  | Range, [d1;d2] ->
-     ( match item_of_data d1, item_of_data d2 with
-       | None, _
-       | _, None -> Seq.empty
-       | Some (`Int a), Some (`Int b) -> Seq.map (fun n -> `Int n) (Seq.range a b)
-       | _ -> raise (TypeError "apply_func: invalid types in arguments") )
-  | Count, [d] ->
-     Seq.return (`Int (Seq.length d))
-  | Sum, [d] ->
-     let sum =
-       Seq.fold_left
-	 (fun sum i ->
-	  match i with
-	  | `Bool b -> if b then sum +. 1. else sum
-	  | `Int n -> sum +. float n
-	  | `Float f -> sum +. f
-	  | _ -> sum)
-	 0. d in
-     Seq.return (`Float sum)
-  | Avg, [d] ->
-     let nb, sum =
-       Seq.fold_left
-	 (fun (nb,sum) i ->
-	  match i with
-	  | `Bool b -> if b then nb+1, sum +. 1. else nb+1, sum
-	  | `Int n -> nb+1, sum +. float n
-	  | `Float f -> nb+1, sum +. f
-	  | _ -> nb, sum)
-	 (0,0.) d in
-     Seq.return (`Float (sum /. float nb))
-  | StringConcat, [d] ->
-     let li = Seq.to_list d in
-     let ls = List.map item_as_string li in
-     Seq.return (`String (String.concat "" ls))
-  | Defined _, _ -> invalid_arg "apply_func: defined function as argument"
-  | _ -> raise (Undefined ("apply_func: wrong number of arguments"))
-	       
 
 let var_context = "$"
 
@@ -413,93 +288,95 @@ let is_true (res : result) : bool =
      | `Null -> false
      | _ -> true (* TODO: ?? *)
 
-let rec eval_expr (funcs : funcs) (env : env) : expr -> result = function
+class type library =
+  object
+    method apply : string -> data list -> data
+  end
+	      
+let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> result = function
   | S s -> Seq.return (`String s, [])
   | Item i -> Seq.return (i, [])
   | Empty -> Seq.empty
-  | Concat le -> Seq.from_list le |> Seq.flat_map (eval_expr funcs env)
-  | Flower lf -> eval_flower funcs (Seq.return env) lf
+  | Concat le -> Seq.from_list le |> Seq.flat_map (eval_expr library funcs env)
+  | Flower lf -> eval_flower library funcs (Seq.return env) lf
   | Exists (x,e1,e2) ->
      let pos_x = var_position x in
      let ok =
-       Seq.with_position (eval_expr funcs env e1)
+       Seq.with_position (eval_expr library funcs env e1)
        |> Seq.fold_left
 	    (fun ok (pos,(i1,_)) ->
 	     ok
 	     || let env = (x, Seq.return i1)::(pos_x, Seq.return (`Int pos))::env in
-		is_true (eval_expr funcs env e2))
+		is_true (eval_expr library funcs env e2))
 	    false in
      Seq.return (`Bool ok, [])
   | ForAll (x,e1,e2) ->
      let pos_x = var_position x in
      let ok =
-       Seq.with_position (eval_expr funcs env e1)
+       Seq.with_position (eval_expr library funcs env e1)
        |> Seq.fold_left
 	    (fun ok (pos,(i1,_)) ->
 	     ok
 	     && let env = (x, Seq.return i1)::(pos_x, Seq.return (`Int pos))::env in
-		is_true (eval_expr funcs env e2))
+		is_true (eval_expr library funcs env e2))
 	    true in
      Seq.return (`Bool ok, [])
   | If (cond,e1,e2) ->
-     if is_true (eval_expr funcs env cond)
-     then eval_expr funcs env e1
-     else eval_expr funcs env e2
+     if is_true (eval_expr library funcs env cond)
+     then eval_expr library funcs env e1
+     else eval_expr library funcs env e2
   | Or le ->
      let ok =
        List.fold_left
-	 (fun ok e -> ok || is_true (eval_expr funcs env e))
+	 (fun ok e -> ok || is_true (eval_expr library funcs env e))
 	 false le in
      Seq.return (`Bool ok, [])
   | And le ->
      let ok =
        List.fold_left
-	 (fun ok e -> ok && is_true (eval_expr funcs env e))
+	 (fun ok e -> ok && is_true (eval_expr library funcs env e))
 	 true le in
      Seq.return (`Bool ok, [])
   | Not e ->
-     let ok = not (is_true (eval_expr funcs env e)) in
+     let ok = not (is_true (eval_expr library funcs env e)) in
      Seq.return (`Bool ok, [])
-  | Call (Defined (name,arity), le) ->
-     if List.mem_assoc name funcs
+  | Call (name,le) when List.mem_assoc name funcs ->
+     let func_env, args, e = List.assoc name funcs in
+     if List.length args = List.length le
      then
-       if List.length le = arity
-       then
-	 let func_env, args, e = List.assoc name funcs in
-	 let call_env =
-	   List.fold_left2
-	     (fun call_env v e ->
-	      let d = data_of_result (eval_expr funcs env e) in
-	      (v,d)::call_env)
-	     func_env args le in
-	 eval_expr funcs call_env e
-       else Seq.empty (* raise (TypeError (name ^ ": wrong number of arguments")) *)
-     else Seq.empty (* raise (Undefined ("function " ^ name)) *)
+       let call_env =
+	 List.fold_left2
+	   (fun call_env v e ->
+	    let d = data_of_result (eval_expr library funcs env e) in
+	    (v,d)::call_env)
+	   func_env args le in
+       eval_expr library funcs call_env e
+     else Seq.empty (* raise (TypeError (name ^ ": wrong number of arguments")) *)
   | Call (func,le) ->
-     let ld = List.map (fun e -> data_of_result (eval_expr funcs env e)) le in
-     (try result_of_data (apply_func func ld) with _ -> Seq.empty)
+     let ld = List.map (fun e -> data_of_result (eval_expr library funcs env e)) le in
+     (try result_of_data (library#apply func ld) with _ -> Seq.empty)
   | Map (e1,e2) ->
      let pos_x = var_position var_context in
-     Seq.with_position (eval_expr funcs env e1)
+     Seq.with_position (eval_expr library funcs env e1)
      |> Seq.flat_map
 	  (fun (pos,(i,_)) ->
 	   let env = (var_context, Seq.return i) :: (pos_x, Seq.return (`Int pos)) :: env in
-	   eval_expr funcs env e2)
+	   eval_expr library funcs env e2)
   | Pred (e1,e2) ->
      let pos_x = var_position var_context in
-     Seq.with_position (eval_expr funcs env e1)
+     Seq.with_position (eval_expr library funcs env e1)
      |> Seq.flat_map
 	  (fun (pos,(i,_)) ->
 	   let env = (var_context, Seq.return i) :: (pos_x, Seq.return (`Int pos)) :: env in
-	   if is_true (eval_expr funcs env e2)
+	   if is_true (eval_expr library funcs env e2)
 	   then Seq.return (i,[])
 	   else Seq.empty)
   | Dot (e1,e2) ->
-     eval_expr funcs env e1
+     eval_expr library funcs env e1
      |> Seq.flat_map
 	  (function
 	    | (`Assoc pairs, _) ->
-	       eval_expr funcs env e2
+	       eval_expr library funcs env e2
 	       |> Seq.flat_map
 		    (function
 		      | (`String key, _) ->
@@ -508,11 +385,11 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> result = function
 		      | _ -> Seq.empty)
 	    | _ -> Seq.empty)
   | ArrayLookup (e1,e2) ->
-     eval_expr funcs env e1
+     eval_expr library funcs env e1
      |> Seq.flat_map
 	  (function
 	    | (`List li, _) ->
-	       eval_expr funcs env e2
+	       eval_expr library funcs env e2
 	       |> Seq.flat_map
 		    (function
 		      | (`Int n, _) ->
@@ -521,7 +398,7 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> result = function
 		      | _ -> Seq.empty)
 	    | _ -> Seq.empty)
   | ArrayUnboxing e ->
-     eval_expr funcs env e
+     eval_expr library funcs env e
      |> Seq.flat_map
 	  (fun (i,_) ->
 	   match i with
@@ -538,10 +415,10 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> result = function
      let pairs =
        List.fold_right
 	 (fun (e1,e2) pairs ->
-	  match item_of_data (data_of_result (eval_expr funcs env e1)) with
+	  match item_of_data (data_of_result (eval_expr library funcs env e1)) with
 	  | None -> pairs
 	  | Some (`String key) ->
-	     ( match Seq.to_list (data_of_result (eval_expr funcs env e2)) with
+	     ( match Seq.to_list (data_of_result (eval_expr library funcs env e2)) with
 	       | [] -> pairs
 	       | [`Null] -> pairs
 	       | [i] -> (key,i)::pairs
@@ -551,7 +428,7 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> result = function
      Seq.return (`Assoc pairs, [])
   | Objectify e ->
      let dico = new dico in
-     eval_expr funcs env e
+     eval_expr library funcs env e
      |> Seq.iter
 	  (fun (i,_) ->
 	   match i with
@@ -570,19 +447,19 @@ let rec eval_expr (funcs : funcs) (env : env) : expr -> result = function
 	 [] in
      Seq.return (`Assoc pairs, [])
   | Arrayify e ->
-     Seq.return (`List (Seq.to_list (data_of_result (eval_expr funcs env e))), [])
+     Seq.return (`List (Seq.to_list (data_of_result (eval_expr library funcs env e))), [])
   | Let (v,e1,e2) ->
-     let d = data_of_result (eval_expr funcs env e1) in
+     let d = data_of_result (eval_expr library funcs env e1) in
      let env = (v,d)::env in
-     eval_expr funcs env e2
+     eval_expr library funcs env e2
   | DefFunc (name,args,e1,e2) ->
      let funcs = (name, (env,args,e1))::funcs in
-     eval_expr funcs env e2
-and eval_flower (funcs : funcs) (ctx : env Seq.t) : flower -> result = function
+     eval_expr library funcs env e2
+and eval_flower (library : #library) (funcs : funcs) (ctx : env Seq.t) : flower -> result = function
   | Return e ->
      ctx
      |> Seq.flat_map
-	  (fun env -> eval_expr funcs env e)
+	  (fun env -> eval_expr library funcs env e)
   | FileData (filename,d,f) ->
      let pos_x = "row in " ^ filename in
      let ctx =
@@ -600,14 +477,14 @@ and eval_flower (funcs : funcs) (ctx : env Seq.t) : flower -> result = function
 			   pairs in
 		       Seq.return env
 		    | _ -> raise (TypeError "file elements should be objects"))) in
-     eval_flower funcs ctx f
+     eval_flower library funcs ctx f
   | For (x, e, optional, f) ->
      let pos_x = var_position x in
      let ctx =
        ctx
        |> Seq.flat_map
 	    (fun env ->
-	     let res = eval_expr funcs env e in
+	     let res = eval_expr library funcs env e in
 	     if optional && Seq.is_empty res
 	     then Seq.return env
 	     else
@@ -617,19 +494,19 @@ and eval_flower (funcs : funcs) (ctx : env Seq.t) : flower -> result = function
 		     Seq.return ((x, Seq.return i)
 				 ::(pos_x, Seq.return (`Int pos))
 				 ::env))) in
-     eval_flower funcs ctx f
+     eval_flower library funcs ctx f
   | FLet (x,e, f) ->
      let ctx =
        ctx
        |> Seq.map
-	    (fun env -> (x, data_of_result (eval_expr funcs env e))::env) in
-     eval_flower funcs ctx f
+	    (fun env -> (x, data_of_result (eval_expr library funcs env e))::env) in
+     eval_flower library funcs ctx f
   | Where (e, f) ->
      let ctx =
        ctx
        |> Seq.filter
-	    (fun env -> is_true (eval_expr funcs env e)) in
-     eval_flower funcs ctx f
+	    (fun env -> is_true (eval_expr library funcs env e)) in
+     eval_flower library funcs ctx f
   | GroupBy (lx, f) ->
      let dico_key = new dico in
      ctx
@@ -668,16 +545,16 @@ and eval_flower (funcs : funcs) (ctx : env Seq.t) : flower -> result = function
 	  env::lenv)
 	 [] in
      let ctx = Seq.from_list lenv in
-     eval_flower funcs ctx f
+     eval_flower library funcs ctx f
   | Project (lx,f) ->
      let ctx =
        ctx
        |> Seq.map
 	    (fun env -> List.filter (fun (y,_) -> List.mem y lx) env) in
-     eval_flower funcs ctx f
+     eval_flower library funcs ctx f
   | Slice (offset,limit,f) ->
      let ctx = Seq.slice ~offset ?limit ctx in
-     eval_flower funcs ctx f
+     eval_flower library funcs ctx f
   | OrderBy (leo, f) ->
      let le, lo = List.split leo in
      let l_key_env =
@@ -686,7 +563,7 @@ and eval_flower (funcs : funcs) (ctx : env Seq.t) : flower -> result = function
 	    (fun res env ->
 	     let ordering_key : item option list =
 	       List.map
-		 (fun e -> item_of_data (data_of_result (eval_expr funcs env e)))
+		 (fun e -> item_of_data (data_of_result (eval_expr library funcs env e)))
 		 le in
 	     (ordering_key, env) :: res)
 	    [] in
@@ -698,17 +575,17 @@ and eval_flower (funcs : funcs) (ctx : env Seq.t) : flower -> result = function
      let ctx =
        Seq.from_list
 	 (List.map snd sorted_l_key_env) in
-     eval_flower funcs ctx f
+     eval_flower library funcs ctx f
   | FConcat lf ->
-     Seq.from_list lf |> Seq.flat_map (eval_flower funcs ctx)
+     Seq.from_list lf |> Seq.flat_map (eval_flower library funcs ctx)
   | FIf (f1,f2,f3) ->
-     if is_true (eval_flower funcs ctx f1)
-     then eval_flower funcs ctx f2
-     else eval_flower funcs ctx f3
+     if is_true (eval_flower library funcs ctx f1)
+     then eval_flower library funcs ctx f2
+     else eval_flower library funcs ctx f3
 
 		      
 (* ================  tests  ===================== *)
-
+(*
 module Test =
   struct
 		      
@@ -782,3 +659,4 @@ let main () =
   |> output_data stdout
 
   end
+ *)

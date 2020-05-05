@@ -38,6 +38,10 @@ let focus_types_lengths_fields (extent : Sem.extent) : Sem.TypSet.t * int Bintre
     
 let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion list list =
   let focus_typs, focus_lens, fields, nbindings = focus_types_lengths_fields extent in
+  let focus_typs =
+    if Sem.TypSet.is_empty focus_typs (* empty sequence () *)
+    then Sem.all_typs
+    else focus_typs in
   let ctx_typs = sem.Sem.annot#typs in
   (*  let allows_any_type = sem.Sem.annot#allows_any_type in *)
   let allowed_typs = Sem.TypSet.inter ctx_typs focus_typs in
@@ -67,22 +71,13 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     add `Flower (InsertFor2 (new input "", new input false));
     add `Flower (InsertLet1 (new input ""));
     add `Flower (InsertLet2 (new input ""));
-    if Sem.TypSet.mem `Bool ctx_typs then
-      List.iter
-	(fun func -> add `Op (InsertFunc func))
-	[EQ; NE; LE; LT; GE; GT];
-    if Sem.TypSet.mem `Int ctx_typs || Sem.TypSet.mem `Float ctx_typs then
-      List.iter
-	(fun func -> add `Op (InsertFunc func))
-	[Plus; Minus; Times; Div; IDiv; Mod; Neg; Range; Sum; Avg];
-    if Sem.TypSet.mem `String ctx_typs then
-      List.iter
-	(fun func -> add `Op (InsertFunc func))
-	[StringConcat; Substring];
-    if multiple_items then add `Op (InsertFunc Count);
+    Jsoniq_functions.library#iter
+      (fun func ->
+       if func#typecheck focus_typs ctx_typs
+       then add `Op (InsertFunc (func#name, func#arity)));
     List.iter
       (fun (name,args) ->
-       add `Op (InsertFunc (Defined (name, List.length args))))
+       add `Op (InsertFunc (name, List.length args)))
       sem.Sem.annot#funcs;
     if Sem.TypSet.mem `Bool ctx_typs then (
       add `Flower (InsertExists (new input ""));
@@ -98,14 +93,12 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       add `Val InsertObject;
       add `Val InsertContextEnv);      
     if Sem.TypSet.mem `Object allowed_typs then (
-      if not multiple_items then add `Op (InsertFunc ObjectKeys);
       add `Val InsertDot;
       add `Val InsertObjectify);
     Bintree.iter
       (fun k -> add `Val (InsertField k))
       fields;
     if Sem.TypSet.mem `Array allowed_typs then (
-      if not multiple_items then add `Op (InsertFunc ArrayLength);
       add `Val InsertArrayLookup);
     if Sem.TypSet.mem `Array focus_typs then (
       add `Val InsertArrayUnboxing);
@@ -126,9 +119,6 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       add `Flower (InsertOrderBy1 (new input (string_of_order ASC))));
     if extent.Sem.vars <> [] then
       add `Flower (InsertProject (extent.Sem.vars, new input (List.hd extent.Sem.vars)));
-(*    List.iter
-      (fun x -> add `Flower (InsertProject x))
-      extent.Sem.vars; *)
     add `Flower (InsertOrderBy2 (new input (string_of_order ASC)));
   in
   let lsugg_val, lsugg_op, lsugg_flower =

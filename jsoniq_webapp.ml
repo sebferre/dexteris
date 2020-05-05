@@ -66,7 +66,7 @@ let w_suggestions : Jsoniq_suggestions.suggestion Widget_suggestions.widget =
       ~html_of_suggestion:(fun ~input_dico sugg ->
 			   Html.syntax ~input_dico
 				       ~html_of_word ~html_info_of_input
-				       (Jsoniq_syntax.syn_transf sugg))
+				       (Jsoniq_syntax.syn_transf Lis.library sugg))
 			     
 let w_results : (Jsoniq.var, Jsoniq.data) Widget_table.widget =
   new Widget_table.widget
@@ -88,7 +88,7 @@ let suggestions_cols = ["col-md-3 col-xs-12";
       
 let render_place place k =
   Jsutils.firebug "XML of place";
-  let xml = Jsoniq_syntax.syn_focus place#focus in
+  let xml = Jsoniq_syntax.syn_focus Lis.library place#focus in
   Jsutils.firebug "focus#set_syntax";
   w_focus#set_syntax xml;
   w_focus#on_focus_change
@@ -136,6 +136,7 @@ let error_message : exn -> string = function
   | Jsoniq.TypeError msg -> "Type error: " ^ msg
   | Jsoniq.Unbound x -> "Unbound variable: " ^ x
   | Jsoniq.Undefined msg -> "Undefined " ^ msg
+  | Jsoniq_functions.Unknown_function name -> "Unknown function: " ^ name
   | Yojson.Json_error msg -> "Syntax error in JSON file: " ^ msg
   | exn -> Printexc.to_string exn
 
