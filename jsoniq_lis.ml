@@ -16,8 +16,8 @@ object
     let ext = Semantics.extent library sem in
     extent <- Some ext;
     k_extent ext;
-    let llsugg = Suggestions.suggestions focus sem ext in
-    k_suggestions llsugg
+    let lfsugg = Suggestions.suggestions focus sem ext in
+    k_suggestions lfsugg
 
   method activate sugg =
     let transf = sugg in

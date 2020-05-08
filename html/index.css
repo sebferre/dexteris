@@ -18,6 +18,10 @@ select {
     padding-bottom:5px;
 }
 
+.syntax {
+    display:inline-block;
+}
+
 .suggestion-input {
     height: 10px;
     width:100px;
@@ -179,7 +183,7 @@ select {
 }
 .list-suggestions.css-treeview ul ul {
     width: 100%;
-    padding-left: 0px;
+    padding-left: 15px;
     padding-right: 0px;
     margin-right: 0px;
 }
@@ -191,14 +195,20 @@ select {
     margin-bottom: 0px;
     padding-right: 0px;
     white-space: nowrap;
+
+//    display:inline-block;
+    vertical-align:top;
+    line-height:100%;
+//    white-space:normal;
+
 }
 
 .suggestion {
     cursor:pointer;
-    display:inline-block;
-    vertical-align:top;
-    line-height:100%;
-    white-space:normal;
+}
+
+.suggestion-dir {
+    font-style:italic;
 }
 
 .frequency-results, .frequency-entities {
