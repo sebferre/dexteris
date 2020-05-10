@@ -82,9 +82,9 @@ let w_results : (Jsoniq.var, Jsoniq.data) Widget_table.widget =
 				 (Jsoniq_syntax.syn_data ~limit:20 d))
       
 
-let suggestions_cols = ["col-md-3 col-xs-12";
+let suggestions_cols = ["col-md-4 col-xs-12";
 			"col-md-4 col-xs-12";
-			"col-md-5 col-xs-12"]
+			"col-md-4 col-xs-12"]
       
 let render_place place k =
   Jsutils.firebug "XML of place";

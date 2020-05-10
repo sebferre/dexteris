@@ -113,14 +113,14 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       add `Val ~path:["objects"] InsertObject;
     (*add `Val InsertContextEnv*));      
     if Sem.TypSet.mem `Object allowed_typs then (
-      add `Val ~path:["objects"] InsertDot;
+      add `Op ~path:["objects"] InsertDot;
       add `Val ~path:["objects"] InsertObjectify);
     if Sem.TypSet.mem `Array allowed_typs then (
-      add `Val ~path:["arrays"] InsertArrayLookup);
+      add `Op ~path:["arrays"] InsertArrayLookup);
     if Sem.TypSet.mem `Array focus_typs then (
       add `Val ~path:["arrays"] InsertArrayUnboxing);
     if Sem.TypSet.mem `Array ctx_typs then (
-      add `Val ~path:["arrays"] InsertArray;
+      (*add `Val ~path:["arrays"] InsertArray;*)
       add `Val ~path:["arrays"] InsertArrayify);
     add `Flower ~path:[] InsertWhere2;
     if multiple_bindings then (
