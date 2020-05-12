@@ -18,6 +18,10 @@ let data_of_json ?fname (contents : string) : data =
 
 
 let data_of_csv (contents : string) : data =
+  let get_ch_header contents sep =
+    let ch = Csv.of_string ~separator:sep contents in
+    let header = Csv.next ch in
+    ch, header in
   let rec aux ~header ch =
     let def_row_seq1 = lazy (Csv.next ch, aux ~header ch) in
     (fun () ->
@@ -28,23 +32,34 @@ let data_of_csv (contents : string) : data =
        else
 	 let l = Csv.combine ~header row in
 	 let pairs =
-	   List.map
-	     (fun (x,s) ->
-	      let item =
-		if s="" then `Null
-		else
-		  try Yojson.Basic.from_string s (* covers ints, floats, bools *)
-		  with _ -> `String s in
-	      (x,item))
-	     l in
+	   List.fold_right
+	     (fun (x,s) pairs ->
+	      match List.assoc_opt x pairs with
+	      | None ->
+		 let item = if s="" then `Null else `String s in
+		 (x,item)::pairs
+	      | Some item0 ->
+		 if s=""
+		 then pairs
+		 else
+		   let item =
+		     match item0 with
+		     | `Null -> `String s
+		     | `List li -> `List (`String s :: li)
+		     | _ -> `List [`String s; item0] in
+		   (x,item) :: List.remove_assoc x pairs)
+	     l [] in
 	 Seq.Cons (`Assoc pairs, seq1)
      with
      | End_of_file ->
 	Csv.close_in ch;
 	Seq.Nil)
   in
-  let ch = Csv.of_string contents in
-  let header = Csv.next ch in
+  let ch, header = get_ch_header contents ',' in
+  let ch, header =
+    if List.length header <= 1
+    then get_ch_header contents ';'
+    else ch, header in
   aux ~header ch
 
 let data_of_file (filename : string) (contents : string) : data =

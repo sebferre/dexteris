@@ -472,7 +472,13 @@ and eval_flower (library : #library) (funcs : funcs) (ctx : env Seq.t) : flower 
 		    | (pos, `Assoc pairs) ->
 		       let env =
 			 List.fold_left
-			   (fun env (k,i) -> (k, Seq.return i)::env)
+			   (fun env (k,i) ->
+			    let d =
+			      match i with
+			      | `Null -> Seq.empty
+			      | `List li -> Seq.from_list li
+			      | _ -> Seq.return i in
+			    (k, d)::env)
 			   ((pos_x, Seq.return (`Int pos))::env)
 			   pairs in
 		       Seq.return env
