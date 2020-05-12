@@ -426,7 +426,7 @@ let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> res
 	  | _ -> raise (TypeError "string expected for object fields"))
 	 lkv [] in
      Seq.return (`Assoc pairs, [])
-  | Objectify e ->
+  | Objectify e -> (* behaves like JSONiq/accumulates function *)
      let dico = new dico in
      eval_expr library funcs env e
      |> Seq.iter

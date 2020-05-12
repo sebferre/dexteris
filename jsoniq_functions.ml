@@ -115,7 +115,7 @@ object
 end
   
 (* definition of functions *)
-	    
+
 class comparator (name : string) (pred : int -> bool) (op : string) =
   object
     inherit infix name op
@@ -244,6 +244,17 @@ let _ =
   let path = ["strings"] in
   library#register
     (object
+	inherit infix "stringConcat" "||"
+	method path = []
+	inherit typecheck_simple [`String] [`String]
+	method apply =
+	  bind_2items
+	    (function
+	      | `String s1, `String s2 -> Seq.return (`String (s1 ^ s2))
+	      | _ -> Seq.empty)
+      end);
+  library#register
+    (object
 	inherit classic "stringLength" 1 "length"
 	method path = path
 	inherit typecheck_simple [`String] [`Int]
@@ -350,7 +361,7 @@ let _ =
 let _ =
   library#register
     (object
-	inherit classic "arrayLength" 1 "length"
+	inherit classic "arrayLength" 1 "size"
 	method path = ["arrays"]
 	inherit typecheck_simple [`Array] [`Int]
 	method apply =

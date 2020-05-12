@@ -132,7 +132,7 @@ let syn_For xmlx xml1 opt xml2 : syn =
   Kwd "for" :: (if opt then [Kwd "optional"] else []) @ xmlx @ Kwd "in" :: xml1 @
     [Indent xml2]
 let syn_Let xmlx xml1 xml2 : syn =
-  [Block [Kwd "let" :: xmlx @ Kwd "=" :: xml1;
+  [Block [Kwd "let" :: xmlx @ Kwd ":=" :: xml1;
 	  xml2]]
 let syn_Where xml1 xml2 : syn =
   [Block [Kwd "where" :: xml1;
@@ -617,7 +617,11 @@ let syn_transf (library : #library) : transf -> syn = function
   | InsertOr -> syn_Or [[the_focus]; [ellipsis]]
   | InsertAnd -> syn_And [[the_focus]; [ellipsis]]
   | InsertNot -> syn_Not [the_focus]
-  | InsertFunc (func,arity) -> syn_Call library func (Focus.make_list arity [ellipsis])
+  | InsertFunc (func,arity) ->
+     syn_Call library func
+	      (if arity = 0
+	       then []
+	       else [the_focus] :: Focus.make_list (arity-1) [ellipsis])
   | InsertMap -> syn_Map [the_focus] [ellipsis]
   | InsertPred -> syn_Pred [the_focus] [ellipsis]
   | InsertDot -> syn_Dot [the_focus] [ellipsis]
