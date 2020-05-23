@@ -393,7 +393,7 @@ let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> res
 	       |> Seq.flat_map
 		    (function
 		      | (`Int n, _) ->
-			 (try Seq.return (List.nth li (n-1), [])
+			 (try Seq.return (List.nth li n, [])
 			  with _ -> Seq.empty)
 		      | _ -> Seq.empty)
 	    | _ -> Seq.empty)
