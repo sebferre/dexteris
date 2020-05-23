@@ -16,6 +16,14 @@ let data_of_json ?fname (contents : string) : data =
   let str = Yojson.Basic.stream_from_string ?fname contents in
   objectify_data (Seq.from_stream str)
 
+let item_of_csv_value (s : string) : item =
+  if s = "" then `Null
+  else if s = "true" then `Bool true
+  else if s = "false" then `Bool false
+  else try `Int (int_of_string s)
+       with _ ->
+	    try `Float (float_of_string s)
+	    with _ -> `String s
 
 let data_of_csv (contents : string) : data =
   let get_ch_header contents sep =
@@ -34,9 +42,9 @@ let data_of_csv (contents : string) : data =
 	 let pairs =
 	   List.fold_right
 	     (fun (x,s) pairs ->
+	      let item = item_of_csv_value s in
 	      match List.assoc_opt x pairs with
 	      | None ->
-		 let item = if s="" then `Null else `String s in
 		 (x,item)::pairs
 	      | Some item0 ->
 		 if s=""
@@ -44,9 +52,9 @@ let data_of_csv (contents : string) : data =
 		 else
 		   let item =
 		     match item0 with
-		     | `Null -> `String s
-		     | `List li -> `List (`String s :: li)
-		     | _ -> `List [`String s; item0] in
+		     | `Null -> item
+		     | `List li -> `List (item :: li)
+		     | _ -> `List [item; item0] in
 		   (x,item) :: List.remove_assoc x pairs)
 	     l [] in
 	 Seq.Cons (`Assoc pairs, seq1)
