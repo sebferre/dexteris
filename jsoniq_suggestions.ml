@@ -132,8 +132,10 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
 	add `Flower ~path:["modifiers"] (InsertGroupBy (group_by_vars, new input (List.hd group_by_vars))); 
       add `Flower ~path:["modifiers"] (InsertSlice (new input 0, new input 0));
       add `Flower ~path:["modifiers"] (InsertOrderBy1 (new input (string_of_order ASC))));
-    if extent.Sem.vars <> [] then
-      add `Flower ~path:["modifiers"] (InsertProject (extent.Sem.vars, new input (List.hd extent.Sem.vars)));
+    let project_vars =
+      List.filter ((<>) Sem.field_focus) extent.Sem.vars in
+    if project_vars <> [] then
+      add `Flower ~path:["modifiers"] (InsertProject (project_vars, new input (List.hd project_vars)));
     add `Flower ~path:["modifiers"] (InsertOrderBy2 (new input (string_of_order ASC)));
     add `Flower ~path:["functions"] (InsertDefFunc1 (new input ""));
     add `Flower ~path:["functions"] (InsertDefFunc2 (new input ""));
