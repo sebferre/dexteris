@@ -631,7 +631,7 @@ let syn_transf (library : #library) : transf -> syn = function
   | InsertVar x -> syn_Var x
   | InsertContextItem -> syn_ContextItem
   | InsertContextEnv -> syn_ContextEnv
-  | InsertObject -> syn_EObject [syn_pair [ellipsis] [ellipsis]]
+  | InsertObject -> syn_EObject [syn_pair [ellipsis] [the_focus]]
   | InsertArray -> syn_Arrayify [ellipsis]
   | InsertObjectify -> syn_Objectify [the_focus]
   | InsertArrayify -> syn_Arrayify [the_focus]

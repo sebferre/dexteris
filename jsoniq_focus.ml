@@ -616,8 +616,7 @@ and apply_transf_expr = function
   | InsertContextEnv, Empty, ctx -> Some (ContextEnv, ctx)
   | InsertContextEnv, _, _ -> None
 
-  | InsertObject, Empty, ctx -> Some (Empty, EObjectX1 (([],[]), ctx, Empty))
-  | InsertObject, _, _ -> None
+  | InsertObject, e, ctx -> Some (Empty, EObjectX1 (([],[]), ctx, e))
   | InsertArray, Empty, ctx -> Some (Empty, Arrayify1 ctx)
   | InsertArray, _, _ -> None
   | InsertObjectify, e, ctx -> Some (Objectify e, ctx)
