@@ -51,12 +51,14 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
   let forest_val = ref [] in
   let forest_flower = ref [] in
   let add kind ?(path : string list = []) tr =
-    let forest =
-      match kind with
-      | `Op -> forest_op
-      | `Val -> forest_val
-      | `Flower -> forest_flower in
-    forest := Lis.insert_suggestion path tr !forest in
+    if apply_transf tr foc <> None then (
+      let forest =
+	match kind with
+	| `Op -> forest_op
+	| `Val -> forest_val
+	| `Flower -> forest_flower in
+      forest := Lis.insert_suggestion path tr !forest
+    ) in
   let () =
     add `Val FocusUp;
     add `Val InsertConcat1;
@@ -111,7 +113,8 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     add `Op ~path:["logic"] InsertIf3;
     if Sem.TypSet.mem `Object ctx_typs then (
       add `Val ~path:["objects"] InsertObject;
-    (*add `Val InsertContextEnv*));      
+    (*add `Val InsertContextEnv*));
+    add `Val ~path:["objects"] InsertObjectField;
     if Sem.TypSet.mem `Object allowed_typs then (
       add `Op ~path:["objects"] InsertDot;
       add `Val ~path:["objects"] InsertObjectify);

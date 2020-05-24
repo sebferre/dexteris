@@ -330,6 +330,7 @@ type transf =
   | InsertContextItem
   | InsertContextEnv
   | InsertObject
+  | InsertObjectField
   | InsertArray
   | InsertObjectify
   | InsertArrayify
@@ -378,7 +379,7 @@ let rec reaching_expr : expr -> transf list = function
   | Var x -> [InsertVar x]
   | ContextItem -> [InsertContextItem]
   | ContextEnv -> [InsertContextEnv]
-  | EObject pairs -> InsertObject :: reaching_list reaching_pair [InsertConcat1] pairs
+  | EObject pairs -> InsertObject :: reaching_list reaching_pair [InsertObjectField] pairs
   | Objectify e -> reaching_expr e @ [InsertObjectify]
   | Arrayify e -> reaching_expr e @ [InsertArrayify]
   | Let (x,e1,e2) -> reaching_expr e1 @ InsertLet1 (new input x) :: reaching_expr e2 @ [FocusUp]
@@ -405,7 +406,7 @@ and reaching_item : item -> transf list = function
   | `Float f -> [InputFloat (new input f)]
   | `String s -> [InputString (new input s)]
   | `Null -> [InsertNull]
-  | `Assoc pairs -> InsertObject :: reaching_list reaching_pair [InsertConcat1] (List.map (fun (k,i) -> S k, Item i) pairs)
+  | `Assoc pairs -> InsertObject :: reaching_list reaching_pair [InsertObjectField] (List.map (fun (k,i) -> S k, Item i) pairs)
   | `List li -> InsertArray :: reaching_list reaching_item [InsertConcat1] li
 and reaching_pair (e1, e2: expr * expr) : transf list =
   reaching_expr e1 @ FocusRight :: reaching_expr e2
@@ -617,6 +618,9 @@ and apply_transf_expr = function
   | InsertContextEnv, _, _ -> None
 
   | InsertObject, e, ctx -> Some (Empty, EObjectX1 (([],[]), ctx, e))
+  | InsertObjectField, e1, EObjectX1 ((ll,rr), ctx, e2) -> Some (Empty, EObjectX1 (((e1,e2)::ll,rr), ctx, Empty))
+  | InsertObjectField, e2, EObjectX2 ((ll,rr), e1, ctx) -> Some (Empty, EObjectX1 (((e1,e2)::ll,rr), ctx, Empty))
+  | InsertObjectField, _, _ -> None
   | InsertArray, Empty, ctx -> Some (Empty, Arrayify1 ctx)
   | InsertArray, _, _ -> None
   | InsertObjectify, e, ctx -> Some (Objectify e, ctx)
