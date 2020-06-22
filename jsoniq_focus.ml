@@ -32,13 +32,13 @@ type expr_ctx =
   | EObjectX2 of (expr * expr) list_ctx * expr * expr_ctx
   | Objectify1 of expr_ctx
   | Arrayify1 of expr_ctx
-  | Let1 of var * expr_ctx * expr
-  | Let2 of var * expr * expr_ctx
+  | Let1 of binder * expr_ctx * expr
+  | Let2 of binder * expr * expr_ctx
   | DefFunc1 of string * var list * expr_ctx * expr
   | DefFunc2 of string * var list * expr * expr_ctx
   | Return1 of flower_ctx
   | For1 of var * flower_ctx * bool * flower
-  | FLet1 of var * flower_ctx * flower
+  | FLet1 of binder * flower_ctx * flower
   | Where1 of flower_ctx * flower
   | OrderBy1X of (expr * order) list_ctx * flower_ctx * order * flower
 
@@ -47,7 +47,7 @@ and flower_ctx =
   | Flower1 of expr_ctx
   | FileData2 of string * data * flower_ctx
   | For2 of var * expr * bool * flower_ctx
-  | FLet2 of var * expr * flower_ctx
+  | FLet2 of binder * expr * flower_ctx
   | Where2 of expr * flower_ctx
   | GroupBy1 of var list * flower_ctx
   | Project1 of var list * flower_ctx
@@ -340,8 +340,9 @@ type transf =
   | InsertArg of var input
   | InsertFor1 of var input * bool input
   | InsertFor2 of var input * bool input
-  | InsertLet1 of var input
-  | InsertLet2 of var input
+  | InsertLetVar1 of var input
+  | InsertLetVar2 of var input
+  | InsertLetFields1
   | InsertWhere1
   | InsertWhere2
   | InsertGroupBy of var list * var input
@@ -384,13 +385,15 @@ let rec reaching_expr : expr -> transf list = function
   | EObject pairs -> InsertObject :: reaching_list reaching_pair [InsertObjectField] pairs
   | Objectify e -> reaching_expr e @ [InsertObjectify]
   | Arrayify e -> reaching_expr e @ [InsertArrayify]
-  | Let (x,e1,e2) -> reaching_expr e1 @ InsertLet1 (new input x) :: reaching_expr e2 @ [FocusUp]
+  | Let (Var x,e1,e2) -> reaching_expr e1 @ InsertLetVar1 (new input x) :: reaching_expr e2 @ [FocusUp]
+  | Let (Fields,e1,e2) -> reaching_expr e1 @ InsertLetFields1 :: reaching_expr e2 @ [FocusUp]
   | DefFunc (name,args,e1,e2) -> InsertDefFunc1 (new input name) :: List.map (fun x -> InsertArg (new input x)) args @ reaching_expr e1 @ FocusRight :: reaching_expr e2 @ [FocusUp]
 and reaching_flower : flower -> transf list = function
   | Return e -> reaching_expr e @ [FocusUp]
   | FileData (filename,d,f) -> InputFileData (new input (filename,d)) (* reaching_data d *) :: reaching_flower f
   | For (x,e,opt,f) -> reaching_expr e @ InsertFor1 (new input x, new input opt) :: reaching_flower f @ [FocusUp]
-  | FLet (x,e,f) -> reaching_expr e @ InsertLet1 (new input x) :: reaching_flower f @ [FocusUp]
+  | FLet (Var x,e,f) -> reaching_expr e @ InsertLetVar1 (new input x) :: reaching_flower f @ [FocusUp]
+  | FLet (Fields,e,f) -> reaching_expr e @ InsertLetFields1 :: reaching_flower f @ [FocusUp]
   | Where (e,f) -> reaching_expr e @ InsertWhere1 :: reaching_flower f @ [FocusUp]
   | GroupBy (lx,f) -> List.map (fun x -> InsertGroupBy (lx, new input x)) lx @ reaching_flower f @ [FocusUp]
   | Project (lx,f) -> List.map (fun x -> InsertProject (lx, new input x)) lx @ reaching_flower f @ [FocusUp]
@@ -494,13 +497,13 @@ and delete_ctx_expr : expr_ctx -> focus option = function
      Some (AtExpr (e,ctx))
   | Objectify1 ctx -> Some (AtExpr (Empty,ctx))
   | Arrayify1 ctx -> Some (AtExpr (Empty,ctx))
-  | Let1 (x,ctx,e2) -> Some (AtExpr (e2,ctx))
-  | Let2 (x,e1,ctx) -> Some (AtExpr (e1,ctx))
+  | Let1 (br,ctx,e2) -> Some (AtExpr (e2,ctx))
+  | Let2 (br,e1,ctx) -> Some (AtExpr (e1,ctx))
   | DefFunc1 (f,lx,ctx,e2) -> Some (AtExpr (e2,ctx))
   | DefFunc2 (f,lx,e1,ctx) -> Some (AtExpr (e1,ctx))
   | Return1 ctx -> delete_ctx_flower ctx
   | For1 (x,ctx,opt,f) -> Some (AtFlower (f,ctx))
-  | FLet1 (x,ctx,f) -> Some (AtFlower (f,ctx))
+  | FLet1 (br,ctx,f) -> Some (AtFlower (f,ctx))
   | Where1 (ctx,f) -> Some (AtFlower (f,ctx))
   | OrderBy1X (ll_rr,ctx,o,f1) ->
      let f =
@@ -512,7 +515,7 @@ and delete_ctx_flower : flower_ctx -> focus option = function
   | Flower1 ctx -> delete_ctx_expr ctx
   | FileData2 (fname,d,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
   | For2 (x,e,opt,ctx) -> Some (AtExpr (e, ctx_expr_of_flower ctx))
-  | FLet2 (x,e,ctx) -> Some (AtExpr (e, ctx_expr_of_flower ctx))
+  | FLet2 (br,e,ctx) -> Some (AtExpr (e, ctx_expr_of_flower ctx))
   | Where2 (e,ctx) -> Some (AtExpr (e, ctx_expr_of_flower ctx))
   | GroupBy1 (lx,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
   | Project1 (lx,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
@@ -643,10 +646,12 @@ and apply_transf_expr = function
   | InsertFor1 (in_x,in_opt), e, ctx -> Some (Empty, Return1 (For2 (in_x#get, e, in_opt#get, ctx_flower_of_expr ctx)))
   | InsertFor2 (in_x,in_opt), e, ctx -> Some (Empty, For1 (in_x#get, ctx_flower_of_expr ctx, in_opt#get, flower_of_expr e))
 
-  | InsertLet1 in_x, e, Return1 ctx -> Some (Empty, Return1 (FLet2 (in_x#get, e, ctx)))
-  | InsertLet2 in_x, e, Return1 ctx -> Some (Empty, FLet1 (in_x#get, ctx, flower_of_expr e))
-  | InsertLet1 in_x, e, ctx -> Some (Empty, Let2 (in_x#get, e, ctx))
-  | InsertLet2 in_x, e, ctx -> Some (Empty, Let1 (in_x#get, ctx, e))
+  | InsertLetVar1 in_x, e, Return1 ctx -> Some (Empty, Return1 (FLet2 (Var in_x#get, e, ctx)))
+  | InsertLetVar2 in_x, e, Return1 ctx -> Some (Empty, FLet1 (Var in_x#get, ctx, flower_of_expr e))
+  | InsertLetFields1, e, Return1 ctx -> Some (Empty, Return1 (FLet2 (Fields, e, ctx)))
+  | InsertLetVar1 in_x, e, ctx -> Some (Empty, Let2 (Var in_x#get, e, ctx))
+  | InsertLetVar2 in_x, e, ctx -> Some (Empty, Let1 (Var in_x#get, ctx, e))
+  | InsertLetFields1, e, ctx -> Some (Empty, Let2 (Fields, e, ctx))
 
   (* transformations below should only be suggested in for context *)
 			 

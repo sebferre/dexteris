@@ -83,6 +83,10 @@ let syn_order_raw xml1 xml2 : syn =
 let syn_order xml1 o : syn =
   syn_order_raw xml1 [Word (`Order o)]
 
+let syn_binder : binder -> syn = function
+  | Var x -> [Word (`Var x)]
+  | Fields -> [Kwd "*"]
+		
 let syn_Call library name lxml : syn =
   try library#syntax name lxml
   with _ -> syn_func name lxml
@@ -254,10 +258,10 @@ and syn_expr library e ctx : syn =
        syn_Objectify (syn_expr library e1 (Objectify1 ctx))
     | Arrayify e1 ->
        syn_Arrayify (syn_expr library e1 (Arrayify1 ctx))
-    | Let (x,e1,e2) ->
-       syn_Let [Word (`Var x)]
-		  (syn_expr library e1 (Let1 (x,ctx,e2)))
-		  (syn_expr library e2 (Let2 (x,e1,ctx)))
+    | Let (br,e1,e2) ->
+       syn_Let (syn_binder br)
+	       (syn_expr library e1 (Let1 (br,ctx,e2)))
+	       (syn_expr library e2 (Let2 (br,e1,ctx)))
     | DefFunc (name,args,e1,e2) ->
        syn_DefFunc [Word (`Func name)] args
 		   (syn_expr library e1 (DefFunc1 (name,args,ctx,e2)))
@@ -279,10 +283,10 @@ and syn_flower library f ctx : syn =
 	       (syn_expr library e1 (For1 (x,ctx,opt,f1)))
 	       opt
 	       (syn_flower library f1 (For2 (x,e1,opt,ctx)))
-    | FLet (x,e1,f1) ->
-       syn_Let [Word (`Var x)]
-	       (syn_expr library e1 (FLet1 (x,ctx,f1)))
-	       (syn_flower library f1 (FLet2 (x,e1,ctx)))
+    | FLet (br,e1,f1) ->
+       syn_Let (syn_binder br)
+	       (syn_expr library e1 (FLet1 (br,ctx,f1)))
+	       (syn_flower library f1 (FLet2 (br,e1,ctx)))
     | Where (e1,f1) ->
        syn_Where (syn_expr library e1 (Where1 (ctx,f1)))
 		 (syn_flower library f1 (Where2 (e1,ctx)))
@@ -466,18 +470,18 @@ and syn_expr_ctx library e ctx (xml_e : syn) : syn =
      syn_expr_ctx library
        (Arrayify e) ctx
        (syn_Arrayify xml_e)
-  | Let1 (x,ctx,e2) ->
+  | Let1 (br,ctx,e2) ->
      syn_expr_ctx library
-       (Let (x,e,e2)) ctx
-       (syn_Let [Word (`Var x)]
-		   xml_e
-		   (syn_susp (syn_expr library e2 (Let2 (x,e,ctx)))))
-  | Let2 (x,e1,ctx) ->
+       (Let (br,e,e2)) ctx
+       (syn_Let (syn_binder br)
+		xml_e
+		(syn_susp (syn_expr library e2 (Let2 (br,e,ctx)))))
+  | Let2 (br,e1,ctx) ->
      syn_expr_ctx library
-       (Let (x,e1,e)) ctx
-       (syn_Let [Word (`Var x)]
-		   (syn_expr library e1 (Let1 (x,ctx,e)))
-		   xml_e)
+       (Let (br,e1,e)) ctx
+       (syn_Let (syn_binder br)
+		(syn_expr library e1 (Let1 (br,ctx,e)))
+		xml_e)
   | DefFunc1 (name,args,ctx,e2) ->
      syn_expr_ctx library
        (DefFunc (name,args,e,e2)) ctx
@@ -501,12 +505,12 @@ and syn_expr_ctx library e ctx (xml_e : syn) : syn =
 		xml_e
 		opt
 		(syn_susp (syn_flower library f (For2 (x,e,opt,ctx)))))
-  | FLet1 (x,ctx,f) ->
+  | FLet1 (br,ctx,f) ->
      syn_flower_ctx library
-       (FLet (x,e,f)) ctx
-       (syn_Let [Word (`Var x)]
+       (FLet (br,e,f)) ctx
+       (syn_Let (syn_binder br)
 		xml_e
-		(syn_susp (syn_flower library f (FLet2 (x,e,ctx)))))
+		(syn_susp (syn_flower library f (FLet2 (br,e,ctx)))))
   | Where1 (ctx,f) ->
      syn_flower_ctx library
        (Where (e,f)) ctx
@@ -545,11 +549,11 @@ and syn_flower_ctx library f ctx (xml_f : syn) : syn =
 		(syn_expr library e1 (For1 (x,ctx,opt,f)))
 		opt
 		xml_f)
-  | FLet2 (x,e1,ctx) ->
+  | FLet2 (br,e1,ctx) ->
      syn_flower_ctx library
-       (FLet (x,e1,f)) ctx
-       (syn_Let [Word (`Var x)]
-		(syn_expr library e1 (FLet1 (x,ctx,f)))
+       (FLet (br,e1,f)) ctx
+       (syn_Let (syn_binder br)
+		(syn_expr library e1 (FLet1 (br,ctx,f)))
 		xml_f)
   | Where2 (e1,ctx) ->
      syn_flower_ctx library
@@ -601,7 +605,7 @@ and syn_flower_ctx library f ctx (xml_f : syn) : syn =
        (FIf (f1,f2,f)) ctx
        (syn_FIf (syn_susp (syn_flower library f1 (FIf1 (ctx,f2,f))))
 		(syn_susp (syn_flower library f2 (FIf2 (f1,ctx,f))))
-	       xml_f)
+		xml_f)
 
 let the_focus = Word `TheFocus
 let ellipsis = Word `Ellipsis
@@ -653,8 +657,9 @@ let syn_transf (library : #library) : transf -> syn = function
   | InputFileData i -> syn_For [Kwd "fields"] [Kwd "file"; Input (`FileData i)] false [the_focus]
   | InsertFor1 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [the_focus] false [ellipsis] (* TODO: optional *)
   | InsertFor2 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [ellipsis] false [the_focus] (* TODO: optional *)
-  | InsertLet1 in_x -> syn_Let [Input (`Ident in_x)] [the_focus] [ellipsis]
-  | InsertLet2 in_x -> syn_Let [Input (`Ident in_x)] [ellipsis] [the_focus]
+  | InsertLetVar1 in_x -> syn_Let [Input (`Ident in_x)] [the_focus] [ellipsis]
+  | InsertLetVar2 in_x -> syn_Let [Input (`Ident in_x)] [ellipsis] [the_focus]
+  | InsertLetFields1 -> syn_Let [Kwd "*"] [the_focus] [ellipsis]
   | InsertWhere1 -> syn_Where [the_focus] [ellipsis]
   | InsertWhere2 -> syn_Where [ellipsis] [the_focus]
   | InsertGroupBy (lx, in_x) -> syn_GroupBy_raw [Input (`Select (lx, in_x))] [the_focus]

@@ -67,11 +67,11 @@ let rec sem_focus (foc : focus) : sem =
   let annot = new annot in
   match foc with
   | AtExpr (e,ctx) ->
-     let e' = Let (field_focus, e, ContextEnv) in
+     let e' = Let (Var field_focus, e, ContextEnv) in
      (*     let e' = Objectify (Concat [ContextEnv; EObject [S field_focus, Arrayify e]]) in *)
      sem_expr_ctx annot e' ctx
   | AtFlower (f,ctx) ->
-     let f' = Return (Let (field_focus, Flower f, ContextEnv)) in
+     let f' = Return (Let (Var field_focus, Flower f, ContextEnv)) in
      (*     let f' = Return (Objectify (Concat [ContextEnv; EObject [S field_focus, Arrayify (Flower f)]])) in *)
      sem_flower_ctx annot f' ctx
 and sem_expr_ctx annot e : expr_ctx -> sem = function

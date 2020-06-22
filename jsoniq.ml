@@ -110,6 +110,10 @@ let order_of_string s =
   if s = asc then ASC
   else DESC
 
+type binder =
+  | Var of var
+  | Fields [@@deriving yojson]
+	 
 type expr =
   | S of string
   | Item of item
@@ -135,14 +139,14 @@ type expr =
   | EObject of (expr * expr) list
   | Objectify of expr
   | Arrayify of expr
-  | Let of var * expr * expr
+  | Let of binder * expr * expr
   | DefFunc of string * var list * expr * expr
 					    [@@deriving yojson]
  and flower =
   | Return of expr
   | FileData of string * data * flower (* iterating over a file *)
   | For of var * expr * bool * flower (* optional flag *)
-  | FLet of var * expr * flower
+  | FLet of binder * expr * flower
   | Where of expr * flower
   | GroupBy of var list * flower
   | Project of var list * flower
@@ -293,7 +297,22 @@ class type library =
   object
     method apply : string -> data list -> data
   end
-	      
+
+let env_add_fields (res : result) (env : env) : env =
+  match Seq.hd_opt res with
+  | None -> env
+  | Some (i,_) ->
+     match i with
+     | `Assoc pairs ->
+	List.fold_left
+	  (fun env (k,i) -> (k, Seq.return i)::env)
+	  env pairs
+     | _ -> env
+
+let eval_binder (env : env) (res : result) : binder -> env = function
+  | Var v -> (v, data_of_result res)::env
+  | Fields -> env_add_fields res env
+
 let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> result = function
   | S s -> Seq.return (`String s, [])
   | Item i -> Seq.return (i, [])
@@ -450,9 +469,9 @@ let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> res
      Seq.return (`Assoc pairs, [])
   | Arrayify e ->
      Seq.return (`List (Seq.to_list (data_of_result (eval_expr library funcs env e))), [])
-  | Let (v,e1,e2) ->
-     let d = data_of_result (eval_expr library funcs env e1) in
-     let env = (v,d)::env in
+  | Let (br,e1,e2) ->
+     let res = eval_expr library funcs env e1 in
+     let env = eval_binder env res br in
      eval_expr library funcs env e2
   | DefFunc (name,args,e1,e2) ->
      let funcs = (name, (env,args,e1))::funcs in
@@ -503,11 +522,14 @@ and eval_flower (library : #library) (funcs : funcs) (ctx : env Seq.t) : flower 
 				 ::(pos_x, Seq.return (`Int pos))
 				 ::env))) in
      eval_flower library funcs ctx f
-  | FLet (x,e, f) ->
+  | FLet (br,e, f) ->
      let ctx =
        ctx
        |> Seq.map
-	    (fun env -> (x, data_of_result (eval_expr library funcs env e))::env) in
+	    (fun env ->
+	     let res = eval_expr library funcs env e in
+	     eval_binder env res br)
+     in
      eval_flower library funcs ctx f
   | Where (e, f) ->
      let ctx =

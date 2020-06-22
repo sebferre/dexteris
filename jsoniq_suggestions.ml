@@ -86,8 +86,8 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       add `Val ~path:[] (InsertBool true)
     );
     add `Val ~path:[] InsertNull;
-    add `Flower (InsertLet1 (new input ""));
-    add `Flower (InsertLet2 (new input ""));
+    add `Flower (InsertLetVar1 (new input ""));
+    add `Flower (InsertLetVar2 (new input ""));
     if multiple_items then (
       add `Flower ~path:["iterations"] InsertMap;
       add `Flower ~path:["iterations"] InsertPred);
@@ -119,7 +119,8 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     add `Val ~path:["objects"] InsertObjectField;
     if Sem.TypSet.mem `Object allowed_typs then (
       add `Op ~path:["objects"] InsertDot;
-      add `Val ~path:["objects"] InsertObjectify);
+      add `Val ~path:["objects"] InsertObjectify;
+      add `Flower ~path:[] InsertLetFields1);
     if Sem.TypSet.mem `Array allowed_typs then (
       add `Op ~path:["arrays"] InsertArrayLookup);
     if Sem.TypSet.mem `Array focus_typs then (
