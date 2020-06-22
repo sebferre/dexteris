@@ -4,7 +4,7 @@ open Jsoniq
 open Jsoniq_focus
 
 (* syntax definition *)
-type word = [`Bool of bool | `Int of int | `Float of float | `String of string | `Var of var | `Func of string | `ContextItem | `ContextEnv | `Order of order | `TheFocus | `Ellipsis ]
+type word = [`Bool of bool | `Int of int | `Float of float | `String of string | `Filename of string | `Var of var | `Func of string | `ContextItem | `ContextEnv | `Order of order | `TheFocus | `Ellipsis ]
 type input = [ `Int of int Focus.input
 	     | `Float of float Focus.input
 	     | `String of string Focus.input
@@ -185,6 +185,8 @@ and syn_expr library e ctx : syn =
     match e with
     | S s -> [Word (`String s)]
     | Item i -> syn_item i
+    | FileString (fname,contents) ->
+       [Kwd "file"; Word (`Filename fname)]
     | Empty -> [Kwd "()"]
     | Concat le ->
        syn_Concat

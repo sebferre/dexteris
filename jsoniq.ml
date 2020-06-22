@@ -113,6 +113,7 @@ let order_of_string s =
 type expr =
   | S of string
   | Item of item
+  | FileString of string * string (* filename, contents *)
   | Empty
   | Concat of expr list
   | Flower of flower
@@ -296,6 +297,7 @@ class type library =
 let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> result = function
   | S s -> Seq.return (`String s, [])
   | Item i -> Seq.return (i, [])
+  | FileString (fname,contents) -> Seq.return (`String contents, [])
   | Empty -> Seq.empty
   | Concat le -> Seq.from_list le |> Seq.flat_map (eval_expr library funcs env)
   | Flower lf -> eval_flower library funcs (Seq.return env) lf

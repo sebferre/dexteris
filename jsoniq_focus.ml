@@ -362,6 +362,7 @@ let rec reaching_list reaching_elt sep l =
 let rec reaching_expr : expr -> transf list = function
   | S s -> [InputString (new input s)]
   | Item i -> reaching_item i
+  | FileString (fname,contents) -> [InputFileString (new input (fname,contents))]
   | Empty -> [] (* the default value *)
   | Concat le -> reaching_list reaching_expr [InsertConcat1] le (* assuming |le| > 1 *)
   | Flower f -> reaching_flower f
@@ -559,7 +560,7 @@ and apply_transf_expr = function
   | InputString in_s, _, ctx -> Some (Item (`String in_s#get), ctx)
   | InputFileString in_file, _, ctx ->
      let filename, contents = in_file#get in
-     Some (Item (`String contents), ctx)
+     Some (FileString (filename, contents), ctx)
      
   | InsertNull, _, ctx -> Some (Item `Null, ctx)
 

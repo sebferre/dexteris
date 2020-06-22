@@ -30,6 +30,9 @@ select {
 .word-string {
     color:forestgreen;
 }
+.word-filename {
+    color:darkgreen;
+}
 .word-var {
     color:darkred;
 }
