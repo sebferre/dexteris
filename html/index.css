@@ -18,6 +18,25 @@ select {
     padding-bottom:5px;
 }
 
+.word-true {
+    color:limegreen;
+}
+.word-false {
+    color:red;
+}
+.word-number {
+    color:blue;
+}
+.word-string {
+    color:forestgreen;
+}
+.word-var {
+    color:darkred;
+}
+.word-function {
+    color:darkviolet;
+}
+
 .syntax {
     display:inline-block;
 }

@@ -309,6 +309,7 @@ type transf =
   | InputRange of int input * int input
   | InputFloat of float input
   | InputString of string input
+  | InputFileString of (string * string) input
   | InputFileData of (string * data) input
   | InsertNull
   | InsertConcat1
@@ -556,6 +557,9 @@ and apply_transf_expr = function
   | InputRange (in_a,in_b), _, ctx -> Some (Call ("range", [Item (`Int in_a#get); Item (`Int in_b#get)]), ctx)
   | InputFloat in_f, _, ctx -> Some (Item (`Float in_f#get), ctx)
   | InputString in_s, _, ctx -> Some (Item (`String in_s#get), ctx)
+  | InputFileString in_file, _, ctx ->
+     let filename, contents = in_file#get in
+     Some (Item (`String contents), ctx)
      
   | InsertNull, _, ctx -> Some (Item `Null, ctx)
 

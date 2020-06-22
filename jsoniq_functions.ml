@@ -481,4 +481,28 @@ let _ =
 	  | _ -> Seq.empty
       end)
 
-  
+
+let _ =
+  let path = ["files"] in
+  library#register
+    (object
+	inherit classic "parseJSON" 1 "parseJSON"
+	method path = path
+	inherit typecheck_simple [`String] list_all_typs
+	method apply =
+	  bind_1item
+	    (function
+	      | `String contents -> Jsoniq_files.data_of_json contents
+	      | _ -> Seq.empty)
+      end);
+  library#register
+    (object
+	inherit classic "parseCSV" 1 "parseCSV"
+	method path = path
+	inherit typecheck_simple [`String] [`Object]
+	method apply =
+	  bind_1item
+	    (function
+	      | `String contents -> Jsoniq_files.data_of_csv contents
+	      | _ -> Seq.empty)
+      end)

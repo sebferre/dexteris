@@ -15,15 +15,15 @@ let html_of_var v =
   else v
 						   
 let html_of_word : Jsoniq_syntax.word -> Html.t = function
-  | `Bool b -> string_of_bool b
-  | `Int i -> string_of_int i
-  | `Float f -> string_of_float f
-  | `String s -> "\"" ^ Jsutils.escapeHTML s ^ "\""
-  | `Var v -> html_of_var v
+  | `Bool b -> Html.span ~classe:(if b then "word-true" else "word-false") (string_of_bool b)
+  | `Int i -> Html.span ~classe:"word-number" (string_of_int i)
+  | `Float f -> Html.span ~classe:"word-number" (string_of_float f)
+  | `String s -> Html.span ~classe:"word-string" (Jsutils.escapeHTML s)
+  | `Var v -> Html.span ~classe:"word-var" (html_of_var v)
   | `ContextItem -> "_"
   | `ContextEnv -> "*"
   | `Order o -> string_of_order o
-  | `Func name -> name
+  | `Func name -> Html.span ~classe:"word-function" name
   | `TheFocus -> Html.span ~classe:"highlighted" "__"
   | `Ellipsis -> "..."
 			    
@@ -46,6 +46,9 @@ let html_info_of_input (input : Jsoniq_syntax.input) : Html.input_info =
      Html.selectElt_info
        values
        (fun x k -> input#set x; k ())
+  | `FileString input ->
+     Html.fileElt_info
+       (fun fname_contents k -> input#set fname_contents; k ())
   | `FileData input ->
      Html.fileElt_info
        (fun (filename,contents) k ->

@@ -10,6 +10,7 @@ type input = [ `Int of int Focus.input
 	     | `String of string Focus.input
 	     | `Ident of string Focus.input
 	     | `Select of string list * string Focus.input
+	     | `FileString of (string * string) Focus.input
 	     | `FileData of (string * data) Focus.input ]
 
 type syn = (word,input,focus) xml
@@ -27,13 +28,20 @@ let rec syn_item : item -> syn = function
   | `Bool b -> [Word (`Bool b)]
   | `Int i -> [Word (`Int i)]
   | `Float f -> [Word (`Float f)]
-  | `String s -> [Word (`String s)]
+  | `String s ->
+     let open Js_of_ocaml in
+     let n = (Js.string s)##.length in
+     if n > 200
+     then
+       let s_short = Js.to_string ((Js.string s)##substring 0 200) in
+       [Word (`String s_short); Kwd ("... (" ^ string_of_int n ^ " chars)")]
+     else [Word (`String s)]
   | `Null -> [Kwd "null"]
   | `Assoc pairs ->
      [Quote ("{",
 	     [Enum (", ",
 		    syn_list ~limit:20
-		      (fun (k,i) -> Word (`String k) :: Kwd ":" :: syn_item i)
+		      (fun (k,i) -> Kwd k :: Kwd ":" :: syn_item i)
 		      pairs)],
 	     "}")]
   | `List li ->
@@ -600,12 +608,13 @@ let syn_transf (library : #library) : transf -> syn = function
   | FocusUp -> [Kwd "(focus up)"]
   | FocusRight -> [Kwd "(focus right)"]
   | Delete -> [Kwd "(delete focus)"]
-  | InsertBool false -> [Kwd "false"]
-  | InsertBool true -> [Kwd "true"]
+  | InsertBool false -> [Word (`Bool false)]
+  | InsertBool true -> [Word (`Bool true)]
   | InputInt i -> [Kwd "an"; Kwd "integer"; Input (`Int i)]
   | InputRange (i1,i2) -> Kwd "a" :: Kwd "range" :: Kwd "from " :: library#syntax "range" [[Input (`Int i1)]; [Input (`Int i2)]]
   | InputFloat i -> [Kwd "a"; Kwd "float"; Input (`Float i)]
   | InputString i -> [Kwd "a"; Kwd "string"; Input (`String i)]
+  | InputFileString i -> [Kwd "a"; Kwd "file"; Kwd "contents"; Input (`FileString i)]
   | InsertNull -> [Kwd "null"]
   | InsertConcat1 -> syn_Concat [[the_focus]; [ellipsis]]
   | InsertConcat2 -> syn_Concat [[ellipsis]; [the_focus]]
