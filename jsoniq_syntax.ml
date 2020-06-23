@@ -146,6 +146,9 @@ let syn_For xmlx xml1 opt xml2 : syn =
 let syn_Let xmlx xml1 xml2 : syn =
   [Block [Kwd "let" :: xmlx @ Kwd ":=" :: xml1;
 	  xml2]]
+let syn_Count xmlx xml1 : syn =
+  [Block [Kwd "count" :: xmlx;
+	  xml1]]
 let syn_Where xml1 xml2 : syn =
   [Block [Kwd "where" :: xml1;
 	  xml2]]
@@ -287,6 +290,9 @@ and syn_flower library f ctx : syn =
        syn_Let (syn_binder br)
 	       (syn_expr library e1 (FLet1 (br,ctx,f1)))
 	       (syn_flower library f1 (FLet2 (br,e1,ctx)))
+    | Count (x,f1) ->
+       syn_Count [Word (`Var x)]
+		 (syn_flower library f1 (Count1 (x,ctx)))
     | Where (e1,f1) ->
        syn_Where (syn_expr library e1 (Where1 (ctx,f1)))
 		 (syn_flower library f1 (Where2 (e1,ctx)))
@@ -555,6 +561,10 @@ and syn_flower_ctx library f ctx (xml_f : syn) : syn =
        (syn_Let (syn_binder br)
 		(syn_expr library e1 (FLet1 (br,ctx,f)))
 		xml_f)
+  | Count1 (x,ctx) ->
+     syn_flower_ctx library
+       (Count (x,f)) ctx
+       (syn_Count [Word (`Var x)] xml_f)
   | Where2 (e1,ctx) ->
      syn_flower_ctx library
        (Where (e1,f)) ctx
@@ -661,6 +671,7 @@ let syn_transf (library : #library) : transf -> syn = function
   | InsertLetVar1 in_x -> syn_Let [Input (`Ident in_x)] [the_focus] [ellipsis]
   | InsertLetVar2 in_x -> syn_Let [Input (`Ident in_x)] [ellipsis] [the_focus]
   | InsertLetFields1 -> syn_Let [Kwd "*"] [the_focus] [ellipsis]
+  | InsertCount1 in_x -> syn_Count [Input (`Ident in_x)] [the_focus]
   | InsertWhere1 -> syn_Where [the_focus] [ellipsis]
   | InsertWhere2 -> syn_Where [ellipsis] [the_focus]
   | InsertGroupBy (lx, in_x) -> syn_GroupBy_raw [Input (`Select (lx, in_x))] [the_focus]

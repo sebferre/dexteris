@@ -89,7 +89,9 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     add `Flower (InsertLetVar1 (new input ""));
     add `Flower (InsertLetVar2 (new input ""));
     if Sem.TypSet.mem `Object focus_typs then
-      add `Flower ~path:[] InsertLetFields1;      
+      add `Flower ~path:[] InsertLetFields1;
+    if multiple_bindings then
+      add `Flower (InsertCount1 (new input ""));
     if multiple_items then (
       add `Flower ~path:["iterations"] InsertMap;
       add `Flower ~path:["iterations"] InsertPred);

@@ -147,6 +147,7 @@ type expr =
   | FileData of string * data * flower (* iterating over a file *)
   | For of binder * expr * bool * flower (* optional flag *)
   | FLet of binder * expr * flower
+  | Count of var * flower
   | Where of expr * flower
   | GroupBy of var list * flower
   | Project of var list * flower
@@ -535,6 +536,13 @@ and eval_flower (library : #library) (funcs : funcs) (ctx : env Seq.t) : flower 
 	    (fun env ->
 	     let res = eval_expr library funcs env e in
 	     eval_binder env res br)
+     in
+     eval_flower library funcs ctx f
+  | Count (x, f) ->
+     let ctx =
+       Seq.with_position ctx
+       |> Seq.map
+	    (fun (pos,env) -> (x, Seq.return (`Int pos))::env)
      in
      eval_flower library funcs ctx f
   | Where (e, f) ->

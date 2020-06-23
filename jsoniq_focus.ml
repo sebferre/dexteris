@@ -48,6 +48,7 @@ and flower_ctx =
   | FileData2 of string * data * flower_ctx
   | For2 of binder * expr * bool * flower_ctx
   | FLet2 of binder * expr * flower_ctx
+  | Count1 of var * flower_ctx
   | Where2 of expr * flower_ctx
   | GroupBy1 of var list * flower_ctx
   | Project1 of var list * flower_ctx
@@ -112,6 +113,7 @@ and focus_flower_up (f : flower) : flower_ctx -> focus * path = function
   | FileData2 (fname,d,ctx) -> AtFlower (FileData (fname,d,f), ctx), down_rights 0
   | For2 (x,e,opt,ctx) -> AtFlower (For (x,e,opt,f), ctx), down_rights 1
   | FLet2 (x,e,ctx) -> AtFlower (FLet (x,e,f), ctx), down_rights 1
+  | Count1 (x,ctx) -> AtFlower (Count (x,f), ctx), down_rights 0
   | Where2 (e,ctx) -> AtFlower (Where (e,f), ctx), down_rights 1
   | GroupBy1 (lx,ctx) -> AtFlower (GroupBy (lx,f), ctx), down_rights 0
   | Project1 (lx,ctx) -> AtFlower (Project (lx,f), ctx), down_rights 0
@@ -173,6 +175,7 @@ and focus_flower_right (f : flower) : flower_ctx -> focus option = function
   | FileData2 (fname,d,ctx) -> None
   | For2 (x,e,opt,ctx) -> None
   | FLet2 (x,e,ctx) -> None
+  | Count1 (x,ctx) -> None
   | Where2 (e,ctx) -> None
   | GroupBy1 (lx,ctx) -> None
   | Project1 (lx,ctx) -> None
@@ -252,6 +255,7 @@ and focus_of_path_flower (ctx : flower_ctx) : path * flower -> focus = function
   | DOWN::path, For (x,e1,b,f) -> focus_of_path_expr (For1 (x,ctx,b,f)) (path,e1)
   | DOWN::RIGHT::path, FLet (x,e1,f) -> focus_of_path_flower (FLet2 (x,e1,ctx)) (path,f)
   | DOWN::path, FLet (x,e1,f) -> focus_of_path_expr (FLet1 (x,ctx,f)) (path,e1)
+  | DOWN::path, Count (x,f) -> focus_of_path_flower (Count1 (x,ctx)) (path,f)
   | DOWN::RIGHT::path, Where (e1,f) -> focus_of_path_flower (Where2 (e1,ctx)) (path,f)
   | DOWN::path, Where (e1,f) -> focus_of_path_expr (Where1 (ctx,f)) (path,e1)
   | DOWN::RIGHT::path, OrderBy (leo,f) -> focus_of_path_flower (OrderBy2 (leo,ctx)) (path,f)
@@ -344,6 +348,7 @@ type transf =
   | InsertLetVar1 of var input
   | InsertLetVar2 of var input
   | InsertLetFields1
+  | InsertCount1 of var input
   | InsertWhere1
   | InsertWhere2
   | InsertGroupBy of var list * var input
@@ -396,6 +401,7 @@ and reaching_flower : flower -> transf list = function
   | For (Fields,e,opt,f) -> reaching_expr e @ InsertForFields1 (new input opt) :: reaching_flower f @ [FocusUp]
   | FLet (Var x,e,f) -> reaching_expr e @ InsertLetVar1 (new input x) :: reaching_flower f @ [FocusUp]
   | FLet (Fields,e,f) -> reaching_expr e @ InsertLetFields1 :: reaching_flower f @ [FocusUp]
+  | Count (x,f) -> InsertCount1 (new input x) :: reaching_flower f @ [FocusUp]
   | Where (e,f) -> reaching_expr e @ InsertWhere1 :: reaching_flower f @ [FocusUp]
   | GroupBy (lx,f) -> List.map (fun x -> InsertGroupBy (lx, new input x)) lx @ reaching_flower f @ [FocusUp]
   | Project (lx,f) -> List.map (fun x -> InsertProject (lx, new input x)) lx @ reaching_flower f @ [FocusUp]
@@ -518,6 +524,7 @@ and delete_ctx_flower : flower_ctx -> focus option = function
   | FileData2 (fname,d,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
   | For2 (x,e,opt,ctx) -> Some (AtExpr (e, ctx_expr_of_flower ctx))
   | FLet2 (br,e,ctx) -> Some (AtExpr (e, ctx_expr_of_flower ctx))
+  | Count1 (x,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
   | Where2 (e,ctx) -> Some (AtExpr (e, ctx_expr_of_flower ctx))
   | GroupBy1 (lx,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
   | Project1 (lx,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
@@ -656,8 +663,11 @@ and apply_transf_expr = function
   | InsertLetVar2 in_x, e, ctx -> Some (Empty, Let1 (Var in_x#get, ctx, e))
   | InsertLetFields1, e, ctx -> Some (Empty, Let2 (Fields, e, ctx))
 
+  | InsertCount1 in_x, e, Return1 ctx -> Some (e, Return1 (Count1 (in_x#get, ctx)))
+  | InsertCount1 _, _, _ -> None
+				     
   (* transformations below should only be suggested in for context *)
-			 
+
   | InsertWhere1, e, ctx -> Some (Empty, Return1 (Where2 (e, ctx_flower_of_expr ctx)))
   | InsertWhere2, e, ctx -> Some (Empty, Where1 (ctx_flower_of_expr ctx, flower_of_expr e))
 
