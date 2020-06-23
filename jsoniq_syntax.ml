@@ -278,11 +278,11 @@ and syn_flower library f ctx : syn =
 	       [Kwd "file"; Word (`String filename)]
 	       false
 	       (syn_flower library f1 (FileData2 (filename,d,ctx)))
-    | For (x,e1,opt,f1) ->
-       syn_For [Word (`Var x)]
-	       (syn_expr library e1 (For1 (x,ctx,opt,f1)))
+    | For (br,e1,opt,f1) ->
+       syn_For (syn_binder br)
+	       (syn_expr library e1 (For1 (br,ctx,opt,f1)))
 	       opt
-	       (syn_flower library f1 (For2 (x,e1,opt,ctx)))
+	       (syn_flower library f1 (For2 (br,e1,opt,ctx)))
     | FLet (br,e1,f1) ->
        syn_Let (syn_binder br)
 	       (syn_expr library e1 (FLet1 (br,ctx,f1)))
@@ -498,13 +498,13 @@ and syn_expr_ctx library e ctx (xml_e : syn) : syn =
      syn_flower_ctx library
        (Return e) ctx
        (syn_Return xml_e)
-  | For1 (x,ctx,opt,f) ->
+  | For1 (br,ctx,opt,f) ->
      syn_flower_ctx library
-       (For (x,e,opt,f)) ctx
-       (syn_For [Word (`Var x)]
+       (For (br,e,opt,f)) ctx
+       (syn_For (syn_binder br)
 		xml_e
 		opt
-		(syn_susp (syn_flower library f (For2 (x,e,opt,ctx)))))
+		(syn_susp (syn_flower library f (For2 (br,e,opt,ctx)))))
   | FLet1 (br,ctx,f) ->
      syn_flower_ctx library
        (FLet (br,e,f)) ctx
@@ -542,11 +542,11 @@ and syn_flower_ctx library f ctx (xml_f : syn) : syn =
 		[Kwd "file"; Word (`String filename)]
 		false
 		xml_f)
-  | For2 (x,e1,opt,ctx) ->
+  | For2 (br,e1,opt,ctx) ->
      syn_flower_ctx library
-       (For (x,e1,opt,f)) ctx
-       (syn_For [Word (`Var x)]
-		(syn_expr library e1 (For1 (x,ctx,opt,f)))
+       (For (br,e1,opt,f)) ctx
+       (syn_For (syn_binder br)
+		(syn_expr library e1 (For1 (br,ctx,opt,f)))
 		opt
 		xml_f)
   | FLet2 (br,e1,ctx) ->
@@ -655,8 +655,9 @@ let syn_transf (library : #library) : transf -> syn = function
   | InsertDefFunc2 in_name -> syn_DefFunc [Input (`Ident in_name)] [] [ellipsis] [the_focus]
   | InsertArg in_x -> [Kwd "add"; Kwd "argument"; Input (`Ident in_x)]
   | InputFileData i -> syn_For [Kwd "fields"] [Kwd "file"; Input (`FileData i)] false [the_focus]
-  | InsertFor1 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [the_focus] false [ellipsis] (* TODO: optional *)
-  | InsertFor2 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [ellipsis] false [the_focus] (* TODO: optional *)
+  | InsertForVar1 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [the_focus] false [ellipsis] (* TODO: optional *)
+  | InsertForVar2 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [ellipsis] false [the_focus] (* TODO: optional *)
+  | InsertForFields1 (in_opt) -> syn_For [Kwd "*"] [the_focus] false [ellipsis] (* TODO: optional *)
   | InsertLetVar1 in_x -> syn_Let [Input (`Ident in_x)] [the_focus] [ellipsis]
   | InsertLetVar2 in_x -> syn_Let [Input (`Ident in_x)] [ellipsis] [the_focus]
   | InsertLetFields1 -> syn_Let [Kwd "*"] [the_focus] [ellipsis]

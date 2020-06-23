@@ -88,13 +88,18 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     add `Val ~path:[] InsertNull;
     add `Flower (InsertLetVar1 (new input ""));
     add `Flower (InsertLetVar2 (new input ""));
+    if Sem.TypSet.mem `Object focus_typs then
+      add `Flower ~path:[] InsertLetFields1;      
     if multiple_items then (
       add `Flower ~path:["iterations"] InsertMap;
       add `Flower ~path:["iterations"] InsertPred);
     if multiple_items then (
-      add `Flower ~path:["iterations"] (InsertFor1 (new input "", new input false)));
+      add `Flower ~path:["iterations"] (InsertForVar1 (new input "", new input false));
+      if Sem.TypSet.mem `Object focus_typs then
+	add `Flower ~path:["iterations"] (InsertForFields1 (new input false)));
+
     add `Flower ~path:["iterations"] (InputFileData (new input ("",Seq.empty)));
-    add `Flower ~path:["iterations"] (InsertFor2 (new input "", new input false));
+    add `Flower ~path:["iterations"] (InsertForVar2 (new input "", new input false));
     Jsoniq_functions.library#iter
       (fun func ->
        if func#typecheck focus_typs ctx_typs
@@ -119,8 +124,7 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     add `Val ~path:["objects"] InsertObjectField;
     if Sem.TypSet.mem `Object allowed_typs then (
       add `Op ~path:["objects"] InsertDot;
-      add `Val ~path:["objects"] InsertObjectify;
-      add `Flower ~path:[] InsertLetFields1);
+      add `Val ~path:["objects"] InsertObjectify);
     if Sem.TypSet.mem `Array allowed_typs then (
       add `Op ~path:["arrays"] InsertArrayLookup);
     if Sem.TypSet.mem `Array focus_typs then (

@@ -56,12 +56,12 @@ type sem = { annot : annot; expr : expr }
 
 let field_focus = "@focus"
 
-let expr_bind_in x e1 e = Flower (For (x,e1,false, flower_of_expr e))
+let expr_bind_in (x : var) e1 e = Flower (For (Var x,e1,false, flower_of_expr e))
 
 let rec expr_bind_list_in lxe1 e =
   match lxe1 with
   | [] -> e
-  | (x,e1)::r -> Flower (For (x,e1,false, flower_of_expr (expr_bind_list_in r e)))
+  | (x,e1)::r -> Flower (For (Var x,e1,false, flower_of_expr (expr_bind_list_in r e)))
 			 
 let rec sem_focus (foc : focus) : sem =
   let annot = new annot in
@@ -152,15 +152,17 @@ and sem_expr_ctx annot e : expr_ctx -> sem = function
      sem_expr_ctx annot (Let (x,e1,e)) ctx
   | DefFunc1 (name,args,ctx,e2) -> (* add args' example values *)
      annot#add_func name args;
-     sem_expr_ctx annot (expr_bind_list_in (List.map (fun x -> (x,Item (`Int 0))) args) e) ctx
+     sem_expr_ctx annot
+		  (expr_bind_list_in
+		     (List.map (fun x -> (x,Item (`Int 0))) args) e) ctx
   | DefFunc2 (name,args,e1,ctx) ->
      annot#add_func name args;
      sem_expr_ctx annot (DefFunc (name,args,e1,e)) ctx
   | Return1 ctx -> sem_flower_ctx annot (flower_of_expr e) ctx
-  | For1 (x,ctx,opt,f) ->
+  | For1 (br,ctx,opt,f) ->
      annot#any_typ;
      sem_flower_ctx annot (flower_of_expr e) ctx
-  | FLet1 (x,ctx,f) ->
+  | FLet1 (br,ctx,f) ->
      annot#any_typ;
      sem_flower_ctx annot (flower_of_expr e) ctx
   | Where1 (ctx,f) ->
@@ -173,10 +175,10 @@ and sem_flower_ctx annot f : flower_ctx -> sem = function
   | Flower1 ctx -> sem_expr_ctx annot (expr_of_flower f) ctx
   | FileData2 (fname,d,ctx) ->
      sem_flower_ctx annot (FileData (fname,d,f)) ctx
-  | For2 (x,e1,opt,ctx) ->
-     sem_flower_ctx annot (For (x,e1,opt,f)) ctx
-  | FLet2 (x,e1,ctx) ->
-     sem_flower_ctx annot (FLet (x,e1,f)) ctx
+  | For2 (br,e1,opt,ctx) ->
+     sem_flower_ctx annot (For (br,e1,opt,f)) ctx
+  | FLet2 (br,e1,ctx) ->
+     sem_flower_ctx annot (FLet (br,e1,f)) ctx
   | Where2 (e1,ctx) -> sem_flower_ctx annot (Where (e1,f)) ctx
   | GroupBy1 (lx,ctx) -> sem_flower_ctx annot (GroupBy (lx,f)) ctx
   | Project1 (lx,ctx) -> sem_flower_ctx annot (Project (lx,f)) ctx

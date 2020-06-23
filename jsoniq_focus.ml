@@ -37,7 +37,7 @@ type expr_ctx =
   | DefFunc1 of string * var list * expr_ctx * expr
   | DefFunc2 of string * var list * expr * expr_ctx
   | Return1 of flower_ctx
-  | For1 of var * flower_ctx * bool * flower
+  | For1 of binder * flower_ctx * bool * flower
   | FLet1 of binder * flower_ctx * flower
   | Where1 of flower_ctx * flower
   | OrderBy1X of (expr * order) list_ctx * flower_ctx * order * flower
@@ -46,7 +46,7 @@ type expr_ctx =
 and flower_ctx =
   | Flower1 of expr_ctx
   | FileData2 of string * data * flower_ctx
-  | For2 of var * expr * bool * flower_ctx
+  | For2 of binder * expr * bool * flower_ctx
   | FLet2 of binder * expr * flower_ctx
   | Where2 of expr * flower_ctx
   | GroupBy1 of var list * flower_ctx
@@ -338,8 +338,9 @@ type transf =
   | InsertDefFunc1 of string input
   | InsertDefFunc2 of string input
   | InsertArg of var input
-  | InsertFor1 of var input * bool input
-  | InsertFor2 of var input * bool input
+  | InsertForVar1 of var input * bool input
+  | InsertForVar2 of var input * bool input
+  | InsertForFields1 of bool input
   | InsertLetVar1 of var input
   | InsertLetVar2 of var input
   | InsertLetFields1
@@ -391,7 +392,8 @@ let rec reaching_expr : expr -> transf list = function
 and reaching_flower : flower -> transf list = function
   | Return e -> reaching_expr e @ [FocusUp]
   | FileData (filename,d,f) -> InputFileData (new input (filename,d)) (* reaching_data d *) :: reaching_flower f
-  | For (x,e,opt,f) -> reaching_expr e @ InsertFor1 (new input x, new input opt) :: reaching_flower f @ [FocusUp]
+  | For (Var x,e,opt,f) -> reaching_expr e @ InsertForVar1 (new input x, new input opt) :: reaching_flower f @ [FocusUp]
+  | For (Fields,e,opt,f) -> reaching_expr e @ InsertForFields1 (new input opt) :: reaching_flower f @ [FocusUp]
   | FLet (Var x,e,f) -> reaching_expr e @ InsertLetVar1 (new input x) :: reaching_flower f @ [FocusUp]
   | FLet (Fields,e,f) -> reaching_expr e @ InsertLetFields1 :: reaching_flower f @ [FocusUp]
   | Where (e,f) -> reaching_expr e @ InsertWhere1 :: reaching_flower f @ [FocusUp]
@@ -643,8 +645,9 @@ and apply_transf_expr = function
   | InputFileData in_filedata, _, ctx ->
      let filename, d = in_filedata#get in
      Some (Empty, Return1 (FileData2 (filename, d, ctx_flower_of_expr ctx)))
-  | InsertFor1 (in_x,in_opt), e, ctx -> Some (Empty, Return1 (For2 (in_x#get, e, in_opt#get, ctx_flower_of_expr ctx)))
-  | InsertFor2 (in_x,in_opt), e, ctx -> Some (Empty, For1 (in_x#get, ctx_flower_of_expr ctx, in_opt#get, flower_of_expr e))
+  | InsertForVar1 (in_x,in_opt), e, ctx -> Some (Empty, Return1 (For2 (Var in_x#get, e, in_opt#get, ctx_flower_of_expr ctx)))
+  | InsertForVar2 (in_x,in_opt), e, ctx -> Some (Empty, For1 (Var in_x#get, ctx_flower_of_expr ctx, in_opt#get, flower_of_expr e))
+  | InsertForFields1 (in_opt), e, ctx -> Some (Empty, Return1 (For2 (Fields, e, in_opt#get, ctx_flower_of_expr ctx)))
 
   | InsertLetVar1 in_x, e, Return1 ctx -> Some (Empty, Return1 (FLet2 (Var in_x#get, e, ctx)))
   | InsertLetVar2 in_x, e, Return1 ctx -> Some (Empty, FLet1 (Var in_x#get, ctx, flower_of_expr e))

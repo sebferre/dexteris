@@ -145,7 +145,7 @@ type expr =
  and flower =
   | Return of expr
   | FileData of string * data * flower (* iterating over a file *)
-  | For of var * expr * bool * flower (* optional flag *)
+  | For of binder * expr * bool * flower (* optional flag *)
   | FLet of binder * expr * flower
   | Where of expr * flower
   | GroupBy of var list * flower
@@ -273,12 +273,17 @@ let rec compare_ordering_key (lo : order list) (k1 : item option list) (k2 : ite
 let var_context = "$"
 
 let var_position x = "#" ^ x
+let binder_position : binder -> string = function
+  | Var x -> var_position x
+  | Fields -> var_position "*" (* TODO: make them unique *)
 let is_var_position x = x <> "" && x.[0] = '#'
 
+					     
 type env = (var * data) list
 type funcs = (string * (env * var list * expr)) list
 type result = (item * env) Seq.t (* sequence of main results along with additional key-value pairs *)
 
+let result_of_item i = Seq.return (i,[])
 let result_of_data d = Seq.map (fun i -> (i,[])) d
 let data_of_result res = Seq.map (fun (i,_) -> i) res
 				 
@@ -505,8 +510,8 @@ and eval_flower (library : #library) (funcs : funcs) (ctx : env Seq.t) : flower 
 		       Seq.return env
 		    | _ -> raise (TypeError "file elements should be objects"))) in
      eval_flower library funcs ctx f
-  | For (x, e, optional, f) ->
-     let pos_x = var_position x in
+  | For (br, e, optional, f) ->
+     let pos_br = binder_position br in
      let ctx =
        ctx
        |> Seq.flat_map
@@ -518,9 +523,10 @@ and eval_flower (library : #library) (funcs : funcs) (ctx : env Seq.t) : flower 
 	       Seq.with_position res
 	       |> Seq.flat_map
 		    (fun (pos,(i,_)) ->
-		     Seq.return ((x, Seq.return i)
-				 ::(pos_x, Seq.return (`Int pos))
-				 ::env))) in
+		     let env = (pos_br, Seq.return (`Int pos))::env in
+		     let env = eval_binder env (result_of_item i) br in
+		     Seq.return env))
+     in
      eval_flower library funcs ctx f
   | FLet (br,e, f) ->
      let ctx =
