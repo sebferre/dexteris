@@ -29,6 +29,7 @@ select {
 }
 .word-string {
     color:forestgreen;
+    white-space:pre-wrap;
 }
 .word-filename {
     color:darkgreen;
