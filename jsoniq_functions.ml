@@ -38,6 +38,21 @@ exception Invalid_arity
 
 (* utilities *)
 
+let string_of_atomic_item : item -> string option =
+  function
+  | `Null -> Some ""
+  | `Bool b -> Some (string_of_bool b)
+  | `Int i -> Some (string_of_int i)
+  | `Float f -> Some (string_of_float f)
+  | `String s -> Some s
+  | `Assoc _ -> None
+  | `List _ -> None
+
+let item_of_item_list : item list -> item = function
+  | [] -> `Null
+  | [i] -> i
+  | li -> `List li
+	    
 let bind_1item (f : item -> data) (ld : data list) =
   match ld with
   | [d] ->
@@ -246,12 +261,13 @@ let _ =
     (object
 	inherit infix "stringConcat" "||"
 	method path = []
-	inherit typecheck_simple [`String] [`String]
+	inherit typecheck_simple [`Bool; `Int; `Float; `String] [`String]
 	method apply =
 	  bind_2items
-	    (function
-	      | `String s1, `String s2 -> Seq.return (`String (s1 ^ s2))
-	      | _ -> Seq.empty)
+	    (fun (i1,i2) ->
+	     match string_of_atomic_item i1, string_of_atomic_item i2 with
+	     | Some s1, Some s2 -> Seq.return (`String (s1 ^ s2))
+	     | _ -> Seq.empty )
       end);
   library#register
     (object
@@ -505,4 +521,37 @@ let _ =
 	    (function
 	      | `String contents -> Jsoniq_files.data_of_csv contents
 	      | _ -> Seq.empty)
+      end)
+
+let _ =
+  let path = ["RDF"] in
+  library#register
+    (object
+	inherit mixfix "RDFdescr" 3 ["RDF("; "a"; ";"; ")"]
+	method path = path
+	inherit typecheck_simple [`String] [`Object]
+	method apply = function
+	  | [d1;d2;d3] -> (* ids, types, properties *)
+	     let d1 =
+	       if Seq.is_empty d1
+	       then Seq.return (`String "")
+	       else d1 in
+	     let ltypes =
+	       item_of_item_list
+		 (d2
+		  |> Seq.filter (function `String s2 -> true | _ -> false)
+		  |> Seq.to_list) in
+	     let pairs =
+	       match item_of_data d3 with
+	       | Some (`Assoc pairs) -> pairs
+	       | _ -> [] in
+	     d1
+	     |> Seq.flat_map
+		  (function
+		    | `String s1 as i1 ->
+		       let pairs = if ltypes = `Null then pairs else ("@type",ltypes)::pairs in
+		       let pairs = if s1 = "" then pairs else ("@id",i1)::pairs in
+		       Seq.return (`Assoc pairs)
+		    | _ -> Seq.empty)
+	  | _ -> Seq.empty
       end)
