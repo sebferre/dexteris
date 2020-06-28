@@ -359,7 +359,6 @@ let _ =
 		      ls)
 	      | _ -> Seq.empty)
       end);
-
   library#register
     (object
 	inherit mixfix "replace" 3 ["in"; "replace"; "by"]
@@ -371,6 +370,17 @@ let _ =
 	      | `String str, `String re, `String by ->
 		 let res = Regexp.global_replace (Regexp.regexp re) str by in
 		 Seq.return (`String res)
+	      | _ -> Seq.empty)
+      end);
+  library#register
+    (object
+	inherit classic "URLencode" 1 "URLencode"
+	method path = path
+	inherit typecheck_simple [`String] [`String]
+	method apply =
+	  bind_1item
+	    (function
+	      | `String str -> Seq.return (`String (Url.urlencode str))
 	      | _ -> Seq.empty)
       end)
 
@@ -519,7 +529,18 @@ let _ =
 	method apply =
 	  bind_1item
 	    (function
-	      | `String contents -> Jsoniq_files.data_of_csv contents
+	      | `String contents -> Jsoniq_files.data_of_csv ~has_header:true contents
+	      | _ -> Seq.empty)
+      end);
+  library#register
+    (object
+	inherit mixfix "parseCSVnoHeader" 1 ["parseCSV("; ") without header"]
+	method path = path
+	inherit typecheck_simple [`String] [`Object]
+	method apply =
+	  bind_1item
+	    (function
+	      | `String contents -> Jsoniq_files.data_of_csv ~has_header:false contents
 	      | _ -> Seq.empty)
       end)
 
@@ -527,7 +548,7 @@ let _ =
   let path = ["RDF"] in
   library#register
     (object
-	inherit mixfix "RDFdescr" 3 ["RDF("; "a"; ";"; ")"]
+	inherit mixfix "RDFdescr" 3 ["Descr("; "a"; ";"; ")"]
 	method path = path
 	inherit typecheck_simple [`String] [`Object]
 	method apply = function
@@ -554,4 +575,49 @@ let _ =
 		       Seq.return (`Assoc pairs)
 		    | _ -> Seq.empty)
 	  | _ -> Seq.empty
+      end);
+  library#register
+    (object
+	inherit classic "RDFlist" 1 "List"
+	method path = path
+	inherit typecheck_simple list_all_typs [`Object]
+	method apply = function
+	  | [d1] -> Seq.return (`Assoc ["@list", `List (Seq.to_list d1)])
+	  | _ -> Seq.empty
+      end);
+  library#register
+    (object
+	inherit infix "PlainLiteral" "@"
+	method path = path
+	inherit typecheck_simple [`String] [`Object]
+	method apply =
+	  bind_2items
+	    (function
+	      | `String str, `String lang ->
+		 if lang = ""
+		 then Seq.return (`String str)
+		 else
+		   let pairs =
+		     [ "@value", `String str;
+		       "@language", `String lang ] in
+		   Seq.return (`Assoc pairs)
+	      | _ -> Seq.empty)
+      end);
+  library#register
+    (object
+	inherit infix "TypedLiteral" "^^"
+	method path = path
+	inherit typecheck_simple [`String] [`Object]
+	method apply =
+	  bind_2items
+	    (function
+	      | `String str, `String dt ->
+		 if dt = ""
+		 then Seq.return (`String str)
+		 else
+		   let pairs =
+		     [ "@value", `String str;
+		       "@type", `String dt ] in
+		   Seq.return (`Assoc pairs)
+	      | _ -> Seq.empty)
       end)

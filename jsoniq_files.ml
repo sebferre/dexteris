@@ -25,11 +25,20 @@ let item_of_csv_value (s : string) : item =
 	    try `Float (float_of_string s)
 	    with _ -> `String s
 
-let data_of_csv (contents : string) : data =
+let data_of_csv ~(has_header : bool) (contents : string) : data =
   let get_ch_header contents sep =
-    let ch = Csv.of_string ~separator:sep contents in
-    let header = Csv.next ch in
-    ch, header in
+    let ch = Csv.of_string ~separator:sep ~fix:true contents in
+    let first_row = Csv.next ch in
+    if has_header
+    then
+      let header = first_row in
+      ch, header
+    else
+      let header = List.mapi (fun i _ -> "col" ^ string_of_int i) first_row in
+      let ch = (* resetting ch to keep first row as data *)
+	Csv.close_in ch;
+	Csv.of_string ~separator:sep ~fix:true contents in
+      ch, header in
   let rec aux ~header ch =
     let def_row_seq1 = lazy (Csv.next ch, aux ~header ch) in
     (fun () ->
@@ -73,7 +82,7 @@ let data_of_csv (contents : string) : data =
 let data_of_file (filename : string) (contents : string) : data =
   match Filename.extension filename with
   | ".json" -> data_of_json ~fname:filename contents
-  | ".csv" -> data_of_csv contents
+  | ".csv" -> data_of_csv ~has_header:true contents
   | _ -> failwith "Unexpected file extension (should be one of .json .csv)"
 
 		  
