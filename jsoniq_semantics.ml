@@ -173,8 +173,6 @@ and sem_expr_ctx annot e : expr_ctx -> sem = function
      sem_flower_ctx annot (flower_of_expr e) ctx
 and sem_flower_ctx annot f : flower_ctx -> sem = function
   | Flower1 ctx -> sem_expr_ctx annot (expr_of_flower f) ctx
-  | FileData2 (fname,d,ctx) ->
-     sem_flower_ctx annot (FileData (fname,d,f)) ctx
   | For2 (br,e1,opt,ctx) ->
      sem_flower_ctx annot (For (br,e1,opt,f)) ctx
   | FLet2 (br,e1,ctx) ->

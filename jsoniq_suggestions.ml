@@ -100,7 +100,6 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       if Sem.TypSet.mem `Object focus_typs then
 	add `Flower ~path:["iterations"] (InsertForFields1 (new input false)));
 
-    (*    add `Flower ~path:["iterations"] (InputFileData (new input ("",Seq.empty)));*)
     add `Flower ~path:["iterations"] (InsertForVar2 (new input "", new input false));
     Jsoniq_functions.library#iter
       (fun func ->

@@ -144,7 +144,6 @@ type expr =
 					    [@@deriving yojson]
  and flower =
   | Return of expr
-  | FileData of string * data * flower (* iterating over a file *)
   | For of binder * expr * bool * flower (* optional flag *)
   | FLet of binder * expr * flower
   | Count of var * flower
@@ -311,7 +310,13 @@ let env_add_fields (res : result) (env : env) : env =
      match i with
      | `Assoc pairs ->
 	List.fold_left
-	  (fun env (k,i) -> (k, Seq.return i)::env)
+	  (fun env (k,i) ->
+	   let d =
+	     match i with
+	     | `Null -> Seq.empty
+	     | `List li -> Seq.from_list li
+	     | _ -> Seq.return i in
+	   (k, d)::env)
 	  env pairs
      | _ -> env
 
@@ -487,30 +492,6 @@ and eval_flower (library : #library) (funcs : funcs) (ctx : env Seq.t) : flower 
      ctx
      |> Seq.flat_map
 	  (fun env -> eval_expr library funcs env e)
-  | FileData (filename,d,f) ->
-     let pos_x = "row in " ^ filename in
-     let ctx =
-       ctx
-       |> Seq.flat_map
-	    (fun env ->
-	     Seq.with_position d
-	     |> Seq.flat_map
-		  (function
-		    | (pos, `Assoc pairs) ->
-		       let env =
-			 List.fold_left
-			   (fun env (k,i) ->
-			    let d =
-			      match i with
-			      | `Null -> Seq.empty
-			      | `List li -> Seq.from_list li
-			      | _ -> Seq.return i in
-			    (k, d)::env)
-			   ((pos_x, Seq.return (`Int pos))::env)
-			   pairs in
-		       Seq.return env
-		    | _ -> raise (TypeError "file elements should be objects"))) in
-     eval_flower library funcs ctx f
   | For (br, e, optional, f) ->
      let pos_br = binder_position br in
      let ctx =
@@ -635,8 +616,9 @@ module Test =
 		      
 let ex1 (csv : data) : expr =
   (* CSV has columns: dateTime, store, amount, consumer *)
-  Flower (FileData
-	    ("example.csv",csv,
+  Flower (For
+	    (Fields,
+             Call (parseCSV, [File "example.csv",csv]),
 	     FLet ("date", Call (Substring,
 				 [Var "dateTime";
 				  Item (`Int 0); Item (`Int 10)]),

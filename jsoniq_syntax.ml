@@ -10,8 +10,7 @@ type input = [ `Int of int Focus.input
 	     | `String of string Focus.input
 	     | `Ident of string Focus.input
 	     | `Select of string list * string Focus.input
-	     | `FileString of (string * string) Focus.input
-	     | `FileData of (string * data) Focus.input ]
+	     | `FileString of (string * string) Focus.input ]
 
 type syn = (word,input,focus) xml
 
@@ -276,11 +275,6 @@ and syn_flower library f ctx : syn =
     match f with
     | Return e1 ->
        syn_Return (syn_expr library e1 (Return1 ctx))
-    | FileData (filename,d,f1) ->
-       syn_For [Kwd "fields"]
-	       [Kwd "file"; Word (`String filename)]
-	       false
-	       (syn_flower library f1 (FileData2 (filename,d,ctx)))
     | For (br,e1,opt,f1) ->
        syn_For (syn_binder br)
 	       (syn_expr library e1 (For1 (br,ctx,opt,f1)))
@@ -541,13 +535,6 @@ and syn_flower_ctx library f ctx (xml_f : syn) : syn =
      syn_expr_ctx library
        (Flower f) ctx
        (syn_Flower xml_f)
-  | FileData2 (filename,d,ctx) ->
-     syn_flower_ctx library
-       (FileData (filename,d,f)) ctx
-       (syn_For [Kwd "fields"]
-		[Kwd "file"; Word (`String filename)]
-		false
-		xml_f)
   | For2 (br,e1,opt,ctx) ->
      syn_flower_ctx library
        (For (br,e1,opt,f)) ctx
@@ -664,7 +651,6 @@ let syn_transf (library : #library) : transf -> syn = function
   | InsertDefFunc1 in_name -> syn_DefFunc [Input (`Ident in_name)] [] [the_focus] [ellipsis]
   | InsertDefFunc2 in_name -> syn_DefFunc [Input (`Ident in_name)] [] [ellipsis] [the_focus]
   | InsertArg in_x -> [Kwd "add"; Kwd "argument"; Input (`Ident in_x)]
-  | InputFileData i -> syn_For [Kwd "fields"] [Kwd "file"; Input (`FileData i)] false [the_focus]
   | InsertForVar1 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [the_focus] false [ellipsis] (* TODO: optional *)
   | InsertForVar2 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [ellipsis] false [the_focus] (* TODO: optional *)
   | InsertForFields1 (in_opt) -> syn_For [Kwd "*"] [the_focus] false [ellipsis] (* TODO: optional *)

@@ -50,12 +50,6 @@ let html_info_of_input (input : Jsoniq_syntax.input) : Html.input_info =
   | `FileString input ->
      Html.fileElt_info
        (fun fname_contents k -> input#set fname_contents; k ())
-  | `FileData input ->
-     Html.fileElt_info
-       (fun (filename,contents) k ->
-	let data = Jsoniq_files.data_of_file filename contents in
-	input#set (filename,data); k ())
-
       
 (* UI widgets *)
 			      
