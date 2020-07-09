@@ -99,8 +99,8 @@ let syn_ForAll xmlx xml1 xml2 : syn =
   Kwd "every" :: xmlx @ Kwd "in" :: xml1 @ [Indent (Kwd "satisfies" :: xml2)]
 let syn_If xml1 xml2 xml3 : syn =
   [Block [Kwd "if" :: xml1;
-	  Kwd "then" :: xml2;
-	  Kwd "else" :: xml3]]
+	  Kwd "then" :: [Indent xml2];
+	  Kwd "else" :: [Indent xml3]]]
 let syn_Or lxml : syn =
   [Coord ([Kwd "or"], lxml)]
 let syn_And lxml : syn =
