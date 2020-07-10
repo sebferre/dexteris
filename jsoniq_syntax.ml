@@ -132,9 +132,9 @@ let syn_Objectify xml1 : syn =
   [Quote ("{| ", xml1, " |}")]
 let syn_Arrayify xml1 : syn =
   [Quote ("[", xml1, "]")]
-let syn_DefFunc xml_func args inputs xml1 xml2 : syn =
+let syn_DefFunc xml_func args xml0 xml1 xml2 : syn =
   let xml_args = List.map (fun x -> [Word (`Var x)]) args in
-  let xml_inputs =
+(*  let xml_inputs = 
     if inputs = []
     then []
     else
@@ -142,9 +142,9 @@ let syn_DefFunc xml_func args inputs xml1 xml2 : syn =
 	 (List.map
 	    (fun input ->
 	     Kwd "input" :: syn_args (List.map (fun d -> syn_data ~limit:10 d) input))
-	    inputs)] in
+	    inputs)] in *)
   [Block [Kwd "def" :: xml_func @ syn_args xml_args @
-	    Kwd "=" :: Indent (xml_inputs @ xml1) :: [];
+	    Kwd "=" :: Indent (Kwd "input" :: Indent xml0 :: xml1) :: [];
 	  xml2]]
 
 let syn_Return xml1 : syn =
@@ -274,10 +274,11 @@ and syn_expr library e ctx : syn =
        syn_Let (syn_binder br)
 	       (syn_expr library e1 (Let1 (br,ctx,e2)))
 	       (syn_expr library e2 (Let2 (br,e1,ctx)))
-    | DefFunc (name,args,inputs,e1,e2) ->
-       syn_DefFunc [Word (`Func name)] args inputs
-		   (syn_expr library e1 (DefFunc1 (name,args,inputs,ctx,e2)))
-		   (syn_expr library e2 (DefFunc2 (name,args,inputs,e1,ctx)))
+    | DefFunc (name,args,e0,e1,e2) ->
+       syn_DefFunc [Word (`Func name)] args
+		   (syn_expr library e0 (DefFunc0 (name,args,ctx,e1,e2)))
+		   (syn_expr library e1 (DefFunc1 (name,args,e0,ctx,e2)))
+		   (syn_expr library e2 (DefFunc2 (name,args,e0,e1,ctx)))
   in
   [Focus (AtExpr (e,ctx), xml)]
 and syn_flower library f ctx : syn =
@@ -492,17 +493,26 @@ and syn_expr_ctx library e ctx (xml_e : syn) : syn =
        (syn_Let (syn_binder br)
 		(syn_expr library e1 (Let1 (br,ctx,e)))
 		xml_e)
-  | DefFunc1 (name,args,inputs,ctx,e2) ->
+  | DefFunc0 (name,args,ctx,e1,e2) ->
      syn_expr_ctx library
-       (DefFunc (name,args,inputs,e,e2)) ctx
-       (syn_DefFunc [Word (`Func name)] args inputs
+       (DefFunc (name,args,e,e1,e2)) ctx
+       (syn_DefFunc [Word (`Func name)] args
 		    xml_e
-		    (syn_susp (syn_expr library e2 (DefFunc2 (name,args,inputs,e,ctx)))))
-  | DefFunc2 (name,args,inputs,e1,ctx) ->
+		    (syn_susp (syn_expr library e1 (DefFunc1 (name,args,e,ctx,e2))))
+		    (syn_susp (syn_expr library e2 (DefFunc2 (name,args,e,e1,ctx)))))
+  | DefFunc1 (name,args,e0,ctx,e2) ->
      syn_expr_ctx library
-       (DefFunc (name,args,inputs,e1,e)) ctx
-       (syn_DefFunc [Word (`Func name)] args inputs
-		    (syn_expr library e1 (DefFunc1 (name,args,inputs,ctx,e)))
+       (DefFunc (name,args,e0,e,e2)) ctx
+       (syn_DefFunc [Word (`Func name)] args
+		    (syn_expr library e0 (DefFunc0 (name,args,ctx,e,e2)))
+		    xml_e
+		    (syn_susp (syn_expr library e2 (DefFunc2 (name,args,e0,e,ctx)))))
+  | DefFunc2 (name,args,e0,e1,ctx) ->
+     syn_expr_ctx library
+       (DefFunc (name,args,e0,e1,e)) ctx
+       (syn_DefFunc [Word (`Func name)] args
+		    (syn_expr library e0 (DefFunc0 (name,args,ctx,e1,e)))
+		    (syn_expr library e1 (DefFunc1 (name,args,e0,ctx,e)))
 		    xml_e)
   | Return1 ctx ->
      syn_flower_ctx library
@@ -658,8 +668,8 @@ let syn_transf (library : #library) : transf -> syn = function
   | InsertArray -> syn_Arrayify [ellipsis]
   | InsertObjectify -> syn_Objectify [the_focus]
   | InsertArrayify -> syn_Arrayify [the_focus]
-  | InsertDefFunc1 in_name -> syn_DefFunc [Input (`Ident in_name)] [] [] [the_focus] [ellipsis]
-  | InsertDefFunc2 in_name -> syn_DefFunc [Input (`Ident in_name)] [] [] [ellipsis] [the_focus]
+  | InsertDefFunc1 in_name -> syn_DefFunc [Input (`Ident in_name)] [] [ellipsis] [the_focus] [ellipsis]
+  | InsertDefFunc2 in_name -> syn_DefFunc [Input (`Ident in_name)] [] [ellipsis] [ellipsis] [the_focus]
   | InsertArg in_x -> [Kwd "add"; Kwd "argument"; Input (`Ident in_x)]
   | InsertForVar1 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [the_focus] false [ellipsis] (* TODO: optional *)
   | InsertForVar2 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [ellipsis] false [the_focus] (* TODO: optional *)

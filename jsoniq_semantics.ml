@@ -58,7 +58,7 @@ let field_focus = "@focus"
 
 let expr_bind_in (x : var) e1 e = Flower (For (Var x,e1,false, flower_of_expr e))
 
-let expr_for_inputs args inputs e =
+(*let expr_for_inputs args inputs e =
   let inputs =
     if inputs = [] (* need to bind arguments as variables *)
     then [ List.map (fun _ -> Seq.return `Null) args ]
@@ -83,7 +83,9 @@ let expr_for_inputs args inputs e =
 		 args input)))
 	 inputs) in
   Flower (For (Fields, e1_inputs, false, flower_of_expr e))
-			 
+ *)
+
+	 
 let rec sem_focus (foc : focus) : sem =
   let annot = new annot in
   match foc with
@@ -171,14 +173,14 @@ and sem_expr_ctx annot e : expr_ctx -> sem = function
      sem_expr_ctx annot e ctx
   | Let2 (x,e1,ctx) ->
      sem_expr_ctx annot (Let (x,e1,e)) ctx
-  | DefFunc1 (name,args,inputs,ctx,e2) -> (* add args' example values *)
+  | DefFunc0 (name,args,ctx,e1,e2) ->
+     sem_expr_ctx annot e ctx
+  | DefFunc1 (name,args,e0,ctx,e2) ->
      annot#add_func name args;
-     sem_expr_ctx annot
-		  (expr_for_inputs args inputs e)
-		  ctx
-  | DefFunc2 (name,args,inputs,e1,ctx) ->
+     sem_expr_ctx annot (Flower (For (Fields, e0, false, flower_of_expr e))) ctx
+  | DefFunc2 (name,args,e0,e1,ctx) ->
      annot#add_func name args;
-     sem_expr_ctx annot (DefFunc (name,args,inputs,e1,e)) ctx
+     sem_expr_ctx annot (DefFunc (name,args,e0,e1,e)) ctx
   | Return1 ctx -> sem_flower_ctx annot (flower_of_expr e) ctx
   | For1 (br,ctx,opt,f) ->
      annot#any_typ;

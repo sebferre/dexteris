@@ -140,7 +140,8 @@ type expr =
   | Objectify of expr
   | Arrayify of expr
   | Let of binder * expr * expr
-  | DefFunc of string * var list (* args *) * data list list (* ex. inputs *) * expr (* body *) * expr (* remaining expression *)
+  | DefFunc of string * var list (* args *) * expr (* ex. inputs as object with args as fields *)
+	       * expr (* body *) * expr (* remaining expression *)
 					    [@@deriving yojson]
  and flower =
   | Return of expr
@@ -484,8 +485,41 @@ let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> res
      let res = eval_expr library funcs env e1 in
      let env = eval_binder env res br in
      eval_expr library funcs env e2
-  | DefFunc (name,args,inputs,e1,e2) ->
+  | DefFunc (name,args,e0,e1,e2) ->
+(*
+     let res0 = eval_expr library funcs env e0 in
+     let res0 =
+       if Seq.is_empty res0
+       then (* ensuring at least one example input *)
+	 let i = `Assoc (List.map (fun arg -> (arg, `Null)) args) in
+	 Seq.return (i,[])
+       else res0 in
+ *)
+     (* e0 only used when focus in function body *)
      let funcs = (name, (env,args,e1))::funcs in
+     eval_expr library funcs env e2
+     (*
+     res0
+     |> Seq.flat_map
+	  (fun (i,_) ->
+	   match i with
+	   | `Assoc pairs ->
+	      let env =
+		List.fold_left
+		  (fun env (k,j) ->
+		   if List.mem k args
+		   then
+		     let d =
+		       match j with
+		       | `Null -> Seq.empty
+		       | `List lj -> Seq.from_list lj
+		       | _ -> Seq.return j in
+		     (k,d)::env
+		   else env) in
+	      eval_expr library funcs env e2
+	   | _ -> Seq.empty) (* no result *)
+      *)
+(*		    
      if inputs = []
      then eval_expr library funcs env e2
      else
@@ -498,6 +532,7 @@ let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> res
 		     env args ds
 	       with _ -> env in
 	     eval_expr library funcs env e2)
+ *)
 and eval_flower (library : #library) (funcs : funcs) (ctx : env Seq.t) : flower -> result = function
   | Return e ->
      ctx
