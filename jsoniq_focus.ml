@@ -34,8 +34,8 @@ type expr_ctx =
   | Arrayify1 of expr_ctx
   | Let1 of binder * expr_ctx * expr
   | Let2 of binder * expr * expr_ctx
-  | DefFunc1 of string * var list * expr_ctx * expr
-  | DefFunc2 of string * var list * expr * expr_ctx
+  | DefFunc1 of string * var list * data list list * expr_ctx * expr
+  | DefFunc2 of string * var list * data list list * expr * expr_ctx
   | Return1 of flower_ctx
   | For1 of binder * flower_ctx * bool * flower
   | FLet1 of binder * flower_ctx * flower
@@ -100,8 +100,8 @@ and focus_expr_up (e : expr) : expr_ctx -> focus * path = function
   | Arrayify1 ctx -> AtExpr (Arrayify e, ctx), down_rights 0
   | Let1 (x,ctx,e2) -> AtExpr (Let (x,e,e2), ctx), down_rights 0
   | Let2 (x,e1,ctx) -> AtExpr (Let (x,e1,e), ctx), down_rights 1
-  | DefFunc1 (name,args,ctx,e2) -> AtExpr (DefFunc (name,args,e,e2), ctx), down_rights 0
-  | DefFunc2 (name,args,e1,ctx) -> AtExpr (DefFunc (name,args,e1,e), ctx), down_rights 1
+  | DefFunc1 (name,args,inputs,ctx,e2) -> AtExpr (DefFunc (name,args,inputs,e,e2), ctx), down_rights 0
+  | DefFunc2 (name,args,inputs,e1,ctx) -> AtExpr (DefFunc (name,args,inputs,e1,e), ctx), down_rights 1
   | Return1 ctx -> AtFlower (Return e, ctx), down_rights 0
   | For1 (x,ctx,opt,f) -> AtFlower (For (x,e,opt,f), ctx), down_rights 0
   | FLet1 (x,ctx,f) -> AtFlower (FLet (x,e,f), ctx), down_rights 0
@@ -160,8 +160,8 @@ and focus_expr_right (e : expr) : expr_ctx -> focus option = function
   | Arrayify1 ctx -> None
   | Let1 (x,ctx,e2) -> Some (AtExpr (e2, Let2 (x,e,ctx)))
   | Let2 (x,e1,ctx) -> None
-  | DefFunc1 (name,args,ctx,e2) -> Some (AtExpr (e2, DefFunc2 (name,args,e,ctx)))
-  | DefFunc2 (name,args,e1,ctx) -> None
+  | DefFunc1 (name,args,inputs,ctx,e2) -> Some (AtExpr (e2, DefFunc2 (name,args,inputs,e,ctx)))
+  | DefFunc2 (name,args,inputs,e1,ctx) -> None
   | Return1 ctx -> None
   | For1 (x,ctx,opt,f) -> Some (AtFlower (f, For2 (x,e,opt,ctx)))
   | FLet1 (x,ctx,f) -> Some (AtFlower (f, FLet2 (x,e,ctx)))
@@ -241,8 +241,8 @@ let rec focus_of_path_expr (ctx : expr_ctx) : path * expr -> focus = function
   | DOWN::path, Arrayify e1 -> focus_of_path_expr (Arrayify1 ctx) (path,e1)
   | DOWN::RIGHT::path, Let (x,e1,e2) -> focus_of_path_expr (Let2 (x,e1,ctx)) (path,e2)
   | DOWN::path, Let (x,e1,e2) -> focus_of_path_expr (Let1 (x,ctx,e2)) (path,e1)
-  | DOWN::RIGHT::path, DefFunc (f,lx,e1,e2) -> focus_of_path_expr (DefFunc2 (f,lx,e1,ctx)) (path,e2)
-  | DOWN::path, DefFunc (f,lx,e1,e2) -> focus_of_path_expr (DefFunc1 (f,lx,ctx,e2)) (path,e1)
+  | DOWN::RIGHT::path, DefFunc (f,lx,inputs,e1,e2) -> focus_of_path_expr (DefFunc2 (f,lx,inputs,e1,ctx)) (path,e2)
+  | DOWN::path, DefFunc (f,lx,inputs,e1,e2) -> focus_of_path_expr (DefFunc1 (f,lx,inputs,ctx,e2)) (path,e1)
   | _ -> raise Invalid_path
 and focus_of_path_flower (ctx : flower_ctx) : path * flower -> focus = function
   | [], f -> AtFlower (f,ctx)
@@ -388,7 +388,7 @@ let rec reaching_expr : expr -> transf list = function
   | Arrayify e -> reaching_expr e @ [InsertArrayify]
   | Let (Var x,e1,e2) -> reaching_expr e1 @ InsertLetVar1 (new input x) :: reaching_expr e2 @ [FocusUp]
   | Let (Fields,e1,e2) -> reaching_expr e1 @ InsertLetFields1 :: reaching_expr e2 @ [FocusUp]
-  | DefFunc (name,args,e1,e2) -> InsertDefFunc1 (new input name) :: List.map (fun x -> InsertArg (new input x)) args @ reaching_expr e1 @ FocusRight :: reaching_expr e2 @ [FocusUp]
+  | DefFunc (name,args,inputs,e1,e2) -> InsertDefFunc1 (new input name) :: List.map (fun x -> InsertArg (new input x)) args @ (* TODO: insert inputs *) reaching_expr e1 @ FocusRight :: reaching_expr e2 @ [FocusUp]
 and reaching_flower : flower -> transf list = function
   | Return e -> reaching_expr e @ [FocusUp]
   | For (Var x,e,opt,f) -> reaching_expr e @ InsertForVar1 (new input x, new input opt) :: reaching_flower f @ [FocusUp]
@@ -501,8 +501,8 @@ and delete_ctx_expr : expr_ctx -> focus option = function
   | Arrayify1 ctx -> Some (AtExpr (Empty,ctx))
   | Let1 (br,ctx,e2) -> Some (AtExpr (e2,ctx))
   | Let2 (br,e1,ctx) -> Some (AtExpr (e1,ctx))
-  | DefFunc1 (f,lx,ctx,e2) -> Some (AtExpr (e2,ctx))
-  | DefFunc2 (f,lx,e1,ctx) -> Some (AtExpr (e1,ctx))
+  | DefFunc1 (f,lx,inputs,ctx,e2) -> Some (AtExpr (e2,ctx))
+  | DefFunc2 (f,lx,inputs,e1,ctx) -> Some (AtExpr (e1,ctx))
   | Return1 ctx -> delete_ctx_flower ctx
   | For1 (x,ctx,opt,f) -> Some (AtFlower (f,ctx))
   | FLet1 (br,ctx,f) -> Some (AtFlower (f,ctx))
@@ -636,10 +636,16 @@ and apply_transf_expr = function
   | InsertObjectify, e, ctx -> Some (Objectify e, ctx)
   | InsertArrayify, e, ctx -> Some (Arrayify e, ctx)
 
-  | InsertDefFunc1 in_name, e, ctx -> Some (e, DefFunc1 (in_name#get, [], ctx, Empty))
-  | InsertDefFunc2 in_name, e, ctx -> Some (Empty, DefFunc1 (in_name#get, [], ctx, e))
-  | InsertArg in_x, DefFunc (name,args,e1,e2), ctx -> Some (DefFunc (name, args@[in_x#get], e1, e2), ctx)
-  | InsertArg in_x, e1, DefFunc1 (name,args,ctx,e2) -> Some (e1, DefFunc1 (name, args@[in_x#get], ctx, e2))
+  | InsertDefFunc1 in_name, e, ctx -> Some (e, DefFunc1 (in_name#get, [], [], ctx, Empty))
+  | InsertDefFunc2 in_name, e, ctx -> Some (Empty, DefFunc1 (in_name#get, [], [], ctx, e))
+  | InsertArg in_x, DefFunc (name,args,inputs,e1,e2), ctx ->
+     let args = args @ [in_x#get] in
+     let inputs = List.map (fun input -> input @ [Seq.empty]) inputs in
+     Some (DefFunc (name, args, inputs, e1, e2), ctx)
+  | InsertArg in_x, e1, DefFunc1 (name,args,inputs,ctx,e2) ->
+     let args = args @ [in_x#get] in
+     let inputs = List.map (fun input -> input @ [Seq.empty]) inputs in
+     Some (e1, DefFunc1 (name, args, inputs, ctx, e2))
   | InsertArg _, _, _ -> None
 
   | InsertForVar1 (in_x,in_opt), e, ctx -> Some (Empty, Return1 (For2 (Var in_x#get, e, in_opt#get, ctx_flower_of_expr ctx)))

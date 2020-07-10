@@ -140,7 +140,7 @@ type expr =
   | Objectify of expr
   | Arrayify of expr
   | Let of binder * expr * expr
-  | DefFunc of string * var list * expr * expr
+  | DefFunc of string * var list (* args *) * data list list (* ex. inputs *) * expr (* body *) * expr (* remaining expression *)
 					    [@@deriving yojson]
  and flower =
   | Return of expr
@@ -484,9 +484,20 @@ let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> res
      let res = eval_expr library funcs env e1 in
      let env = eval_binder env res br in
      eval_expr library funcs env e2
-  | DefFunc (name,args,e1,e2) ->
+  | DefFunc (name,args,inputs,e1,e2) ->
      let funcs = (name, (env,args,e1))::funcs in
-     eval_expr library funcs env e2
+     if inputs = []
+     then eval_expr library funcs env e2
+     else
+       Seq.from_list inputs
+       |> Seq.flat_map
+	    (fun ds ->
+	     let env =
+	       try List.fold_left2
+		     (fun env arg d -> (arg,d)::env)
+		     env args ds
+	       with _ -> env in
+	     eval_expr library funcs env e2)
 and eval_flower (library : #library) (funcs : funcs) (ctx : env Seq.t) : flower -> result = function
   | Return e ->
      ctx

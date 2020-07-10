@@ -58,10 +58,31 @@ let field_focus = "@focus"
 
 let expr_bind_in (x : var) e1 e = Flower (For (Var x,e1,false, flower_of_expr e))
 
-let rec expr_bind_list_in lxe1 e =
-  match lxe1 with
-  | [] -> e
-  | (x,e1)::r -> Flower (For (Var x,e1,false, flower_of_expr (expr_bind_list_in r e)))
+let expr_for_inputs args inputs e =
+  let inputs =
+    if inputs = [] (* need to bind arguments as variables *)
+    then [ List.map (fun _ -> Seq.return `Null) args ]
+    else inputs in
+  let item_of_data d =
+    d
+    |> Seq.case
+	 ~nil:(fun () -> `Null)
+	 ~cons:(fun i next ->
+		next
+		|> Seq.case
+		     ~nil:(fun () -> i)
+		     ~cons:(fun _ _ -> `List (Seq.to_list d))) in
+  let e1_inputs =
+    Concat
+      (List.map
+	 (fun input ->
+	  Item
+	    (`Assoc
+	      (List.map2
+		 (fun arg d -> (arg, item_of_data d))
+		 args input)))
+	 inputs) in
+  Flower (For (Fields, e1_inputs, false, flower_of_expr e))
 			 
 let rec sem_focus (foc : focus) : sem =
   let annot = new annot in
@@ -150,14 +171,14 @@ and sem_expr_ctx annot e : expr_ctx -> sem = function
      sem_expr_ctx annot e ctx
   | Let2 (x,e1,ctx) ->
      sem_expr_ctx annot (Let (x,e1,e)) ctx
-  | DefFunc1 (name,args,ctx,e2) -> (* add args' example values *)
+  | DefFunc1 (name,args,inputs,ctx,e2) -> (* add args' example values *)
      annot#add_func name args;
      sem_expr_ctx annot
-		  (expr_bind_list_in
-		     (List.map (fun x -> (x,Item (`Int 0))) args) e) ctx
-  | DefFunc2 (name,args,e1,ctx) ->
+		  (expr_for_inputs args inputs e)
+		  ctx
+  | DefFunc2 (name,args,inputs,e1,ctx) ->
      annot#add_func name args;
-     sem_expr_ctx annot (DefFunc (name,args,e1,e)) ctx
+     sem_expr_ctx annot (DefFunc (name,args,inputs,e1,e)) ctx
   | Return1 ctx -> sem_flower_ctx annot (flower_of_expr e) ctx
   | For1 (br,ctx,opt,f) ->
      annot#any_typ;
