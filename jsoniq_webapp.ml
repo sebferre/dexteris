@@ -74,7 +74,7 @@ let w_results : (Jsoniq.var, Jsoniq.data) Widget_table.widget =
 			 if x = Jsoniq_semantics.field_focus
 			 then Some "highlighted"
 			 else None in
-		       None, classe_opt, None, x)
+		       None, classe_opt, None, html_of_var x)
       ~html_of_cell:(fun d ->
 		     Html.syntax ~html_of_word
 				 (Jsoniq_syntax.syn_data ~limit:20 d))

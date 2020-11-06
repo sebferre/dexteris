@@ -370,13 +370,13 @@ and syn_expr_ctx library e ctx (xml_e : syn) : syn =
   | If2 (e1,ctx,e3) ->
      syn_expr_ctx library
        (If (e1,e,e3)) ctx
-       (syn_If (syn_susp (syn_expr library e1 (If1 (ctx,e,e3))))
+       (syn_If (syn_expr library e1 (If1 (ctx,e,e3)))
 	       xml_e
 	       (syn_susp (syn_expr library e3 (If3 (e1,e,ctx)))))
   | If3 (e1,e2,ctx) ->
      syn_expr_ctx library
        (If (e1,e2,e)) ctx
-       (syn_If (syn_susp (syn_expr library e1 (If1 (ctx,e2,e))))
+       (syn_If (syn_expr library e1 (If1 (ctx,e2,e)))
 	       (syn_susp (syn_expr library e2 (If2 (e1,ctx,e))))
 	       xml_e)
   | OrX (ll_rr,ctx) ->

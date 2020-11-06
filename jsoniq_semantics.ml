@@ -117,8 +117,8 @@ and sem_expr_ctx annot e : expr_ctx -> sem = function
   | If1 (ctx,e2,e3) ->
      annot#only_typs [`Bool];
      sem_expr_ctx annot e ctx
-  | If2 (e1,ctx,e3) -> sem_expr_ctx annot e ctx
-  | If3 (e1,e2,ctx) -> sem_expr_ctx annot e ctx
+  | If2 (e1,ctx,e3) -> sem_expr_ctx annot (If (e1,e,Empty)) ctx
+  | If3 (e1,e2,ctx) -> sem_expr_ctx annot (If (e1,Empty,e)) ctx
   | OrX (ll_rr,ctx) ->
      annot#only_typs [`Bool];
      sem_expr_ctx annot e ctx
@@ -211,8 +211,8 @@ and sem_flower_ctx annot f : flower_ctx -> sem = function
   | FIf1 (ctx,e2,e3) ->
      annot#only_typs [`Bool];
      sem_flower_ctx annot f ctx
-  | FIf2 (e1,ctx,e3) -> sem_flower_ctx annot f ctx
-  | FIf3 (e1,e2,ctx) -> sem_flower_ctx annot f ctx
+  | FIf2 (e1,ctx,e3) -> sem_flower_ctx annot (FIf (e1,f,Return Empty)) ctx
+  | FIf3 (e1,e2,ctx) -> sem_flower_ctx annot (FIf (e1,Return Empty,f)) ctx
 
 type extent = { vars : var list; bindings : env Seq.t }
 

@@ -187,8 +187,8 @@ and focus_flower_right (f : flower) : flower_ctx -> focus option = function
   | FIf2 (f1,ctx,f3) -> Some (AtFlower (f3, FIf3 (f1,f,ctx)))
   | FIf3 (f1,f2,ctx) -> None
 
-let rec focus_next_Empty (foc : focus) : focus option =
-  match foc with
+let rec focus_next_Empty (foc : focus) : focus option = Some foc
+(*  match foc with
   | AtExpr (Empty, ctx) -> Some foc
   | _ ->
      match focus_right foc with
@@ -197,7 +197,7 @@ let rec focus_next_Empty (foc : focus) : focus option =
 	match focus_up foc with
 	| Some (foc_up,_) -> focus_next_Empty foc_up
 	| None -> None
-	  
+ *)	  
 
 (* conversions between focus and (expr,path) *)
 			  
