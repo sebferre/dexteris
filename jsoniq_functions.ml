@@ -405,7 +405,7 @@ let _ =
 	method apply =
 	  bind_1item
 	    (function
-	      | `Assoc pairs -> Seq.from_list (List.map (fun (k,_) -> `String k) pairs)
+	      | `Assoc pairs -> Seq.map (fun (k,_) -> `String k) (Seq.from_list pairs)
 	      | _ -> Seq.empty)
       end)
 

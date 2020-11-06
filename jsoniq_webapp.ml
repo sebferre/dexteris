@@ -76,8 +76,9 @@ let w_results : (Jsoniq.var, Jsoniq.data) Widget_table.widget =
 			 else None in
 		       None, classe_opt, None, html_of_var x)
       ~html_of_cell:(fun d ->
-		     Html.syntax ~html_of_word
-				 (Jsoniq_syntax.syn_data ~limit:20 d))
+		     let xml = Jsoniq_syntax.syn_data ~limit:20 d in
+		     let html = Html.syntax ~html_of_word xml in
+		     html)
       
 
 let suggestions_cols = ["col-md-4 col-xs-12";
@@ -136,7 +137,7 @@ let error_message : exn -> string = function
   | Jsoniq.Undefined msg -> "Undefined " ^ msg
   | Jsoniq_functions.Unknown_function name -> "Unknown function: " ^ name
   | Yojson.Json_error msg -> "Syntax error in JSON file: " ^ msg
-  | exn -> Printexc.to_string exn
+  | exn -> "Unexpected error: " ^ Printexc.to_string exn
 
 let _ =
   Webapp.start
