@@ -5,12 +5,16 @@ open Jsoniq
 module Semantics = Jsoniq_semantics
 
 let rec objectify_data (d : data) : data =
-  d
-  |> Seq.flat_map
-       (function
-	 | `List li -> objectify_data (Seq.from_list li)
-	 | (`Assoc _ as i) -> Seq.return i
-	 | atom -> Seq.return (`Assoc [("?",atom)]))
+  match Seq.take 2 d with
+  | [`List li], None -> (* d has a single elt *)
+     objectify_data (Seq.from_list li)
+  | _ ->
+     d
+     |> Seq.map
+	  (fun elt ->
+	   match elt with
+	   | `Assoc _ -> elt
+	   | _ -> `Assoc [("?",elt)])
        
 let data_of_json ?fname (contents : string) : data =
   let str = Yojson.Basic.stream_from_string ?fname contents in
@@ -86,8 +90,8 @@ let data_of_file (filename : string) (contents : string) : data =
   | _ -> failwith "Unexpected file extension (should be one of .json .csv)"
 
 		  
-			      
-let json_of_extent (ext : Semantics.extent) : Yojson.Basic.t =
+(* deprecated *)
+(*let json_of_extent (ext : Semantics.extent) : Yojson.Basic.t =
   let pack (d : data) : item = `List (Seq.to_list d) in
   let rev_elts =
     Seq.fold_left
@@ -103,10 +107,41 @@ let json_of_extent (ext : Semantics.extent) : Yojson.Basic.t =
       [] ext.Semantics.bindings in
   match rev_elts with
   | [elt] -> elt
-  | _ -> `List (List.rev rev_elts)
-		  
+  | _ -> `List (List.rev rev_elts)*)
+
+let json_seq_of_extent (ext : Semantics.extent) : Yojson.Basic.t Seq.t =
+  let json_of_data d =
+    match Seq.to_list d with
+    | [] -> `Null
+    | [elt] -> elt
+    | elts -> `List elts in
+  let bindings = ext.Semantics.bindings in
+  match Seq.take 2 bindings with
+  | [ [(k,d)] ], None (* only one binding *)
+       when k = Semantics.field_focus ->
+     d
+  | _ ->
+     bindings
+     |> Seq.map (* generating a sequence of JSON values *)
+	  (function
+	    | [(k,d)] when k = Semantics.field_focus ->
+	       json_of_data d
+	    | binding ->
+	       let pairs =
+		 List.map
+		   (fun (k,d) -> (k, json_of_data d))
+		   binding in
+	       `Assoc pairs)
+	  
 let mime_contents_of_extent (ext : Semantics.extent) : string * string =
-  let json = json_of_extent ext in
-  let contents = Yojson.Basic.to_string json in
-  let mime = "application/json" in
+  let json_seq = json_seq_of_extent ext in
+  let contents =
+    let buf = Buffer.create 10103 in
+    json_seq
+    |> Seq.iter
+	 (fun json ->
+	  Buffer.add_string buf (Yojson.Basic.to_string json);
+	  Buffer.add_char buf '\n');
+    Buffer.contents buf in
+  let mime = "application/x-json-stream" in
   mime, contents
