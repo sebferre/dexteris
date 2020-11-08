@@ -10,6 +10,7 @@ module Mime =
     let text = "text/plain"
     let csv = "text/csv"
     let json = "application/json"
+    let turtle = "text/turtle"
   end
 
 (* TEXT *)

@@ -676,4 +676,17 @@ let _ =
 		       "@type", `String dt ] in
 		   Seq.return (`Assoc pairs)
 	      | _ -> Seq.empty)
+      end);
+  library#register
+    (object
+	inherit classic "printTurtle" 1 "printTurtle"
+	method path = path
+	inherit typecheck_simple [`Object] [`Object]
+	method apply = function
+	  | [d] ->
+	     let contents = Rdf.turtle_of_data d in
+	     Seq.return
+	       Jsoniq_files.(make_data_file ~mime:Mime.turtle contents)
+	  | _ -> Seq.empty
       end)
+	  
