@@ -1,9 +1,39 @@
 (* conversion from and to file formats *)
 
+open Js_of_ocaml
 open Jsoniq
 
 module Semantics = Jsoniq_semantics
 
+module Mime =
+  struct
+    let text = "text/plain"
+    let csv = "text/csv"
+    let json = "application/json"
+  end
+
+(* TEXT *)
+
+let re_newline = Regexp.regexp "[\n\r]+"
+let data_of_text (contents : string) : data =
+  let lines = Regexp.split re_newline contents in
+  Seq.from_list lines
+  |> Seq.map (fun s -> `String s)
+
+let text_of_data (d : data) : string =
+  let buf = Buffer.create 10103 in
+  d
+  |> Seq.iter
+       (function
+	 | `String s ->
+	    Buffer.add_string buf s;
+	    Buffer.add_char buf '\n'
+	 | _ -> failwith "text_of_data: unexpected value (not a string)");
+  Buffer.contents buf
+  
+    
+(* JSON *)
+    
 let rec objectify_data (d : data) : data =
   match Seq.take 2 d with
   | [`List li], None -> (* d has a single elt *)
@@ -20,6 +50,17 @@ let data_of_json ?fname (contents : string) : data =
   let str = Yojson.Basic.stream_from_string ?fname contents in
   objectify_data (Seq.from_stream str)
 
+let json_of_data (d : data) : string =
+  let json =
+    match Seq.to_list d with
+    | [] -> `Null
+    | [elt] -> elt
+    | elts -> `List elts in
+  Yojson.Basic.to_string json
+
+			 
+(* CSV *)
+		 
 let item_of_csv_value (s : string) : item =
   if s = "" then `Null
   else if s = "true" then `Bool true
@@ -83,11 +124,45 @@ let data_of_csv ~(has_header : bool) (contents : string) : data =
     else ch, header in
   aux ~header ch
 
-let data_of_file (filename : string) (contents : string) : data =
+let csv_of_data (d : data) : string =
+  let buf = Buffer.create 10103 in
+  let ch = Csv.to_buffer buf in
+  let output_item_list li =
+    let ls =
+      List.map 
+	(function
+	  | `Bool b -> if b then "true" else "false"
+	  | `Int i -> string_of_int i
+	  | `Float f -> string_of_float f
+	  | `String s -> s
+	  | `Null -> ""
+	  | `Assoc _ -> failwith "csv_of_data: unexpected value (object)"
+	  | `List _ -> failwith "csv_of_data: unexpected value (array)")
+	li in
+    Csv.output_record ch ls
+  in
+  let first_row = ref true in
+  d
+  |> Seq.iter
+       (fun row ->
+	let () =
+	  match  row with
+	  | `List li -> output_item_list li
+	  | `Assoc pairs ->
+	     let header, li = List.split pairs in
+	     if !first_row then Csv.output_record ch header;
+	     output_item_list li
+	  | _ -> () in
+	first_row := false);
+  Csv.close_out ch;
+  Buffer.contents buf
+
+      
+(*let data_of_file (filename : string) (contents : string) : data =
   match Filename.extension filename with
   | ".json" -> data_of_json ~fname:filename contents
   | ".csv" -> data_of_csv ~has_header:true contents
-  | _ -> failwith "Unexpected file extension (should be one of .json .csv)"
+  | _ -> failwith "Unexpected file extension (should be one of .json .csv)"*)
 
 		  
 (* deprecated *)
@@ -145,3 +220,14 @@ let mime_contents_of_extent (ext : Semantics.extent) : string * string =
     Buffer.contents buf in
   let mime = "application/x-json-stream" in
   mime, contents
+
+let make_data_file ?(mime = "text/plain") contents : item =
+  `Assoc ["mime", `String mime;
+	  "contents", `String contents]
+
+let get_data_file_opt (d : data) : (string * string) option =
+  match Seq.take 2 d with
+  | [`Assoc ["mime", `String mime;
+	     "contents", `String contents]], None ->
+     Some (mime, contents)
+  | _ -> None

@@ -103,21 +103,19 @@ object
     | _ -> raise Invalid_arity
 end
 
-class virtual mixfix name arity (kwds : string list) =
+class virtual mixfix name arity (wds : syn list) =
 object
   inherit func name
   method arity = arity
   method syntax lxml =
     let rec aux = function
       | [], [] -> []
-      | kwd::kwds, xml::lxml ->
-	 if kwd = ""
-	 then xml @ aux (kwds,lxml)
-	 else Kwd kwd :: xml @ aux (kwds,lxml)
+      | wd::wds, xml::lxml ->
+	 wd @ xml @ aux (wds,lxml)
       | [], lxml -> List.concat lxml
-      | kwds, [] -> List.map (fun kwd -> Kwd kwd) kwds
+      | wds, [] -> List.concat wds
     in
-    aux (kwds,lxml)
+    aux (wds,lxml)
 end	  
   
 class typecheck_simple f_ins f_outs =
@@ -342,7 +340,8 @@ let _ =
   
   library#register
     (object
-	inherit mixfix "split" 2 ["split"; "by"]
+	inherit mixfix "split" 2 [[Word (`Func "split")];
+				  [Kwd "by"]]
 	method path = path
 	inherit typecheck_simple [`String] [`String]
 	method apply =
@@ -361,7 +360,9 @@ let _ =
       end);
   library#register
     (object
-	inherit mixfix "replace" 3 ["in"; "replace"; "by"]
+	inherit mixfix "replace" 3 [[Kwd "in"];
+				    [Word (`Func "replace")];
+				    [Kwd "by"]]
 	method path = path
 	inherit typecheck_simple [`String] [`String]
 	method apply =
@@ -523,6 +524,17 @@ let _ =
       end);
   library#register
     (object
+	inherit classic "parseText" 1 "parseText"
+	method path = path
+	inherit typecheck_simple [`String] [`Object]
+	method apply =
+	  bind_1item
+	    (function
+	      | `String contents -> Jsoniq_files.data_of_text contents
+	      | _ -> Seq.empty)
+      end);
+  library#register
+    (object
 	inherit classic "parseCSV" 1 "parseCSV"
 	method path = path
 	inherit typecheck_simple [`String] [`Object]
@@ -534,7 +546,8 @@ let _ =
       end);
   library#register
     (object
-	inherit mixfix "parseCSVnoHeader" 1 ["parseCSV("; ") without header"]
+	inherit mixfix "parseCSVnoHeader" 1 [[Word (`Func "parseCSV"); Kwd "("];
+					     [Kwd ")"; Word (`Func "without header")]]
 	method path = path
 	inherit typecheck_simple [`String] [`Object]
 	method apply =
@@ -542,13 +555,56 @@ let _ =
 	    (function
 	      | `String contents -> Jsoniq_files.data_of_csv ~has_header:false contents
 	      | _ -> Seq.empty)
+      end);
+  library#register
+    (object
+	inherit classic "printJSON" 1 "printJSON"
+	method path = path
+	inherit typecheck_simple list_all_typs [`Object]
+	method apply =
+	  function
+	  | [d] ->
+	     let contents = Jsoniq_files.json_of_data d in
+	     Seq.return
+	       Jsoniq_files.(make_data_file ~mime:Mime.json contents)
+	  | _ -> Seq.empty
+      end);
+  library#register
+    (object
+	inherit classic "printText" 1 "printText"
+	method path = path
+	inherit typecheck_simple [`String] [`Object]
+	method apply : data list -> data =
+	  function
+	  | [d] ->
+	     let contents = Jsoniq_files.text_of_data d in
+	     Seq.return
+	       Jsoniq_files.(make_data_file ~mime:Mime.text contents)
+	  | _ -> Seq.empty
+      end);
+  library#register
+    (object
+	inherit classic "printCSV" 1 "printCSV"
+	method path = path
+	inherit typecheck_simple [`Object; `Array] [`Object]
+	method apply =
+	  function
+	  | [d] ->
+	     let contents = Jsoniq_files.csv_of_data d in
+	     Seq.return
+	       Jsoniq_files.(make_data_file ~mime:Mime.csv contents)
+	  | _ -> Seq.empty
       end)
+
 
 let _ =
   let path = ["RDF"] in
   library#register
     (object
-	inherit mixfix "RDFdescr" 3 ["Descr("; "a"; ";"; ")"]
+	inherit mixfix "RDFdescr" 3 [[Word (`Func "Descr"); Kwd "("];
+				     [Kwd "a"];
+				     [Kwd ";"];
+				     [Kwd ")"]]
 	method path = path
 	inherit typecheck_simple [`String] [`Object]
 	method apply = function

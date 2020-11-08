@@ -76,9 +76,22 @@ let w_results : (Jsoniq.var, Jsoniq.data) Widget_table.widget =
 			 else None in
 		       None, classe_opt, None, html_of_var x)
       ~html_of_cell:(fun d ->
-		     let xml = Jsoniq_syntax.syn_data ~limit:20 d in
-		     let html = Html.syntax ~html_of_word xml in
-		     html)
+		     match Jsoniq_files.get_data_file_opt d with
+		     | Some (mime,contents) ->
+			let n = String.length contents in
+			let contents_excerpt =
+			  if n > 100
+			  then String.sub contents 0 100 ^ "..."
+			  else contents in
+			Html.a
+			  (Jsutils.make_data_url mime contents)
+			  mime
+			^ ("&nbsp;(" ^ string_of_int n ^ " chars)")
+			^ Html.pre contents_excerpt
+		     | None ->
+			let xml = Jsoniq_syntax.syn_data ~limit:20 d in
+			let html = Html.syntax ~html_of_word xml in
+			html)
       
 
 let suggestions_cols = ["col-md-4 col-xs-12";
