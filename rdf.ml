@@ -59,7 +59,7 @@ and turtle_props buf indent ln pairs =
 	Buffer.add_string buf indent;
 	Buffer.add_string buf p;
 	Buffer.add_string buf " ";
-	turtle_objs buf (indent ^ "    ") ln i)
+	turtle_objs buf indent ln i)
     ln pairs
 and turtle_objs buf indent ln i =
   match i with
@@ -117,13 +117,13 @@ and turtle_obj buf indent ln i =
       | Some _ -> failwith "turtle_of_data: invalid_object"
       | None ->
 	 Buffer.add_string buf "[";
-	 let ln = turtle_props buf indent ln pairs in
+	 let ln = turtle_props buf (indent ^ "    ") ln pairs in
 	 Buffer.add_string buf " ]";
 	 true, ln)
   | `List _ -> failwith "turtle_of_data: invalid object (array)"
        
 let turtle_of_data (d : data) : string =
-  let buf = Buffer.create 10103 in
+  let buf = Buffer.create 1048576 in
   List.iter
     (fun (prefix,iri) ->
      Buffer.add_string buf "@prefix ";
