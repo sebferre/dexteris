@@ -386,6 +386,71 @@ let _ =
       end)
 
 let _ =
+  let path = ["conversion"] in
+  library#register
+    (object
+	inherit classic "toString" 1 "string"
+	method path = path
+	inherit typecheck_simple list_all_typs [`String]
+	method apply =
+	  bind_1item
+	    (fun i -> Seq.return (`String (Yojson.Basic.to_string i)))
+      end);
+  library#register
+    (object
+	inherit classic "toBool" 1 "bool"
+	method path = path
+	inherit typecheck_simple list_all_typs [`Bool]
+	method apply =
+	  bind_1item
+	    (function
+	      | `Bool b -> Seq.return (`Bool b)
+	      | `Int n -> Seq.return (`Bool (n <> 0))
+	      | `Float f -> Seq.return (`Bool (f <> 0.))
+	      | `String s ->
+		 if s="true" || s="1" then Seq.return (`Bool true)
+		 else if s="false" || s="0" then Seq.return (`Bool false)
+		 else Seq.empty
+	      | `Null -> Seq.return (`Bool false)
+	      | `List li -> Seq.return (`Bool (li<>[]))
+	      | `Assoc pairs -> Seq.return (`Bool (pairs<>[])))
+      end);
+  library#register
+    (object
+	inherit classic "toInt" 1 "int"
+	method path = path
+	inherit typecheck_simple [`Bool; `Float; `String] [`Int]
+	method apply =
+	  bind_1item
+	    (function
+	      | `Bool b -> Seq.return (`Int (if b then 1 else 0))
+	      | `Int n -> Seq.return (`Int n)
+	      | `Float f -> Seq.return (`Int (int_of_float f))
+	      | `String s ->
+		 (try Seq.return (`Int (int_of_string s))
+		  with _ -> Seq.empty)
+	      | _ -> Seq.empty)
+      end);
+  library#register
+    (object
+	inherit classic "toFloat" 1 "float"
+	method path = path
+	inherit typecheck_simple [`Bool; `Int; `String] [`Float]
+	method apply =
+	  bind_1item
+	    (function
+	      | `Bool b -> Seq.return (`Float (if b then 1. else 0.))
+	      | `Int n -> Seq.return (`Float (float n))
+	      | `Float f -> Seq.return (`Float f)
+	      | `String s ->
+		 (try Seq.return (`Float (float_of_string s))
+		  with _ -> Seq.empty)
+	      | _ -> Seq.empty)
+      end)
+
+				 
+    
+let _ =
   library#register
     (object
 	inherit classic "arrayLength" 1 "size"
