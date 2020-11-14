@@ -123,7 +123,7 @@ object
   method typecheck multiple_items ins outs =
     not (single && multiple_items)
     && List.exists (fun t -> TypSet.mem t ins) f_ins
-    (* there must be an input type that is expected by the function *)
+       (* there must be an input type that is expected by the function *)
     && List.for_all (fun t -> TypSet.mem t outs) f_outs
        (* and every possible output type must be allowed *)
 end
@@ -568,6 +568,28 @@ let _ =
 			i next))
 	    d));
   library#register
+    (new aggreg "some" "some" [`Bool] [`Bool]
+	 (fun d ->
+	  Seq.return
+	    (`Bool
+	      (Seq.fold_left
+		 (fun res ->
+		  function
+		  | `Bool b -> res || b
+		  | _ -> res)
+		 false d))));
+  library#register
+    (new aggreg "all" "all" [`Bool] [`Bool]
+	 (fun d ->
+	  Seq.return
+	    (`Bool
+	      (Seq.fold_left
+		 (fun res ->
+		  function
+		  | `Bool b -> res && b
+		  | _ -> res)
+		 true d))));
+  library#register
     (new aggreg "sum" "sum" [`Bool; `Int; `Float] [`Float]
 	 (fun d ->
 	  Seq.return
@@ -580,6 +602,19 @@ let _ =
 		  | `Float f -> res +. f
 		  | _ -> res)
 		 0. d))));
+  library#register
+    (new aggreg "prod" "prod" [`Bool; `Int; `Float] [`Float]
+	 (fun d ->
+	  Seq.return
+	    (`Float
+	      (Seq.fold_left
+		 (fun res ->
+		  function
+		  | `Bool b -> if b then res *. 1. else res
+		  | `Int n -> res *. float n
+		  | `Float f -> res *. f
+		  | _ -> res)
+		 1. d))));
   library#register
     (new aggreg "avg" "avg" [`Bool; `Int; `Float] [`Float]
 	 (fun d ->
