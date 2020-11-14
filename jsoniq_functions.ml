@@ -423,6 +423,27 @@ let _ =
 				  "$value", i])
 			 (Seq.from_list pairs)
 	      | _ -> Seq.empty)
+      end);
+  library#register
+    (object
+	inherit mixfix "objectOfArray" 2 [[Kwd "{"];
+					  [Word (`Func "with keys")];
+					  [Kwd "}"]]
+	method path = ["objects"]
+	inherit typecheck_simple [`Array] [`Object]
+	method apply =
+	  let rec aux = function
+	    | _, [] -> []
+	    | [], _ -> failwith "there are not enough keys"
+	    | `String k :: lk, v::lv -> (k,v)::aux (lk,lv)
+	    | _ -> failwith "some key is not a string"
+	  in
+	  bind_2items
+	    (function
+	      | `List lv, `List lk ->
+		 let pairs = aux (lk,lv) in
+		 Seq.return (`Assoc pairs)
+	      | _ -> failwith "expects two lists: a list of values and a list of keys")
       end)
    
 

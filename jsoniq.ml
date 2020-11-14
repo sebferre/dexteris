@@ -54,7 +54,7 @@ exception TODO
   | Array of item list*)
 
 type item = Yojson.Basic.t
-(* [`Null | `Bool of bool | `Int of int | `Float of float | `Assoc of (string * item) list | `List of item list ] *)
+(* [`Null | `Bool of bool | `Int of int | `Float of float | `String of string | `Assoc of (string * item) list | `List of item list ] *)
 
 let item_to_yojson (i : item) = (i :> Yojson.Safe.t)
 				  
