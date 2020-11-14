@@ -39,7 +39,13 @@ let html_info_of_input (input : Jsoniq_syntax.input) : Html.input_info =
        (fun f k -> input#set f; k ())
   | `String input ->
      Html.string_info
-       (fun s k -> input#set s; k ())
+       (fun s k ->
+	let open Js_of_ocaml in
+	let s = Regexp.global_replace (Regexp.regexp_string "\\n") s "\n" in
+	let s = Regexp.global_replace (Regexp.regexp_string "\\r") s "\r" in
+	let s = Regexp.global_replace (Regexp.regexp_string "\\t") s "\t" in
+	let s = Regexp.global_replace (Regexp.regexp_string "\\\\") s "\\" in
+	input#set s; k ())
   | `Ident input ->
      Html.string_info
        (fun id k -> input#set id; k ())
