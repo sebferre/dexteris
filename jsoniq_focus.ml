@@ -619,7 +619,7 @@ and apply_transf_expr = function
   | InsertMap, e, ctx -> Some (Empty, Map2 (e, ctx))
   | InsertPred, e, ctx -> Some (Empty, Pred2 (e, ctx))
   | InsertDot, e, ctx -> Some (Empty, Dot2 (e, ctx))
-  | InsertField k, Dot (e,_), ctx -> Some (Dot (e, S k), ctx)
+  | InsertField k, e, Dot1 (ctx,_) -> Some (Dot (e, S k), ctx)
   | InsertField k, e, ctx -> Some (Dot (e, S k), ctx)
   | InsertArrayLookup, e, ctx -> Some (Empty, ArrayLookup2 (e, ctx))
 
