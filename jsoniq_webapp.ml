@@ -12,6 +12,8 @@ let html_of_var v =
   else if v = "$" then "this"
   else if v = "#$" then "rank of this"
   else if v.[0] = '#' then "rank of " ^ String.sub v 1 (String.length v - 1)
+  else if v = "$key" then "the key"
+  else if v = "$value" then "the value"
   else v
 						   
 let html_of_word : Jsoniq_syntax.word -> Html.t = function

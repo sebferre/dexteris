@@ -408,7 +408,23 @@ let _ =
 	    (function
 	      | `Assoc pairs -> Seq.map (fun (k,_) -> `String k) (Seq.from_list pairs)
 	      | _ -> Seq.empty)
+      end);
+  library#register
+    (object
+	inherit classic "objectItems" 1 "items"
+	method path = ["objects"]
+	inherit typecheck_simple [`Object] [`Object]
+	method apply =
+	  bind_1item
+	    (function
+	      | `Assoc pairs ->
+		 Seq.map (fun (k,i) ->
+			  `Assoc ["$key", `String k;
+				  "$value", i])
+			 (Seq.from_list pairs)
+	      | _ -> Seq.empty)
       end)
+   
 
 class aggreg name func (g_ins : typ list) (g_outs : typ list) (g : data -> data) =
 object
