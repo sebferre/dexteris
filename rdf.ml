@@ -26,6 +26,7 @@ and turtle_node buf = function
      let ln = turtle_props buf "\n    " [] pairs in
      Buffer.add_string buf " .\n";
      List.iter (turtle_node buf) (List.rev ln)
+  | `Assoc _ -> () (* {} or {@id} *)
   | _ -> failwith "turtle_of_data: invalid node description"
 and turtle_props buf indent ln pairs =
   let not_first = ref false in
@@ -129,7 +130,7 @@ let turtle_of_data (d : data) : string =
      Buffer.add_string buf prefix;
      Buffer.add_string buf "<";
      Buffer.add_string buf iri;
-     Buffer.add_string buf ">.\n")
+     Buffer.add_string buf "> .\n")
     ["rdf:", "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
      "rdfs:", "http://www.w3.org/2000/01/rdf-schema#";
      "owl:", "http://www.w3.org/2002/07/owl#";

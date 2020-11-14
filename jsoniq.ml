@@ -387,7 +387,7 @@ let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> res
      else Seq.empty (* raise (TypeError (name ^ ": wrong number of arguments")) *)
   | Call (func,le) ->
      let ld = List.map (fun e -> data_of_result (eval_expr library funcs env e)) le in
-     (try result_of_data (library#apply func ld) with _ -> Seq.empty)
+     result_of_data (library#apply func ld)
   | Map (e1,e2) ->
      let pos_x = var_position var_context in
      Seq.with_position (eval_expr library funcs env e1)
@@ -414,7 +414,7 @@ let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> res
 		    (function
 		      | (`String key, _) ->
 			 (try Seq.return (List.assoc key pairs, [])
-			  with _ -> Seq.empty)
+			  with Not_found -> Seq.empty)
 		      | _ -> Seq.empty)
 	    | _ -> Seq.empty)
   | ArrayLookup (e1,e2) ->
@@ -586,7 +586,7 @@ and eval_flower (library : #library) (funcs : funcs) (ctx : env Seq.t) : flower 
 	   let key = List.map
 		      (fun x ->
 		       try item_of_data (List.assoc x env)
-		       with _ -> None)
+		       with Not_found -> None)
 		      lx in
 	   dico_key#add key env);
      let lenv =
