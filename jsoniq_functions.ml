@@ -11,7 +11,7 @@ object
   method virtual arity : int
   method path : string list = []
   method virtual syntax : syn list -> syn
-  method virtual typecheck : TypSet.t (* first arg types *) -> TypSet.t (* expected return types *) -> bool
+  method virtual typecheck : bool (* multiple items *) -> TypSet.t (* first arg types *) -> TypSet.t (* expected return types *) -> bool
   method virtual apply : data list -> data
 end
 
@@ -118,10 +118,11 @@ object
     aux (wds,lxml)
 end	  
   
-class typecheck_simple f_ins f_outs =
+class typecheck_simple ?(single = true) f_ins f_outs =
 object
-  method typecheck ins outs =
-    List.exists (fun t -> TypSet.mem t ins) f_ins
+  method typecheck multiple_items ins outs =
+    not (single && multiple_items)
+    && List.exists (fun t -> TypSet.mem t ins) f_ins
     (* there must be an input type that is expected by the function *)
     && List.for_all (fun t -> TypSet.mem t outs) f_outs
        (* and every possible output type must be allowed *)
@@ -516,7 +517,7 @@ class aggreg name func (g_ins : typ list) (g_outs : typ list) (g : data -> data)
 object
   inherit classic name 1 func
   method path = ["aggregation"]
-  inherit typecheck_simple g_ins g_outs
+  inherit typecheck_simple ~single:false g_ins g_outs
   method apply = function
     | [d1] -> g d1
     | _ -> raise Invalid_arity
@@ -599,7 +600,7 @@ let _ =
     (object
 	inherit classic "concatSep" 2 "concat_with_separator"
 	method path = ["aggregation"]
-	inherit typecheck_simple [`Bool; `Int; `Float; `String] [`String]
+	inherit typecheck_simple ~single:false [`Bool; `Int; `Float; `String] [`String]
 	method apply = function
 	  | [d1; d2] ->
 	     let sep =
@@ -662,7 +663,7 @@ let _ =
     (object
 	inherit classic "printJSON" 1 "printJSON"
 	method path = path
-	inherit typecheck_simple list_all_typs [`Object]
+	inherit typecheck_simple ~single:false list_all_typs [`Object]
 	method apply =
 	  function
 	  | [d] ->
@@ -675,7 +676,7 @@ let _ =
     (object
 	inherit classic "printText" 1 "printText"
 	method path = path
-	inherit typecheck_simple [`String] [`Object]
+	inherit typecheck_simple ~single:false [`String] [`Object]
 	method apply : data list -> data =
 	  function
 	  | [d] ->
@@ -688,7 +689,7 @@ let _ =
     (object
 	inherit classic "printCSV" 1 "printCSV"
 	method path = path
-	inherit typecheck_simple [`Object; `Array] [`Object]
+	inherit typecheck_simple ~single:false [`Object; `Array] [`Object]
 	method apply =
 	  function
 	  | [d] ->
@@ -708,7 +709,7 @@ let _ =
 				     [Kwd ";"];
 				     [Kwd ")"]]
 	method path = path
-	inherit typecheck_simple [`String] [`Object]
+	inherit typecheck_simple ~single:false [`String] [`Object]
 	method apply = function
 	  | [d1;d2;d3] -> (* ids, types, properties *)
 	     let d1 =
@@ -738,7 +739,7 @@ let _ =
     (object
 	inherit classic "RDFlist" 1 "List"
 	method path = path
-	inherit typecheck_simple list_all_typs [`Object]
+	inherit typecheck_simple ~single:false list_all_typs [`Object]
 	method apply = function
 	  | [d1] -> Seq.return (`Assoc ["@list", `List (Seq.to_list d1)])
 	  | _ -> Seq.empty
@@ -783,7 +784,7 @@ let _ =
     (object
 	inherit classic "printTurtle" 1 "printTurtle"
 	method path = path
-	inherit typecheck_simple [`Object] [`Object]
+	inherit typecheck_simple ~single:false [`Object] [`Object]
 	method apply = function
 	  | [d] ->
 	     let contents = Rdf.turtle_of_data d in

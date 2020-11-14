@@ -105,7 +105,7 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     add `Flower ~path:["iterations"] (InsertForVar2 (new input "", new input false));
     Jsoniq_functions.library#iter
       (fun func ->
-       if func#typecheck focus_typs ctx_typs
+       if func#typecheck multiple_items focus_typs ctx_typs
        then add `Op ~path:func#path (InsertFunc (func#name, func#arity)));
     List.iter
       (fun (name,args) ->
