@@ -92,127 +92,190 @@ let rec sem_focus (foc : focus) : sem =
   | AtExpr (e,ctx) ->
      let e' = Let (Var field_focus, e, ContextEnv) in
      (*     let e' = Objectify (Concat [ContextEnv; EObject [S field_focus, Arrayify e]]) in *)
-     sem_expr_ctx annot e' ctx
+     sem_expr_ctx annot e e' ctx
   | AtFlower (f,ctx) ->
      let f' = Return (Let (Var field_focus, Flower f, ContextEnv)) in
      (*     let f' = Return (Objectify (Concat [ContextEnv; EObject [S field_focus, Arrayify (Flower f)]])) in *)
-     sem_flower_ctx annot f' ctx
-and sem_expr_ctx annot e : expr_ctx -> sem = function
+     sem_flower_ctx annot f f' ctx
+and sem_expr_ctx annot e e' : expr_ctx -> sem = function
   | Root ->
      annot#any_typ;
-     { annot; expr=e }
-  | ConcatX (ll_rr,ctx) -> sem_expr_ctx annot e ctx
+     { annot; expr=e' }
+  | ConcatX (ll_rr,ctx) ->
+     let e = Concat (Focus.list_of_ctx e ll_rr) in
+     sem_expr_ctx annot e e' ctx
   | Exists1 (x,ctx,e2) ->
      annot#any_typ;
-     sem_expr_ctx annot e ctx
+     let e = Exists (x,e,e2) in
+     sem_expr_ctx annot e e' ctx
   | Exists2 (x,e1,ctx) ->
      (*annot#only_typs [`Bool];*)
-     sem_expr_ctx annot (expr_bind_in x e1 e) ctx
+     let e = Exists (x,e1,e) in
+     sem_expr_ctx annot e (expr_bind_in x e1 e') ctx
   | ForAll1 (x,ctx,e2) ->
      annot#any_typ;
-     sem_expr_ctx annot e ctx
+     let e = ForAll (x,e,e2) in
+     sem_expr_ctx annot e e' ctx
   | ForAll2 (x,e1,ctx) ->
      (*annot#only_typs [`Bool];*)
-     sem_expr_ctx annot (expr_bind_in x e1 e) ctx
+     let e = ForAll (x,e1,e) in
+     sem_expr_ctx annot e (expr_bind_in x e1 e') ctx
   | If1 (ctx,e2,e3) ->
      annot#only_typs [`Bool];
-     sem_expr_ctx annot e ctx
-  | If2 (e1,ctx,e3) -> sem_expr_ctx annot (If (e1,e,Empty)) ctx
-  | If3 (e1,e2,ctx) -> sem_expr_ctx annot (If (e1,Empty,e)) ctx
+     let e = If (e,e2,e3) in
+     sem_expr_ctx annot e e' ctx
+  | If2 (e1,ctx,e3) ->
+     let e = If (e1,e,e3) in
+     sem_expr_ctx annot e (If (e1,e',Empty)) ctx
+  | If3 (e1,e2,ctx) ->
+     let e = If (e1,e2,e) in
+     sem_expr_ctx annot e (If (e1,Empty,e')) ctx
   | OrX (ll_rr,ctx) ->
      annot#only_typs [`Bool];
-     sem_expr_ctx annot e ctx
+     let e = Or (Focus.list_of_ctx e ll_rr) in
+     sem_expr_ctx annot e e' ctx
   | AndX (ll_rr,ctx) ->
      annot#only_typs [`Bool];
-     sem_expr_ctx annot e ctx
+     let e = And (Focus.list_of_ctx e ll_rr) in
+     sem_expr_ctx annot e e' ctx
   | Not1 ctx ->
      annot#only_typs [`Bool];
-     sem_expr_ctx annot e ctx
+     let e = Not e in
+     sem_expr_ctx annot e e' ctx
   | CallX (func,ll_rr,ctx) ->
      (* TODO: type constraints *)
      annot#any_typ;
-     sem_expr_ctx annot e ctx
+     let e = Call (func, Focus.list_of_ctx e ll_rr) in
+     sem_expr_ctx annot e e' ctx
   | Map1 (ctx,e2) ->
      annot#any_typ;
-     sem_expr_ctx annot e ctx
+     let e = Map (e,e2) in
+     sem_expr_ctx annot e e' ctx
   | Map2 (e1,ctx) ->
-     sem_expr_ctx annot (expr_bind_in var_context e1 e) ctx
-  | Pred1 (ctx,e2) -> sem_expr_ctx annot e ctx
+     let e = Map (e1,e) in
+     sem_expr_ctx annot e (expr_bind_in var_context e1 e') ctx
+  | Pred1 (ctx,e2) ->
+     let e = Pred (e,e2) in
+     sem_expr_ctx annot e e' ctx
   | Pred2 (e1,ctx) ->
      (*annot#only_typs [`Bool];*) (* annoying constraint when building *)
-     sem_expr_ctx annot (expr_bind_in var_context e1 e) ctx
+     let e = Pred (e1,e) in
+     sem_expr_ctx annot e (expr_bind_in var_context e1 e') ctx
   | Dot1 (ctx,e2) ->
      annot#only_typs [`Object];
-     sem_expr_ctx annot e ctx
+     let e = Dot (e,e2) in
+     sem_expr_ctx annot e e' ctx
   | Dot2 (e1,ctx) ->
      annot#only_typs [`String];
-     sem_expr_ctx annot e ctx
+     let e = Dot (e1,e) in
+     sem_expr_ctx annot e e' ctx
   | ArrayLookup1 (ctx,e2) ->
      annot#only_typs [`Array];
-     sem_expr_ctx annot e ctx
+     let e = ArrayLookup (e,e2) in
+     sem_expr_ctx annot e e' ctx
   | ArrayLookup2 (e1,ctx) ->
      annot#only_typs [`Int];
-     sem_expr_ctx annot e ctx
+     let e = ArrayLookup (e1,e) in
+     sem_expr_ctx annot e e' ctx
   | ArrayUnboxing1 ctx ->
      annot#only_typs [`Array];
-     sem_expr_ctx annot e ctx
+     let e = ArrayUnboxing e in
+     sem_expr_ctx annot e e' ctx
   | EObjectX1 (ll_rr,ctx,e2) ->
      annot#only_typs [`String];
-     sem_expr_ctx annot e ctx
+     let e = EObject (Focus.list_of_ctx (e,e2) ll_rr) in
+     sem_expr_ctx annot e e' ctx
   | EObjectX2 (ll_rr,e1,ctx) ->
      annot#any_typ;
-     sem_expr_ctx annot e ctx
+     let e = EObject (Focus.list_of_ctx (e1,e) ll_rr) in
+     sem_expr_ctx annot e e' ctx
   | Objectify1 ctx ->
      annot#only_typs [`Object];
-     sem_expr_ctx annot e ctx
+     let e = Objectify e in
+     sem_expr_ctx annot e e' ctx
   | Arrayify1 ctx ->
      annot#any_typ;
-     sem_expr_ctx annot e ctx
+     let e = Arrayify e in
+     sem_expr_ctx annot e e' ctx
   | Let1 (x,ctx,e2) ->
      annot#any_typ;
-     sem_expr_ctx annot e ctx
+     let e = Let (x,e,e2) in
+     sem_expr_ctx annot e e' ctx
   | Let2 (x,e1,ctx) ->
-     sem_expr_ctx annot (Let (x,e1,e)) ctx
+     let e = Let (x,e1,e) in
+     sem_expr_ctx annot e (Let (x,e1,e')) ctx
   | DefFunc0 (name,args,ctx,e1,e2) ->
-     sem_expr_ctx annot e ctx
+     let e = DefFunc (name,args,e,e1,e2) in
+     sem_expr_ctx annot e e' ctx
   | DefFunc1 (name,args,e0,ctx,e2) ->
      annot#add_func name args;
-     sem_expr_ctx annot (Flower (For (Fields, e0, false, flower_of_expr e))) ctx
+     let e1 = e in
+     let e = DefFunc (name,args,e0,e,e2) in
+     sem_expr_ctx annot e (DefFunc (name,args,e0,e1, Flower (For (Fields, e0, false, flower_of_expr e')))) ctx
   | DefFunc2 (name,args,e0,e1,ctx) ->
      annot#add_func name args;
-     sem_expr_ctx annot (DefFunc (name,args,e0,e1,e)) ctx
-  | Return1 ctx -> sem_flower_ctx annot (flower_of_expr e) ctx
+     let e = DefFunc (name,args,e0,e1,e) in
+     sem_expr_ctx annot e (DefFunc (name,args,e0,e1,e')) ctx
+  | Return1 ctx ->
+     let f = Return e in
+     sem_flower_ctx annot f (flower_of_expr e') ctx
   | For1 (br,ctx,opt,f) ->
      annot#any_typ;
-     sem_flower_ctx annot (flower_of_expr e) ctx
+     let f = For (br,e,opt,f) in
+     sem_flower_ctx annot f (flower_of_expr e') ctx
   | FLet1 (br,ctx,f) ->
      annot#any_typ;
-     sem_flower_ctx annot (flower_of_expr e) ctx
+     let f = FLet (br,e,f) in
+     sem_flower_ctx annot f (flower_of_expr e') ctx
   | Where1 (ctx,f) ->
      annot#only_typs [`Bool];
-     sem_flower_ctx annot (flower_of_expr e) ctx
+     let f = Where (e,f) in
+     sem_flower_ctx annot f (flower_of_expr e') ctx
   | OrderBy1X (ll_rr,ctx,o,f) ->
      annot#only_typs [`Bool; `Int; `Float; `String];
-     sem_flower_ctx annot (flower_of_expr e) ctx
-and sem_flower_ctx annot f : flower_ctx -> sem = function
-  | Flower1 ctx -> sem_expr_ctx annot (expr_of_flower f) ctx
+     let f = OrderBy (Focus.list_of_ctx (e,o) ll_rr, f) in
+     sem_flower_ctx annot f (flower_of_expr e') ctx
+and sem_flower_ctx annot f f' : flower_ctx -> sem = function
+  | Flower1 ctx ->
+     let e = Flower f in
+     sem_expr_ctx annot e (expr_of_flower f') ctx
   | For2 (br,e1,opt,ctx) ->
-     sem_flower_ctx annot (For (br,e1,opt,f)) ctx
+     let f = For (br,e1,opt,f) in
+     sem_flower_ctx annot f (For (br,e1,opt,f')) ctx
   | FLet2 (br,e1,ctx) ->
-     sem_flower_ctx annot (FLet (br,e1,f)) ctx
+     let f = FLet (br,e1,f) in
+     sem_flower_ctx annot f (FLet (br,e1,f')) ctx
   | Count1 (x,ctx) ->
-     sem_flower_ctx annot (Count (x,f)) ctx
-  | Where2 (e1,ctx) -> sem_flower_ctx annot (Where (e1,f)) ctx
-  | GroupBy1 (lx,ctx) -> sem_flower_ctx annot (GroupBy (lx,f)) ctx
-  | Project1 (lx,ctx) -> sem_flower_ctx annot (Project (lx,f)) ctx
-  | Slice1 (o,l,ctx) -> sem_flower_ctx annot (Slice (o,l,f)) ctx
-  | OrderBy2 (leo,ctx) -> sem_flower_ctx annot (OrderBy (leo,f)) ctx
-  | FConcatX (ll_rr,ctx) -> sem_flower_ctx annot f ctx
-  | FIf1 (ctx,e2,e3) ->
+     let f = Count (x,f) in
+     sem_flower_ctx annot f (Count (x,f')) ctx
+  | Where2 (e1,ctx) ->
+     let f = Where (e1,f) in
+     sem_flower_ctx annot f (Where (e1,f')) ctx
+  | GroupBy1 (lx,ctx) ->
+     let f = GroupBy (lx,f) in
+     sem_flower_ctx annot f (GroupBy (lx,f')) ctx
+  | Project1 (lx,ctx) ->
+     let f = Project (lx,f) in
+     sem_flower_ctx annot f (Project (lx,f')) ctx
+  | Slice1 (o,l,ctx) ->
+     let f = Slice (o,l,f) in
+     sem_flower_ctx annot f (Slice (o,l,f')) ctx
+  | OrderBy2 (leo,ctx) ->
+     let f = OrderBy (leo,f) in
+     sem_flower_ctx annot f (OrderBy (leo,f')) ctx
+  | FConcatX (ll_rr,ctx) ->
+     let f = FConcat (Focus.list_of_ctx f ll_rr) in
+     sem_flower_ctx annot f f' ctx
+  | FIf1 (ctx,f2,f3) ->
      annot#only_typs [`Bool];
-     sem_flower_ctx annot f ctx
-  | FIf2 (e1,ctx,e3) -> sem_flower_ctx annot (FIf (e1,f,Return Empty)) ctx
-  | FIf3 (e1,e2,ctx) -> sem_flower_ctx annot (FIf (e1,Return Empty,f)) ctx
+     let f = FIf (f,f2,f3) in
+     sem_flower_ctx annot f f' ctx
+  | FIf2 (f1,ctx,f3) ->
+     let f = FIf (f1,f,f3) in
+     sem_flower_ctx annot f (FIf (f1,f',Return Empty)) ctx
+  | FIf3 (f1,f2,ctx) ->
+     let f = FIf (f1,f2,f) in
+     sem_flower_ctx annot f (FIf (f1,Return Empty,f')) ctx
 
 type extent = { vars : var list; bindings : env Seq.t }
 
