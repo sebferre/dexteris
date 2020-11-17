@@ -150,8 +150,8 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     if project_vars <> [] then
       add `Flower ~path:["modifiers"] (InsertProject (project_vars, new input (List.hd project_vars)));
     add `Flower ~path:["modifiers"] (InsertOrderBy2 (new input (string_of_order ASC)));
-    add `Flower ~path:["functions"] (InsertDefFunc1 (new input ""));
-    add `Flower ~path:["functions"] (InsertDefFunc2 (new input ""));
-    add `Flower ~path:["functions"] (InsertArg (new input ""));
+    add `Flower ~path:["functions"] (InsertDefFunc1 (new input ("",[])));
+    add `Flower ~path:["functions"] (InsertDefFunc2 (new input ("",[])));
+    add `Flower ~path:["functions"] (InsertArg (new input "x"));
   in
   [!forest_op; !forest_val; !forest_flower]

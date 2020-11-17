@@ -338,8 +338,8 @@ type transf =
   | InsertArray
   | InsertObjectify
   | InsertArrayify
-  | InsertDefFunc1 of string input
-  | InsertDefFunc2 of string input
+  | InsertDefFunc1 of (string * string list) input
+  | InsertDefFunc2 of (string * string list) input
   | InsertArg of var input
   | InsertForVar1 of var input * bool input
   | InsertForVar2 of var input * bool input
@@ -392,7 +392,8 @@ let rec reaching_expr : expr -> transf list = function
   | Arrayify e -> reaching_expr e @ [InsertArrayify]
   | Let (Var x,e1,e2) -> reaching_expr e1 @ InsertLetVar1 (new input x) :: reaching_expr e2 @ [FocusUp]
   | Let (Fields,e1,e2) -> reaching_expr e1 @ InsertLetFields1 :: reaching_expr e2 @ [FocusUp]
-  | DefFunc (name,args,e0,e1,e2) -> InsertDefFunc1 (new input name) :: List.map (fun x -> InsertArg (new input x)) args @ reaching_expr e0 @ FocusRight :: reaching_expr e1 @ FocusRight :: reaching_expr e2 @ [FocusUp]
+  | DefFunc (name,args,e0,e1,e2) ->
+     InsertDefFunc1 (new input (name,args)) :: Delete :: reaching_expr e0 @ FocusRight :: reaching_expr e1 @ FocusRight :: reaching_expr e2 @ [FocusUp]
 and reaching_flower : flower -> transf list = function
   | Return e -> reaching_expr e @ [FocusUp]
   | For (Var x,e,opt,f) -> reaching_expr e @ InsertForVar1 (new input x, new input opt) :: reaching_flower f @ [FocusUp]
@@ -546,7 +547,7 @@ let rec list_switch x = function
      if x1 = x
      then lx1
      else x1::list_switch x lx1
-			      
+			  
 let rec apply_transf (transf : transf) (foc : focus) : focus option =
   match transf with
   | FocusUp -> Option.map fst (focus_up foc)
@@ -641,8 +642,14 @@ and apply_transf_expr = function
   | InsertObjectify, e, ctx -> Some (Objectify e, ctx)
   | InsertArrayify, e, ctx -> Some (Arrayify e, ctx)
 
-  | InsertDefFunc1 in_name, e, ctx -> Some (Empty, DefFunc0 (in_name#get, [], ctx, e, Empty))
-  | InsertDefFunc2 in_name, e, ctx -> Some (Empty, DefFunc0 (in_name#get, [], ctx, Empty, e))
+  | InsertDefFunc1 in_sig, e, ctx ->
+     let name, args = in_sig#get in
+     let e0 = EObject (args |> List.map (fun arg -> (S arg, Empty))) in
+     Some (e0, DefFunc0 (name, args, ctx, e, Empty))
+  | InsertDefFunc2 in_sig, e, ctx ->
+     let name, args = in_sig#get in
+     let e0 = EObject (args |> List.map (fun arg -> (S arg, Empty))) in
+     Some (e0, DefFunc0 (name, args, ctx, Empty, e))
   | InsertArg in_x, DefFunc (name,args,inputs,e1,e2), ctx ->
      let args = args @ [in_x#get] in
      Some (DefFunc (name, args, inputs, e1, e2), ctx)

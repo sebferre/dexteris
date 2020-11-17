@@ -51,6 +51,15 @@ let html_info_of_input (input : Jsoniq_syntax.input) : Html.input_info =
   | `Ident input ->
      Html.string_info
        (fun id k -> input#set id; k ())
+  | `FuncSig input ->
+     Html.string_info
+       (fun s k ->
+	let open Js_of_ocaml in
+	let ls = Regexp.split (Regexp.regexp "[(), ]+") s in
+	let ls = List.filter ((<>) "") ls in
+	match ls with
+	| name::args -> input#set (name, args); k ()
+	| [] -> failwith "format expected: func(arg1,arg2,...)")
   | `Select (values, input) ->
      Html.selectElt_info
        values

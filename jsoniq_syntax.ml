@@ -9,6 +9,7 @@ type input = [ `Int of int Focus.input
 	     | `Float of float Focus.input
 	     | `String of string Focus.input
 	     | `Ident of string Focus.input
+	     | `FuncSig of (string * string list) Focus.input
 	     | `Select of string list * string Focus.input
 	     | `FileString of (string * string) Focus.input ]
 
@@ -668,8 +669,14 @@ let syn_transf (library : #library) : transf -> syn = function
   | InsertArray -> syn_Arrayify [ellipsis]
   | InsertObjectify -> syn_Objectify [the_focus]
   | InsertArrayify -> syn_Arrayify [the_focus]
-  | InsertDefFunc1 in_name -> syn_DefFunc [Input (`Ident in_name)] [] [ellipsis] [the_focus] [ellipsis]
-  | InsertDefFunc2 in_name -> syn_DefFunc [Input (`Ident in_name)] [] [ellipsis] [ellipsis] [the_focus]
+  | InsertDefFunc1 in_sig ->
+     [Block [[Kwd "def"; Input (`FuncSig in_sig); Kwd "="; the_focus];
+	     [ellipsis]]]
+  (*syn_DefFunc [Input (`Ident in_name)] [] [ellipsis] [the_focus] [ellipsis]*)
+  | InsertDefFunc2 in_sig ->
+     [Block [[Kwd "def"; Input (`FuncSig in_sig); Kwd "="; ellipsis];
+	     [the_focus]]]
+  (*syn_DefFunc [Input (`Ident in_sig)] [] [ellipsis] [ellipsis] [the_focus]*)
   | InsertArg in_x -> [Kwd "add"; Kwd "argument"; Input (`Ident in_x)]
   | InsertForVar1 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [the_focus] false [ellipsis] (* TODO: optional *)
   | InsertForVar2 (in_x,in_opt) -> syn_For [Input (`Ident in_x)] [ellipsis] false [the_focus] (* TODO: optional *)
