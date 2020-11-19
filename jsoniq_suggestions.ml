@@ -68,11 +68,13 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
        if x <> Sem.field_focus then
 	 add `Val (InsertVar x))
       extent.Sem.vars;
-    if Bintree.cardinal fields <= 20
-    then
-      Bintree.iter
-	(fun k -> add `Val (InsertField k))
-	fields;
+    ignore
+      (Bintree.fold
+	 (fun k i ->
+	  if i < 20 then (* at most 20 suggested fields, other accessible by inputing their name *)
+	    add `Val (InsertField k);
+	  i+1)
+	 fields 0);
     if Sem.TypSet.mem `Int ctx_typs then
       add `Val ~path:[] (InputInt (new input 0));
     if Sem.TypSet.mem `Int ctx_typs then
