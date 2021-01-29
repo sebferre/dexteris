@@ -11,7 +11,7 @@ object
   method virtual arity : int
   method path : string list = []
   method virtual syntax : syn list -> syn
-  method virtual typecheck : bool (* multiple items *) -> TypSet.t (* first arg types *) -> TypSet.t (* expected return types *) -> bool
+  method virtual typecheck : int (* arg pos *) -> bool (* multiple items *) -> TypSet.t (* arg types *) -> TypSet.t (* expected return types *) -> bool
   method virtual apply : data list -> data
 end
 
@@ -118,9 +118,10 @@ object
     aux (wds,lxml)
 end	  
   
-class typecheck_simple ?(single = true) f_ins f_outs =
+class typecheck_simple ?(single = true) (ar_f_ins : 't list array) (f_outs : 't list) =
 object
-  method typecheck multiple_items ins outs =
+  method typecheck pos multiple_items ins outs =
+    let f_ins = try ar_f_ins.(pos-1) with _ -> list_all_typs in
     not (single && multiple_items)
     && List.exists (fun t -> TypSet.mem t ins) f_ins
        (* there must be an input type that is expected by the function *)
@@ -134,7 +135,7 @@ class comparator (name : string) (pred : int -> bool) (op : string) =
   object
     inherit infix name op
     method path = ["comparison"]
-    inherit typecheck_simple list_all_typs [`Bool]
+    inherit typecheck_simple [|list_all_typs; list_all_typs|] [`Bool]
     method apply = function
       | [d1;d2] ->
 	 let c : int = compare_data d1 d2 in
@@ -157,7 +158,7 @@ class binop_num (name : string)
 object
   inherit infix name op
   method path = ["numbers"]
-  inherit typecheck_simple [`Int; `Float] [`Int; `Float]
+  inherit typecheck_simple [| [`Int; `Float]; [`Int; `Float] |] [`Int; `Float]
   method apply =
     bind_2items
       (function
@@ -179,7 +180,7 @@ class binop_int (name : string)
 object
   inherit infix name op
   method path = ["numbers"]
-  inherit typecheck_simple [`Int] [`Int]
+  inherit typecheck_simple [| [`Int]; [`Int] |] [`Int]
   method apply =
     bind_2items
       (function
@@ -197,7 +198,7 @@ class binop_float (name : string)
 object
   inherit infix name op
   method path = ["numbers"]
-  inherit typecheck_simple [`Float] [`Float]
+  inherit typecheck_simple [| [`Float]; [`Float] |] [`Float]
   method apply =
     bind_2items
       (function
@@ -216,7 +217,7 @@ class unop_num name (f_int : int -> int) (f_float : float -> float) op =
 object
   inherit prefix name op
   method path = ["numbers"]
-  inherit typecheck_simple [`Int; `Float] [`Int; `Float]
+  inherit typecheck_simple [| [`Int; `Float] |] [`Int; `Float]
   method apply =
     bind_1item
       (function
@@ -234,7 +235,7 @@ let _ =
     (object
 	inherit classic "abs" 1 "abs"
 	method path = path
-	inherit typecheck_simple [`Int; `Float] [`Int; `Float]
+	inherit typecheck_simple [| [`Int; `Float] |] [`Int; `Float]
 	method apply =
 	  bind_1item
 	    (function
@@ -246,7 +247,7 @@ let _ =
     (object
 	inherit infix "range" "to"
 	method path = path
-	inherit typecheck_simple [`Int] [`Int]
+	inherit typecheck_simple [| [`Int]; [`Int] |] [`Int]
 	method apply =
 	  bind_2items
 	    (function
@@ -260,7 +261,7 @@ let _ =
     (object
 	inherit infix "stringConcat" "||"
 	method path = []
-	inherit typecheck_simple [`Bool; `Int; `Float; `String] [`String]
+	inherit typecheck_simple [| [`Bool; `Int; `Float; `String]; [`Bool; `Int; `Float; `String] |] [`String]
 	method apply =
 	  bind_2items
 	    (fun (i1,i2) ->
@@ -272,7 +273,7 @@ let _ =
     (object
 	inherit classic "stringLength" 1 "length"
 	method path = path
-	inherit typecheck_simple [`String] [`Int]
+	inherit typecheck_simple [| [`String] |] [`Int]
 	method apply =
 	  bind_1item
 	    (function
@@ -286,7 +287,7 @@ let _ =
     (object
 	inherit classic "substr" 3 "substr"
 	method path = path
-	inherit typecheck_simple [`String] [`String]
+	inherit typecheck_simple [| [`String]; [`Int]; [`Int] |] [`String]
 	method apply =
 	  bind_3items
 	    (function
@@ -300,7 +301,7 @@ let _ =
     (object
 	inherit classic "uppercase" 1 "uppercase"
 	method path = path
-	inherit typecheck_simple [`String] [`String]
+	inherit typecheck_simple [| [`String] |] [`String]
 	method apply =
 	  bind_1item
 	    (function
@@ -314,7 +315,7 @@ let _ =
     (object
 	inherit classic "lowercase" 1 "lowercase"
 	method path = path
-	inherit typecheck_simple [`String] [`String]
+	inherit typecheck_simple [| [`String] |] [`String]
 	method apply =
 	  bind_1item
 	    (function
@@ -328,7 +329,7 @@ let _ =
     (object
 	inherit infix "stringMatch" "matches"
 	method path = path
-	inherit typecheck_simple [`String] [`Bool]
+	inherit typecheck_simple [| [`String]; [`String] |] [`Bool]
 	method apply =
 	  bind_2items
 	    (function
@@ -344,7 +345,7 @@ let _ =
 	inherit mixfix "split" 2 [[Word (`Func "split")];
 				  [Kwd "by"]]
 	method path = path
-	inherit typecheck_simple [`String] [`String]
+	inherit typecheck_simple [| [`String]; [`String] |] [`String]
 	method apply =
 	  bind_2items
 	    (function
@@ -365,7 +366,7 @@ let _ =
 				    [Word (`Func "replace")];
 				    [Kwd "by"]]
 	method path = path
-	inherit typecheck_simple [`String] [`String]
+	inherit typecheck_simple [| [`String]; [`String]; [`String] |] [`String]
 	method apply =
 	  bind_3items
 	    (function
@@ -378,7 +379,7 @@ let _ =
     (object
 	inherit classic "URLencode" 1 "URLencode"
 	method path = path
-	inherit typecheck_simple [`String] [`String]
+	inherit typecheck_simple [| [`String] |] [`String]
 	method apply =
 	  bind_1item
 	    (function
@@ -392,7 +393,7 @@ let _ =
     (object
 	inherit classic "toString" 1 "string"
 	method path = path
-	inherit typecheck_simple list_all_typs [`String]
+	inherit typecheck_simple [|list_all_typs|] [`String]
 	method apply =
 	  bind_1item
 	    (fun i -> Seq.return (`String (Yojson.Basic.to_string i)))
@@ -401,7 +402,7 @@ let _ =
     (object
 	inherit classic "toBool" 1 "bool"
 	method path = path
-	inherit typecheck_simple list_all_typs [`Bool]
+	inherit typecheck_simple [|list_all_typs|] [`Bool]
 	method apply =
 	  bind_1item
 	    (function
@@ -420,7 +421,7 @@ let _ =
     (object
 	inherit classic "toInt" 1 "int"
 	method path = path
-	inherit typecheck_simple [`Bool; `Float; `String] [`Int]
+	inherit typecheck_simple [|[`Bool; `Float; `String]|] [`Int]
 	method apply =
 	  bind_1item
 	    (function
@@ -436,7 +437,7 @@ let _ =
     (object
 	inherit classic "toFloat" 1 "float"
 	method path = path
-	inherit typecheck_simple [`Bool; `Int; `String] [`Float]
+	inherit typecheck_simple [| [`Bool; `Int; `String] |] [`Float]
 	method apply =
 	  bind_1item
 	    (function
@@ -456,7 +457,7 @@ let _ =
     (object
 	inherit classic "arrayLength" 1 "size"
 	method path = ["arrays"]
-	inherit typecheck_simple [`Array] [`Int]
+	inherit typecheck_simple [| [`Array] |] [`Int]
 	method apply =
 	  bind_1item
 	    (function
@@ -468,7 +469,7 @@ let _ =
     (object
 	inherit classic "objectKeys" 1 "keys"
 	method path = ["objects"]
-	inherit typecheck_simple [`Object] [`String]
+	inherit typecheck_simple [| [`Object] |] [`String]
 	method apply =
 	  bind_1item
 	    (function
@@ -479,7 +480,7 @@ let _ =
     (object
 	inherit classic "objectItems" 1 "items"
 	method path = ["objects"]
-	inherit typecheck_simple [`Object] [`Object]
+	inherit typecheck_simple [| [`Object] |] [`Object]
 	method apply =
 	  bind_1item
 	    (function
@@ -496,7 +497,7 @@ let _ =
 					  [Word (`Func "with keys")];
 					  [Kwd "}"]]
 	method path = ["objects"]
-	inherit typecheck_simple [`Array] [`Object]
+	inherit typecheck_simple [| [`Array]; [`Array] |] [`Object]
 	method apply =
 	  let rec aux = function
 	    | _, [] -> []
@@ -517,7 +518,7 @@ class aggreg name func (g_ins : typ list) (g_outs : typ list) (g : data -> data)
 object
   inherit classic name 1 func
   method path = ["aggregation"]
-  inherit typecheck_simple ~single:false g_ins g_outs
+  inherit typecheck_simple ~single:false [|g_ins|] g_outs
   method apply = function
     | [d1] -> g d1
     | _ -> raise Invalid_arity
@@ -635,7 +636,7 @@ let _ =
     (object
 	inherit classic "concatSep" 2 "concat_with_separator"
 	method path = ["aggregation"]
-	inherit typecheck_simple ~single:false [`Bool; `Int; `Float; `String] [`String]
+	inherit typecheck_simple ~single:false [| [`Bool; `Int; `Float; `String]; [`String] |] [`String]
 	method apply = function
 	  | [d1; d2] ->
 	     let sep =
@@ -653,7 +654,7 @@ let _ =
     (object
 	inherit classic "parseJSON" 1 "parseJSON"
 	method path = path
-	inherit typecheck_simple [`String] list_all_typs
+	inherit typecheck_simple [| [`String] |] list_all_typs
 	method apply =
 	  bind_1item
 	    (function
@@ -664,7 +665,7 @@ let _ =
     (object
 	inherit classic "parseText" 1 "parseText"
 	method path = path
-	inherit typecheck_simple [`String] [`Object]
+	inherit typecheck_simple [| [`String] |] [`Object]
 	method apply =
 	  bind_1item
 	    (function
@@ -675,7 +676,7 @@ let _ =
     (object
 	inherit classic "parseCSV" 1 "parseCSV"
 	method path = path
-	inherit typecheck_simple [`String] [`Object]
+	inherit typecheck_simple [| [`String] |] [`Object]
 	method apply =
 	  bind_1item
 	    (function
@@ -687,7 +688,7 @@ let _ =
 	inherit mixfix "parseCSVnoHeader" 1 [[Word (`Func "parseCSV"); Kwd "("];
 					     [Kwd ")"; Word (`Func "without header")]]
 	method path = path
-	inherit typecheck_simple [`String] [`Object]
+	inherit typecheck_simple [| [`String] |] [`Object]
 	method apply =
 	  bind_1item
 	    (function
@@ -698,7 +699,7 @@ let _ =
     (object
 	inherit classic "printJSON" 1 "printJSON"
 	method path = path
-	inherit typecheck_simple ~single:false list_all_typs [`Object]
+	inherit typecheck_simple ~single:false [|list_all_typs|] [`Object]
 	method apply =
 	  function
 	  | [d] ->
@@ -711,7 +712,7 @@ let _ =
     (object
 	inherit classic "printText" 1 "printText"
 	method path = path
-	inherit typecheck_simple ~single:false [`String] [`Object]
+	inherit typecheck_simple ~single:false [|[`String]|] [`Object]
 	method apply : data list -> data =
 	  function
 	  | [d] ->
@@ -724,7 +725,7 @@ let _ =
     (object
 	inherit classic "printCSV" 1 "printCSV"
 	method path = path
-	inherit typecheck_simple ~single:false [`Object; `Array] [`Object]
+	inherit typecheck_simple ~single:false [| [`Object; `Array] |] [`Object]
 	method apply =
 	  function
 	  | [d] ->
@@ -744,7 +745,7 @@ let _ =
 				     [Kwd ";"];
 				     [Kwd ")"]]
 	method path = path
-	inherit typecheck_simple ~single:false [`String] [`Object]
+	inherit typecheck_simple ~single:false [| [`String]; [`String]; [`Object] |] [`Object]
 	method apply = function
 	  | [d1;d2;d3] -> (* ids, types, properties *)
 	     let d1 =
@@ -774,7 +775,7 @@ let _ =
     (object
 	inherit classic "RDFlist" 1 "List"
 	method path = path
-	inherit typecheck_simple ~single:false list_all_typs [`Object]
+	inherit typecheck_simple ~single:false [|list_all_typs|] [`Object]
 	method apply = function
 	  | [d1] -> Seq.return (`Assoc ["@list", `List (Seq.to_list d1)])
 	  | _ -> Seq.empty
@@ -783,7 +784,7 @@ let _ =
     (object
 	inherit infix "PlainLiteral" "@"
 	method path = path
-	inherit typecheck_simple [`String] [`Object]
+	inherit typecheck_simple [| [`String]; [`String] |] [`Object]
 	method apply =
 	  bind_2items
 	    (function
@@ -801,7 +802,7 @@ let _ =
     (object
 	inherit infix "TypedLiteral" "^^"
 	method path = path
-	inherit typecheck_simple [`String] [`Object]
+	inherit typecheck_simple [| [`String]; [`String] |] [`Object]
 	method apply =
 	  bind_2items
 	    (function
@@ -819,7 +820,7 @@ let _ =
     (object
 	inherit classic "printTurtle" 1 "printTurtle"
 	method path = path
-	inherit typecheck_simple ~single:false [`Object] [`Object]
+	inherit typecheck_simple ~single:false [| [`Object] |] [`Object]
 	method apply = function
 	  | [d] ->
 	     let contents = Rdf.turtle_of_data d in

@@ -650,11 +650,11 @@ let syn_transf (library : #library) : transf -> syn = function
   | InsertOr -> syn_Or [[the_focus]; [ellipsis]]
   | InsertAnd -> syn_And [[the_focus]; [ellipsis]]
   | InsertNot -> syn_Not [the_focus]
-  | InsertFunc (func,arity) ->
+  | InsertFunc (func,arity,pos) ->
      syn_Call library func
-	      (if arity = 0
-	       then []
-	       else [the_focus] :: Focus.make_list (arity-1) [ellipsis])
+       (if arity = 0
+        then []
+	else Focus.make_list (pos-1) [ellipsis] @ [the_focus] :: Focus.make_list (arity-pos) [ellipsis])
   | InsertMap -> syn_Map [the_focus] [ellipsis]
   | InsertPred -> syn_Pred [the_focus] [ellipsis]
   | InsertDot -> syn_Dot [the_focus] [ellipsis]

@@ -64,6 +64,10 @@ type focus =
   | AtExpr of expr * expr_ctx
   | AtFlower of flower * flower_ctx
 
+let is_empty_focus = function
+  | AtExpr (Empty, _) -> true
+  | _ -> false
+              
 (* focus moves *)
 			   
 (* DERIVED *)
@@ -323,7 +327,7 @@ type transf =
   | InsertOr
   | InsertAnd
   | InsertNot
-  | InsertFunc of string * int (* name, arity *)
+  | InsertFunc of string * int * int (* name, arity, focus position in [1,arity] *)
   | InsertMap
   | InsertPred
   | InsertDot
@@ -378,7 +382,7 @@ let rec reaching_expr : expr -> transf list = function
   | Or le -> reaching_list reaching_expr [InsertOr] le
   | And le -> reaching_list reaching_expr [InsertAnd] le
   | Not e -> reaching_expr e @ [InsertNot]
-  | Call (func,le) -> InsertFunc (func, List.length le) :: reaching_list reaching_expr [FocusRight] le
+  | Call (func,le) -> InsertFunc (func, List.length le, 1) :: reaching_list reaching_expr [FocusRight] le
   | Map (e1,e2) -> reaching_expr e1 @ InsertMap :: reaching_expr e2 @ [FocusUp]
   | Pred (e1,e2) -> reaching_expr e1 @ InsertPred :: reaching_expr e2 @ [FocusUp]
   | Dot (e1,e2) -> reaching_expr e1 @ InsertDot :: reaching_expr e2 @ [FocusUp]
@@ -608,15 +612,24 @@ and apply_transf_expr = function
   | InsertNot, e, Not1 ctx -> Some (e,ctx)
   | InsertNot, e, ctx -> Some (Not e, ctx)
 
-  | InsertFunc (func,n), e, ctx ->
-     if n = 0 then
+  | InsertFunc (func,arity,pos), e, ctx ->
+     if arity = 0 then
        Some (Call (func, []), ctx)
-     else if e=Empty then
-       Some (e, CallX (func, ([],make_list (n-1) Empty), ctx))
-     else if n > 1 then
-       Some (Empty, CallX (func, ([e],make_list (n-2) Empty), ctx))
-     else Some (Call (func, [e]), ctx)
-
+     else if e=Empty then (* focus on pos-th arg *)
+       Some (e, CallX (func,
+                       (make_list (pos-1) Empty,
+                        make_list (arity-pos) Empty),
+                       ctx))
+     else if arity = 1 then (* focus on function call *)
+       Some (Call (func, [e]), ctx)
+     else if pos = 1 then (* focus on 2nd arg *)
+       Some (Empty, CallX (func, ([e], make_list (arity-2) Empty), ctx))
+     else (* focus on 1st arg, keeping [e] as pos-th arg *)
+       Some (Empty, CallX (func,
+                           ([],
+                            make_list (pos-2) Empty @ e :: make_list (arity-pos) Empty),
+                           ctx))
+    
   | InsertMap, e, ctx -> Some (Empty, Map2 (e, ctx))
   | InsertPred, e, ctx -> Some (Empty, Pred2 (e, ctx))
   | InsertDot, e, ctx -> Some (Empty, Dot2 (e, ctx))

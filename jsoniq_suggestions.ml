@@ -107,11 +107,18 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     add `Flower ~path:["iterations"] (InsertForVar2 (new input "", new input false));
     Jsoniq_functions.library#iter
       (fun func ->
-       if func#typecheck multiple_items focus_typs ctx_typs
-       then add `Op ~path:func#path (InsertFunc (func#name, func#arity)));
+        let name = func#name in
+        let arity = func#arity in
+        for pos = 1 to (if is_empty_focus foc then 1 else max 1 arity) do (* if arity=0, run at least for pos=1 *)
+          if func#typecheck pos multiple_items focus_typs ctx_typs
+          then add `Op ~path:func#path (InsertFunc (name, arity, pos))
+        done);
     List.iter
       (fun (name,args) ->
-       add `Op ~path:["defined functions"] (InsertFunc (name, List.length args)))
+        let arity = List.length args in
+        for pos = 1 to arity do
+          add `Op ~path:["defined functions"] (InsertFunc (name, arity, pos))
+        done)
       sem.Sem.annot#funcs;
     if Sem.TypSet.mem `Bool ctx_typs then (
       add `Flower ~path:["iterations"] (InsertExists (new input ""));
