@@ -67,7 +67,13 @@ let html_info_of_input (input : Jsoniq_syntax.input) : Html.input_info =
   | `FileString input ->
      Html.fileElt_info
        (fun fname_contents k -> input#set fname_contents; k ())
-      
+
+let html_of_suggestion ~input_dico sugg =
+  Html.syntax ~input_dico
+    ~html_of_word ~html_info_of_input
+    (Jsoniq_syntax.syn_transf Lis.library sugg)
+
+
 (* UI widgets *)
 			      
 let w_focus =
@@ -82,6 +88,13 @@ let w_suggestions : Jsoniq_suggestions.suggestion Widget_suggestions.widget =
 			   Html.syntax ~input_dico
 				       ~html_of_word ~html_info_of_input
 				       (Jsoniq_syntax.syn_transf Lis.library sugg))
+
+let w_commandline : Jsoniq_suggestions.suggestion Widget_commandline.widget =
+  new Widget_commandline.widget
+    ~id:"lis-commandline"
+    ~html_of_suggestion
+    ~score_of_suggestion:Jsoniq_command.score_of_suggestion
+    ~command_of_suggestion:Jsoniq_command.command_of_suggestion
 			     
 let w_results : (Jsoniq.var, Jsoniq.data) Widget_table.widget =
   new Widget_table.widget
@@ -153,11 +166,15 @@ let render_place place k =
     (fun suggestions ->
      Jsutils.firebug "suggestions#set_suggestions";
      w_suggestions#set_suggestions suggestions_cols suggestions;
-     w_suggestions#on_suggestion_selection
+     w_commandline#set_suggestions suggestions;
+     let suggestion_handler =
        (fun sugg ->
-	match place#activate sugg with
-	| Some p -> k ~push_in_history:true p
-	| None -> assert false))
+         w_commandline#selected_suggestion sugg;
+	 match place#activate sugg with
+	 | Some p -> k ~push_in_history:true p
+	 | None -> assert false) in
+     w_suggestions#on_suggestion_selection suggestion_handler;
+     w_commandline#on_suggestion_selection suggestion_handler)
 
 let error_message : exn -> string = function
   | Failure msg -> msg
