@@ -551,7 +551,28 @@ let rec list_switch x = function
      if x1 = x
      then lx1
      else x1::list_switch x lx1
-			  
+
+let init_func_input args =
+  let e = EObject (args |> List.map (fun arg -> (S arg, Var arg))) in
+  let f =
+    List.fold_right
+      (fun arg f -> For (Var arg, Item `Null, false, f))
+      args (Return e) in
+  Flower f
+
+let rec extend_func_input arg = function
+  | EObject l ->
+     EObject (l @ [S arg, Var arg])
+  | Flower f -> Flower (extend_func_input_flower arg f)
+  | e -> e
+and extend_func_input_flower arg = function
+  | For (Var x, e, opt, f) ->
+     For (Var x, e, opt, extend_func_input_flower arg f)
+  | Return e ->
+     For (Var arg, Item `Null, false, Return (extend_func_input arg e))
+  | f -> f
+  
+    
 let rec apply_transf (transf : transf) (foc : focus) : focus option =
   match transf with
   | FocusUp -> Option.map fst (focus_up foc)
@@ -657,17 +678,21 @@ and apply_transf_expr = function
 
   | InsertDefFunc1 in_sig, e, ctx ->
      let name, args = in_sig#get in
-     let e0 = EObject (args |> List.map (fun arg -> (S arg, Empty))) in
+     let e0 = init_func_input args in
      Some (e0, DefFunc0 (name, args, ctx, e, Empty))
   | InsertDefFunc2 in_sig, e, ctx ->
      let name, args = in_sig#get in
-     let e0 = EObject (args |> List.map (fun arg -> (S arg, Empty))) in
+     let e0 = init_func_input args in
      Some (e0, DefFunc0 (name, args, ctx, Empty, e))
-  | InsertArg in_x, DefFunc (name,args,inputs,e1,e2), ctx ->
-     let args = args @ [in_x#get] in
-     Some (DefFunc (name, args, inputs, e1, e2), ctx)
+  | InsertArg in_x, DefFunc (name,args,e0,e1,e2), ctx ->
+     let arg = in_x#get in
+     let args = args @ [arg] in
+     let e0 = extend_func_input arg e0 in
+     Some (DefFunc (name, args, e0, e1, e2), ctx)
   | InsertArg in_x, e0, DefFunc0 (name,args,ctx,e1,e2) ->
-     let args = args @ [in_x#get] in
+     let arg = in_x#get in
+     let args = args @ [arg] in
+     let e0 = extend_func_input arg e0 in
      Some (e0, DefFunc0 (name, args, ctx, e1, e2))
   | InsertArg _, _, _ -> None
 
