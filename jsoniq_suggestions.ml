@@ -61,6 +61,7 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     ) in
   let () =
     add `Val FocusUp;
+    add `Val FocusRight;
     add `Val InsertConcat1;
     add `Val InsertConcat2;
     List.iter
