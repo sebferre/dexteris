@@ -11,6 +11,8 @@ object
   method virtual arity : int
   method path : string list = []
   method virtual syntax : syn list -> syn
+  method virtual command : arg:int (* arg pos in [1,arity] *) -> string
+  method virtual command_score : arg:int -> string -> float
   method virtual typecheck : int (* arg pos *) -> bool (* multiple items *) -> TypSet.t (* arg types *) -> TypSet.t (* expected return types *) -> bool
   method virtual apply : data list -> data
 end
@@ -83,6 +85,27 @@ object
   inherit func name
   method arity = arity
   method syntax lxml = Jsoniq_syntax.syn_func func lxml
+  method command ~arg =
+    let args =
+      List.init arity (fun pos -> if pos+1 = arg then "_" else "?") in
+    Printf.sprintf "%s(%s)" name (String.concat ", " args)
+  method command_score ~arg:pos cmd =
+    Scanf.sscanf cmd "%s@(%[ ,?_]"
+      (fun s1 s2 ->
+        if s1=name
+        then
+          let args = String.split_on_char ',' s2 in
+          let args = List.rev_map String.trim args in
+          let args = match args with ""::l -> List.rev l | l -> List.rev l in
+          let next_p, ok =
+            List.fold_left
+              (fun (p,ok) arg ->
+                p+1, ok && (p=pos) = (arg="_"))
+              (1,true) args in
+          if ok && pos <= next_p && next_p - 1 <= arity
+          then 1.
+          else 0.
+        else 0.)
 end
 
 class virtual prefix name (op : string) =
@@ -92,6 +115,14 @@ object
   method syntax = function
     | [xml1] -> Kwd op :: xml1
     | _ -> raise Invalid_arity
+  method command ~arg =
+    assert (arg=1);
+    op ^ " _"
+  method command_score ~arg cmd =
+    assert (arg=1);
+    Scanf.sscanf cmd
+      (Scanf.format_from_string (op ^ " _") "")
+      1.0
 end
 	       
 class virtual infix name (op : string) =
@@ -101,6 +132,20 @@ object
   method syntax = function
     | [xml1; xml2] -> xml1 @ Kwd op :: xml2
     | _ -> raise Invalid_arity
+  method command ~arg =
+    if arg=1 then op
+    else if arg=2 then "? " ^ op
+    else assert false
+  method command_score ~arg cmd =
+    if arg=1 then
+      Scanf.sscanf cmd
+        (Scanf.format_from_string ("%_[_] " ^ op ^ " %_[?]%!") "")
+        1.
+    else if arg=2 then
+      Scanf.sscanf cmd
+        (Scanf.format_from_string ("? " ^ op ^ " %_[_]%!") "")
+        1.
+    else assert false
 end
 
 class virtual mixfix name arity (wds : syn list) =
@@ -116,6 +161,27 @@ object
       | wds, [] -> List.concat wds
     in
     aux (wds,lxml)
+  method command ~arg = (* TODO: specialize *)
+    let args =
+      List.init arity (fun pos -> if pos+1 = arg then "_" else "?") in
+    Printf.sprintf "%s(%s)" name (String.concat ", " args)
+  method command_score ~arg:pos cmd = (* TODO: specialize *)
+    Scanf.sscanf cmd "%s@(%[ ,?_]"
+      (fun s1 s2 ->
+        if s1=name
+        then
+          let args = String.split_on_char ',' s2 in
+          let args = List.rev_map String.trim args in
+          let args = match args with ""::l -> List.rev l | l -> List.rev l in
+          let next_p, ok =
+            List.fold_left
+              (fun (p,ok) arg ->
+                p+1, ok && (p=pos) = (arg="_"))
+              (1,true) args in
+          if ok && pos <= next_p && next_p - 1 <= arity
+          then 1.
+          else 0.
+        else 0.)
 end	  
   
 class typecheck_simple ?(single = true) (ar_f_ins : 't list array) (f_outs : 't list) =

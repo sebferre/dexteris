@@ -1,4 +1,5 @@
 
+module Lis = Jsoniq_lis
 
 let command_of_suggestion : Jsoniq_suggestions.suggestion -> string = function
   | FocusUp -> "up"
@@ -21,10 +22,16 @@ let command_of_suggestion : Jsoniq_suggestions.suggestion -> string = function
   | InsertOr -> "or"
   | InsertAnd -> "and"
   | InsertNot -> "not"
-  | InsertFunc (name,arity,arg) -> (* TODO: customize for operators *)
-     let args =
+  | InsertFunc (name,arity,arg) ->
+     (try
+        let func = Lis.library#lookup name in
+        if func#arity = arity
+        then func#command ~arg
+        else assert false
+      with Not_found -> assert false)
+(*     let args =
        List.init arity (fun pos -> if pos+1 = arg then "_" else "?") in
-     Printf.sprintf "%s(%s)" name (String.concat ", " args)
+     Printf.sprintf "%s(%s)" name (String.concat ", " args) *)
   | InsertMap -> "map"
   | InsertPred -> "filter"
   | InsertDot -> "."
@@ -97,11 +104,11 @@ let score_of_suggestion (sugg : Jsoniq_suggestions.suggestion) (cmd : string) : 
        Scanf.sscanf cmd "%F%!"
          (fun f -> in_f#set f; 1.)
     | InputString in_s ->
-       (try Scanf.sscanf cmd "%S%!"
-              (fun s -> in_s#set s; 1.)
-        with
+       Scanf.sscanf cmd "%S%!"
+         (fun s -> in_s#set s; 1.)
+(*        with
         | _ -> Scanf.sscanf cmd "%s"
-                 (fun s -> in_s#set s; 0.1))
+                 (fun s -> in_s#set s; 0.1)) *)
     | InputFileString _ -> 0.
     | InsertNull -> score_of_bool (cmd="null")
     | InsertConcat1 -> score_of_bool (cmd=";")
@@ -118,8 +125,14 @@ let score_of_suggestion (sugg : Jsoniq_suggestions.suggestion) (cmd : string) : 
     | InsertOr -> score_of_bool (cmd="or")
     | InsertAnd -> score_of_bool (cmd="and")
     | InsertNot -> score_of_bool (cmd="not")
-    | InsertFunc (name,arity,pos) -> (* TODO: customize operator syntax *)
-       Scanf.sscanf cmd "%s@(%[ ,?_]"
+    | InsertFunc (name,arity,arg) ->
+       (try
+          let func = Lis.library#lookup name in
+          if func#arity = arity
+          then func#command_score ~arg cmd
+          else 0.
+        with Not_found -> assert false)
+(*       Scanf.sscanf cmd "%s@(%[ ,?_]"
          (fun s1 s2 ->
            if s1=name
            then
@@ -134,7 +147,7 @@ let score_of_suggestion (sugg : Jsoniq_suggestions.suggestion) (cmd : string) : 
              if ok && pos <= next_p && next_p - 1 <= arity
              then 1.
              else 0.
-           else 0.)
+           else 0.) *)
     | InsertMap ->
        if cmd="!" then 1.
        else if cmd="map" then 0.9
