@@ -177,6 +177,11 @@ select {
     white-space: nowrap;
 }
 
+.commandline-input {
+    width: 100%;
+    margin-top: 5px;
+}
+
 #suggestions-body {
     padding: 5px 15px;
 }
@@ -190,7 +195,7 @@ select {
 }
 
 .list-suggestions {
-    height:300px;
+    height:335px;
     resize:vertical;
     overflow:auto;
     padding-top:0;

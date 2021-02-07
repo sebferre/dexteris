@@ -29,9 +29,9 @@ let command_of_suggestion : Jsoniq_suggestions.suggestion -> string = function
         then func#command ~arg
         else assert false
       with Not_found -> assert false)
-(*     let args =
-       List.init arity (fun pos -> if pos+1 = arg then "_" else "?") in
-     Printf.sprintf "%s(%s)" name (String.concat ", " args) *)
+(*        let args =
+          List.init arity (fun pos -> if pos+1 = arg then "_" else "?") in
+        Printf.sprintf "%s(%s)" name (String.concat ", " args) *)
   | InsertMap -> "map"
   | InsertPred -> "filter"
   | InsertDot -> "."
