@@ -113,7 +113,7 @@ object
   inherit func name
   method arity = 1
   method syntax = function
-    | [xml1] -> Kwd op :: xml1
+    | [xml1] -> Word (`Func op) :: xml1
     | _ -> raise Invalid_arity
   method command ~arg =
     assert (arg=1);
@@ -130,7 +130,7 @@ object
   inherit func name
   method arity = 2
   method syntax = function
-    | [xml1; xml2] -> xml1 @ Kwd op :: xml2
+    | [xml1; xml2] -> xml1 @ Word (`Func op) :: xml2
     | _ -> raise Invalid_arity
   method command ~arg =
     if arg=1 then op
@@ -148,7 +148,7 @@ object
     else assert false
 end
 
-class virtual mixfix name arity (wds : syn list) =
+class virtual mixfix name arity (wds : string list) =
 object
   inherit func name
   method arity = arity
@@ -156,11 +156,44 @@ object
     let rec aux = function
       | [], [] -> []
       | wd::wds, xml::lxml ->
-	 wd @ xml @ aux (wds,lxml)
+	 Word (`Func wd) :: xml @ aux (wds,lxml)
       | [], lxml -> List.concat lxml
-      | wds, [] -> List.concat wds
+      | wds, [] -> List.map (fun wd -> Word (`Func wd)) wds
     in
     aux (wds,lxml)
+  method command ~arg =
+    let rec aux pos wds =
+      let prefix, wds1 =
+        match wds with
+        | [] -> "", []
+        | wd::wds1 -> wd ^ " ", wds1 in
+      if pos <= arity
+      then
+        prefix
+        ^ (if arg <= pos then ""
+           else "? ")
+        ^ aux (pos+1) wds1
+      else String.concat " " wds
+    in
+    aux 1 wds
+  method command_score ~arg cmd =
+    let rec aux_fmt pos wds =
+      let prefix, wds1 =
+        match wds with
+        | [] -> "", []
+        | wd::wds1 -> (wd ^ " "), wds1 in
+      if pos <= arity
+      then
+        prefix
+        ^ (if pos<arg then "? "
+           else if pos=arg then "%_[_] "
+           else "%_[?] ")
+        ^ aux_fmt (pos+1) wds1
+      else String.concat " " wds ^ "%!"
+    in
+    let fmt = aux_fmt 1 wds in
+    Scanf.sscanf cmd (Scanf.format_from_string fmt "") 1.
+(*
   method command ~arg = (* TODO: specialize *)
     let args =
       List.init arity (fun pos -> if pos+1 = arg then "_" else "?") in
@@ -182,6 +215,7 @@ object
           then 1.
           else 0.
         else 0.)
+ *)
 end	  
   
 class typecheck_simple ?(single = true) (ar_f_ins : 't list array) (f_outs : 't list) =
@@ -408,8 +442,7 @@ let _ =
   
   library#register
     (object
-	inherit mixfix "split" 2 [[Word (`Func "split")];
-				  [Kwd "by"]]
+	inherit mixfix "split" 2 ["split"; "by"]
 	method path = path
 	inherit typecheck_simple [| [`String]; [`String] |] [`String]
 	method apply =
@@ -428,9 +461,7 @@ let _ =
       end);
   library#register
     (object
-	inherit mixfix "replace" 3 [[Kwd "in"];
-				    [Word (`Func "replace")];
-				    [Kwd "by"]]
+	inherit mixfix "replace" 3 ["in"; "replace"; "by"]
 	method path = path
 	inherit typecheck_simple [| [`String]; [`String]; [`String] |] [`String]
 	method apply =
@@ -559,9 +590,7 @@ let _ =
       end);
   library#register
     (object
-	inherit mixfix "objectOfArray" 2 [[Kwd "{"];
-					  [Word (`Func "with keys")];
-					  [Kwd "}"]]
+	inherit mixfix "objectOfArray" 2 ["{"; "with keys"; "}"]
 	method path = ["objects"]
 	inherit typecheck_simple [| [`Array]; [`Array] |] [`Object]
 	method apply =
@@ -751,8 +780,7 @@ let _ =
       end);
   library#register
     (object
-	inherit mixfix "parseCSVnoHeader" 1 [[Word (`Func "parseCSV"); Kwd "("];
-					     [Kwd ")"; Word (`Func "without header")]]
+	inherit mixfix "parseCSVnoHeader" 1 ["parseCSV("; ") without header"]
 	method path = path
 	inherit typecheck_simple [| [`String] |] [`Object]
 	method apply =
@@ -806,10 +834,7 @@ let _ =
   let path = ["RDF"] in
   library#register
     (object
-	inherit mixfix "RDFdescr" 3 [[Word (`Func "Descr"); Kwd "("];
-				     [Kwd "a"];
-				     [Kwd ";"];
-				     [Kwd ")"]]
+	inherit mixfix "RDFdescr" 3 ["Descr("; "a"; ";"; ")"]
 	method path = path
 	inherit typecheck_simple ~single:false [| [`String]; [`String]; [`Object] |] [`Object]
 	method apply = function
