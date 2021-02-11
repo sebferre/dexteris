@@ -1,7 +1,10 @@
 
-module Lis = Jsoniq_lis
+let command_of_func name arity arg =
+  let args =
+    List.init arity (fun pos -> if pos+1 = arg then "_" else "?") in
+  Printf.sprintf "%s(%s)" name (String.concat ", " args)
 
-let command_of_suggestion : Jsoniq_suggestions.suggestion -> string = function
+let command_of_suggestion library : Jsoniq_focus.transf -> string = function
   | FocusUp -> "up"
   | FocusRight -> "right"
   | Delete -> "del"
@@ -24,14 +27,11 @@ let command_of_suggestion : Jsoniq_suggestions.suggestion -> string = function
   | InsertNot -> "not"
   | InsertFunc (name,arity,arg) ->
      (try
-        let func = Lis.library#lookup name in
+        let func = library#lookup name in
         if func#arity = arity
         then func#command ~arg
         else assert false
-      with Not_found -> assert false)
-(*        let args =
-          List.init arity (fun pos -> if pos+1 = arg then "_" else "?") in
-        Printf.sprintf "%s(%s)" name (String.concat ", " args) *)
+      with _ -> command_of_func name arity arg)
   | InsertMap -> "map"
   | InsertPred -> "filter"
   | InsertDot -> "."
@@ -74,8 +74,26 @@ let command_of_suggestion : Jsoniq_suggestions.suggestion -> string = function
 
 let score_of_bool b =
   if b then 1. else 0.
-                         
-let score_of_suggestion (sugg : Jsoniq_suggestions.suggestion) (cmd : string) : float =
+
+let score_of_func name arity pos cmd =
+  Scanf.sscanf cmd "%s@(%[ ,?_]"
+    (fun s1 s2 ->
+      if s1=name
+      then
+        let args = String.split_on_char ',' s2 in
+        let args = List.rev_map String.trim args in
+        let args = match args with ""::l -> List.rev l | l -> List.rev l in
+        let next_p, ok =
+          List.fold_left
+            (fun (p,ok) arg ->
+              p+1, ok && (p=pos) = (arg="_"))
+            (1,true) args in
+        if ok && pos <= next_p && next_p - 1 <= arity
+        then 1.
+        else 0.
+      else 0.)
+  
+let score_of_suggestion library (sugg : Jsoniq_focus.transf) (cmd : string) : float =
   assert (cmd <> "");
   let cmd = String.trim cmd in
   if cmd="" then 0.
@@ -127,27 +145,11 @@ let score_of_suggestion (sugg : Jsoniq_suggestions.suggestion) (cmd : string) : 
     | InsertNot -> score_of_bool (cmd="not")
     | InsertFunc (name,arity,arg) ->
        (try
-          let func = Lis.library#lookup name in
+          let func = library#lookup name in
           if func#arity = arity
           then func#command_score ~arg cmd
           else 0.
-        with Not_found -> assert false)
-(*       Scanf.sscanf cmd "%s@(%[ ,?_]"
-         (fun s1 s2 ->
-           if s1=name
-           then
-             let args = String.split_on_char ',' s2 in
-             let args = List.rev_map String.trim args in
-             let args = match args with ""::l -> List.rev l | l -> List.rev l in
-             let next_p, ok =
-               List.fold_left
-                 (fun (p,ok) arg ->
-                   p+1, ok && (p=pos) = (arg="_"))
-                 (1,true) args in
-             if ok && pos <= next_p && next_p - 1 <= arity
-             then 1.
-             else 0.
-           else 0.) *)
+        with _ -> score_of_func name arity arg cmd)
     | InsertMap ->
        if cmd="!" then 1.
        else if cmd="map" then 0.9

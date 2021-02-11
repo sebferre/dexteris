@@ -24,7 +24,7 @@ let library =
     val ht : (string, func) Hashtbl.t = Hashtbl.create 101
     method register (func : func) : unit =
       Hashtbl.add ht func#name func
-    method lookup (name : string) : func (* raises Not_found *) =
+    method lookup (name : string) : func (* raises Unknown_function *) =
       try Hashtbl.find ht name
       with Not_found -> raise (Unknown_function name)
     method fold : 'a. ('a -> func -> 'a) -> 'a -> 'a =
@@ -84,28 +84,12 @@ class virtual classic name arity func =
 object
   inherit func name
   method arity = arity
-  method syntax lxml = Jsoniq_syntax.syn_func func lxml
+  method syntax lxml =
+    Jsoniq_syntax.syn_func func lxml
   method command ~arg =
-    let args =
-      List.init arity (fun pos -> if pos+1 = arg then "_" else "?") in
-    Printf.sprintf "%s(%s)" name (String.concat ", " args)
+    Jsoniq_command.command_of_func name arity arg
   method command_score ~arg:pos cmd =
-    Scanf.sscanf cmd "%s@(%[ ,?_]"
-      (fun s1 s2 ->
-        if s1=name
-        then
-          let args = String.split_on_char ',' s2 in
-          let args = List.rev_map String.trim args in
-          let args = match args with ""::l -> List.rev l | l -> List.rev l in
-          let next_p, ok =
-            List.fold_left
-              (fun (p,ok) arg ->
-                p+1, ok && (p=pos) = (arg="_"))
-              (1,true) args in
-          if ok && pos <= next_p && next_p - 1 <= arity
-          then 1.
-          else 0.
-        else 0.)
+    Jsoniq_command.score_of_func name arity pos cmd
 end
 
 class virtual prefix name (op : string) =

@@ -93,8 +93,8 @@ let w_commandline : Jsoniq_suggestions.suggestion Widget_commandline.widget =
   new Widget_commandline.widget
     ~id:"lis-commandline"
     ~html_of_suggestion
-    ~score_of_suggestion:Jsoniq_command.score_of_suggestion
-    ~command_of_suggestion:Jsoniq_command.command_of_suggestion
+    ~score_of_suggestion:(Jsoniq_command.score_of_suggestion Lis.library)
+    ~command_of_suggestion:(Jsoniq_command.command_of_suggestion Lis.library)
 			     
 let w_results : (Jsoniq.var, Jsoniq.data) Widget_table.widget =
   new Widget_table.widget
