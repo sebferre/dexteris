@@ -176,6 +176,30 @@ let render_place place k =
      w_suggestions#on_suggestion_selection suggestion_handler;
      w_commandline#on_suggestion_selection suggestion_handler)
 
+let handle_document_keydown ev place k =
+  let open Js_of_ocaml in
+  if not (Js.to_bool ev##.altKey) && not (Js.to_bool ev##.ctrlKey)
+  then
+    let foc = place#focus in
+    let push_in_history, new_foc_opt =
+      match ev##.keyCode with
+      | 37 (* ArrowLeft *) -> false, None
+      | 38 (* ArrowUp *) -> false,
+         ( match Jsoniq_focus.focus_up place#focus with
+           | None -> None
+           | Some (f,_) -> Some f )
+      | 39 (* ArrowRight *) -> false, Jsoniq_focus.focus_right foc
+      | 40 (* ArrowDown *) -> false, None
+      | 46 (* Delete *) -> true, Jsoniq_focus.delete foc
+      | _ -> true, None in
+    match new_foc_opt with
+    | None -> false
+    | Some new_foc ->
+       let new_place = new Jsoniq_lis.place place#lis new_foc in
+       k ~push_in_history new_place;
+       true
+  else false
+  
 let error_message : exn -> string = function
   | Failure msg -> msg
   | Jsoniq.TODO -> "some feature is not yet implemented"
@@ -190,4 +214,5 @@ let _ =
   Webapp.start
     ~make_lis
     ~render_place
+    ~handle_document_keydown
     ~error_message
