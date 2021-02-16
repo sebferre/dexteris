@@ -69,7 +69,7 @@ let is_empty_focus = function
   | _ -> false
               
 (* focus moves *)
-			   
+
 (* DERIVED *)
 let rec focus_up : focus -> (focus * path) option = function
   | AtExpr (e, Root) -> None
@@ -128,6 +128,7 @@ and focus_flower_up (f : flower) : flower_ctx -> focus * path = function
   | FIf2 (f1,ctx,f3) -> AtFlower (FIf (f1,f,f3), ctx), down_rights 1
   | FIf3 (f1,f2,ctx) -> AtFlower (FIf (f1,f2,f), ctx), down_rights 2
 
+(*
 (* DERIVED *)
 let rec focus_right : focus -> focus option = function
   | AtExpr (e, ctx) -> focus_expr_right e ctx
@@ -191,6 +192,73 @@ and focus_flower_right (f : flower) : flower_ctx -> focus option = function
   | FIf2 (f1,ctx,f3) -> Some (AtFlower (f3, FIf3 (f1,f,ctx)))
   | FIf3 (f1,f2,ctx) -> None
 
+(* DERIVED *)
+let rec focus_left : focus -> focus option = function
+  | AtExpr (e, ctx) -> focus_expr_left e ctx
+  | AtFlower (f, ctx) -> focus_flower_left f ctx
+and focus_expr_left (e : expr) : expr_ctx -> focus option = function
+  | Root -> None
+  | ConcatX ((e1::ll,rr),ctx) -> Some (AtExpr (e1, ConcatX ((ll,e::rr), ctx)))
+  | ConcatX (([],_),_) -> None
+  | Exists1 (x,ctx,e2) -> None
+  | Exists2 (x,e1,ctx) -> Some (AtExpr (e1, Exists1 (x,ctx,e)))
+  | ForAll1 (x,ctx,e2) -> None
+  | ForAll2 (x,e1,ctx) -> Some (AtExpr (e1, ForAll1 (x,ctx,e)))
+  | If1 (ctx,e2,e3) -> None
+  | If2 (e1,ctx,e3) -> Some (AtExpr (e1, If1 (ctx,e,e3)))
+  | If3 (e1,e2,ctx) -> Some (AtExpr (e2, If2 (e1,ctx,e)))
+  | OrX ((e1::ll,rr),ctx) -> Some (AtExpr (e1, OrX ((ll,e::rr),ctx)))
+  | OrX (([],_),_) -> None
+  | AndX ((e1::ll,rr),ctx) -> Some (AtExpr (e1, AndX ((ll,e::rr),ctx)))
+  | AndX (([],_),_) -> None
+  | Not1 ctx -> None
+  | CallX (func,(e1::ll,rr),ctx) -> Some (AtExpr (e1, CallX (func, (ll,e::rr), ctx)))
+  | CallX (_, ([],_), _) -> None
+  | Map1 (ctx,e2) -> None
+  | Map2 (e1,ctx) -> Some (AtExpr (e1, Map1 (ctx,e)))
+  | Pred1 (ctx,e2) -> None
+  | Pred2 (e1,ctx) -> Some (AtExpr (e1, Pred1 (ctx,e)))
+  | Dot1 (ctx,e2) -> None
+  | Dot2 (e1,ctx) -> Some (AtExpr (e1, Dot1 (ctx,e)))
+  | ArrayLookup1 (ctx,e2) -> None
+  | ArrayLookup2 (e1,ctx) -> Some (AtExpr (e1, ArrayLookup1 (ctx,e)))
+  | ArrayUnboxing1 ctx -> None
+  | EObjectX1 (((e3,e4)::ll,rr),ctx,e2) -> Some (AtExpr (e4, EObjectX2 ((ll,(e,e2)::rr),e3,ctx)))
+  | EObjectX1 (([],_),_,_) -> None
+  | EObjectX2 (ll_rr,e1,ctx) -> Some (AtExpr (e1, EObjectX1 (ll_rr,ctx,e)))
+  | Objectify1 ctx -> None
+  | Arrayify1 ctx -> None
+  | Let1 (x,ctx,e2) -> None
+  | Let2 (x,e1,ctx) -> Some (AtExpr (e1, Let1 (x,ctx,e)))
+  | DefFunc0 (name,args,ctx,e1,e2) -> None
+  | DefFunc1 (name,args,e0,ctx,e2) -> Some (AtExpr (e0, DefFunc0 (name,args,ctx,e,e2)))
+  | DefFunc2 (name,args,e0,e1,ctx) -> Some (AtExpr (e1, DefFunc1 (name,args,e0,ctx,e)))
+  | Return1 ctx -> None
+  | For1 (x,ctx,opt,f) -> None
+  | FLet1 (x,ctx,f) -> None
+  | Where1 (ctx,f) -> None
+  | OrderBy1X (((e1,o1)::ll,rr),ctx,o,f) -> Some (AtExpr (e1, OrderBy1X ((ll,(e,o)::rr),ctx,o1,f)))
+  | OrderBy1X (([],rr),ctx,o,f) -> None
+and focus_flower_left (f : flower) : flower_ctx -> focus option = function
+  | Flower1 ctx -> None
+  | For2 (x,e,opt,ctx) -> Some (AtExpr (e, For1 (x,ctx,opt,f)))
+  | FLet2 (x,e,ctx) -> Some (AtExpr (e, FLet1 (x,ctx,f)))
+  | Count1 (x,ctx) -> None
+  | Where2 (e,ctx) -> None
+  | GroupBy1 (lx,ctx) -> None
+  | Project1 (lx,ctx) -> None
+  | Slice1 (offset,limit,ctx) -> None
+  | OrderBy2 (leo,ctx) ->
+     ( match List.rev leo with
+       | [] -> None
+       | (e,o)::ll -> Some (AtExpr (e, OrderBy1X ((ll,[]),ctx,o,f))) )
+  | FConcatX ((f1::ll,rr),ctx) -> Some (AtFlower (f1, FConcatX ((ll,f::rr),ctx)))
+  | FConcatX (([],_),_) -> None
+  | FIf1 (ctx,f2,f3) -> None
+  | FIf2 (f1,ctx,f3) -> Some (AtFlower (f1, FIf1 (ctx,f,f3)))
+  | FIf3 (f1,f2,ctx) -> Some (AtFlower (f2, FIf2 (f1,ctx,f)))
+ *)
+                      
 let rec focus_next_Empty (foc : focus) : focus option = Some foc
 (*  match foc with
   | AtExpr (Empty, ctx) -> Some foc
@@ -206,7 +274,10 @@ let rec focus_next_Empty (foc : focus) : focus option = Some foc
 (* conversions between focus and (expr,path) *)
 			  
 (* DERIVED *)
-let rec focus_of_path_expr (ctx : expr_ctx) : path * expr -> focus = function
+let rec focus_of_path_focus path : focus -> focus (* raises Invalid_path *) = function
+  | AtExpr (e,ctx) -> focus_of_path_expr ctx (path,e)
+  | AtFlower (f,ctx) -> focus_of_path_flower ctx (path,f)
+and focus_of_path_expr (ctx : expr_ctx) : path * expr -> focus = function
   | [], e -> AtExpr (e,ctx)
   | DOWN::path, Concat le ->
      let path, ll_rr, x = list_focus_of_path_list path le in
@@ -284,6 +355,58 @@ let expr_path_of_focus (foc : focus) : expr * path =
 
 let focus_of_expr_path (e, path : expr * path) : focus =
   focus_of_path_expr Root (path,e)
+
+let focus_down (foc : focus) : focus option =
+  try Some (focus_of_path_focus [DOWN] foc)
+  with Invalid_path -> None
+    
+let focus_right (foc : focus) : focus option =
+  match focus_up foc with
+  | None -> None
+  | Some (foc',path') ->
+     try Some (focus_of_path_focus (path'@[RIGHT]) foc')
+     with Invalid_path -> None
+
+let focus_left (foc : focus) : focus option =
+  match focus_up foc with
+  | None -> None
+  | Some (foc',path') ->
+     match List.rev path' with
+     | [] -> None
+     | DOWN::_ -> None
+     | RIGHT::path'' ->
+        try Some (focus_of_path_focus path'' foc')
+        with Invalid_path -> None
+
+let rec focus_succ (foc : focus) : focus option =
+  match focus_down foc with
+  | Some foc' -> Some foc'
+  | None -> focus_succ_aux foc
+and focus_succ_aux foc =
+  match focus_right foc with
+  | Some foc' -> Some foc'
+  | None ->
+     match focus_up foc with
+     | Some (foc',_) -> focus_succ_aux foc'
+     | None -> None
+
+let rec focus_pred (foc : focus) : focus option =
+  match focus_left foc with
+  | Some foc' -> focus_pred_down_rightmost foc'
+  | None ->
+     match focus_up foc with
+     | Some (foc',_) -> Some foc'
+     | None -> None
+and focus_pred_down_rightmost foc =
+  match focus_down foc with
+  | None -> Some foc
+  | Some foc' -> focus_pred_rightmost foc'
+and focus_pred_rightmost foc =
+  match focus_right foc with
+  | Some foc' -> focus_pred_rightmost foc'
+  | None -> focus_pred_down_rightmost foc
+                           
+(* focus (de)serialization *)
 
 let focus_to_yojson (foc : focus) : Yojson.Safe.t =
   let e, path = expr_path_of_focus foc in

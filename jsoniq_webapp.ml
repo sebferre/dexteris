@@ -183,13 +183,13 @@ let handle_document_keydown ev place k =
     let foc = place#focus in
     let push_in_history, new_foc_opt =
       match ev##.keyCode with
-      | 37 (* ArrowLeft *) -> false, None
+      | 37 (* ArrowLeft *) -> false, Jsoniq_focus.focus_pred foc
       | 38 (* ArrowUp *) -> false,
          ( match Jsoniq_focus.focus_up place#focus with
            | None -> None
            | Some (f,_) -> Some f )
-      | 39 (* ArrowRight *) -> false, Jsoniq_focus.focus_right foc
-      | 40 (* ArrowDown *) -> false, None
+      | 39 (* ArrowRight *) -> false, Jsoniq_focus.focus_succ foc
+      | 40 (* ArrowDown *) -> false, Jsoniq_focus.focus_down foc
       | 46 (* Delete *) -> true, Jsoniq_focus.delete foc
       | _ -> true, None in
     match new_foc_opt with
