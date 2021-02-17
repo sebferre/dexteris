@@ -209,8 +209,8 @@ object
     not (single && multiple_items)
     && List.exists (fun t -> TypSet.mem t ins) f_ins
        (* there must be an input type that is expected by the function *)
-    && List.for_all (fun t -> TypSet.mem t outs) f_outs
-       (* and every possible output type must be allowed *)
+    && List.exists (fun t -> TypSet.mem t outs) f_outs
+       (* and some possible output type must be allowed *)
 end
   
 (* definition of functions *)
