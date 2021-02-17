@@ -115,6 +115,7 @@ let w_results : (Jsoniq.var, Jsoniq.data) Widget_table.widget =
 			  else contents in
 			Html.a
 			  (Jsutils.make_data_url mime contents)
+                          ~download:""
 			  mime
 			^ ("&nbsp;(" ^ string_of_int n ^ " chars)")
 			^ Html.pre contents_excerpt
