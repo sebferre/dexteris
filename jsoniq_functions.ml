@@ -80,16 +80,16 @@ let bind_3items (f : item * item * item -> data) (ld : data list) =
        | _ -> Seq.empty )
   | _ -> raise Invalid_arity
 
-class virtual classic name arity func =
+class virtual classic name arity display_name =
 object
   inherit func name
   method arity = arity
   method syntax lxml =
-    Jsoniq_syntax.syn_func func lxml
+    Jsoniq_syntax.syn_func display_name lxml
   method command ~arg =
-    Jsoniq_command.command_of_func name arity arg
+    Jsoniq_command.command_of_func display_name arity arg
   method command_score ~arg:pos cmd =
-    Jsoniq_command.score_of_func name arity pos cmd
+    Jsoniq_command.score_of_func display_name arity pos cmd
 end
 
 class virtual prefix name (op : string) =
