@@ -426,8 +426,11 @@ let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> res
 	       |> Seq.flat_map
 		    (function
 		      | (`Int n, _) ->
-			 (try Seq.return (List.nth li n, [])
-			  with _ -> Seq.empty)
+                         let l = List.length li in
+                         let pos = if n < 0 then l+n else n in
+                         if pos >= 0 && pos < l
+                         then Seq.return (List.nth li pos, [])
+			 else Seq.empty
 		      | _ -> Seq.empty)
 	    | _ -> Seq.empty)
   | ArrayUnboxing e ->
