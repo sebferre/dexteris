@@ -17,8 +17,10 @@ let command_of_suggestion library : Jsoniq_focus.transf -> string = function
   | InsertNull -> "null"
   | InsertConcat1 -> ";"
   | InsertConcat2 -> "; _"
-  | InsertExists in_x -> Printf.sprintf "some %s" in_x#get
-  | InsertForAll in_x -> Printf.sprintf "every %s" in_x#get
+  | InsertExists1 in_x -> Printf.sprintf "some %s" in_x#get
+  | InsertForAll1 in_x -> Printf.sprintf "every %s" in_x#get
+  | InsertExists2 in_x -> Printf.sprintf "some %s in ?" in_x#get
+  | InsertForAll2 in_x -> Printf.sprintf "every %s in ?" in_x#get
   | InsertIf1 -> "if"
   | InsertIf2 -> "then"
   | InsertIf3 -> "else"
@@ -131,11 +133,17 @@ let score_of_suggestion library (sugg : Jsoniq_focus.transf) (cmd : string) : fl
     | InsertNull -> score_of_bool (cmd="null")
     | InsertConcat1 -> score_of_bool (cmd=";")
     | InsertConcat2 -> score_of_bool (cmd="; _")
-    | InsertExists in_x ->
-       Scanf.sscanf cmd "some %[^()]%!"
+    | InsertExists1 in_x ->
+       Scanf.sscanf cmd "some %[^ ()]%!"
          (fun s -> in_x#set s; 1.)
-    | InsertForAll in_x ->
-       Scanf.sscanf cmd "every %[^()]%!"
+    | InsertForAll1 in_x ->
+       Scanf.sscanf cmd "every %[^ ()]%!"
+         (fun s -> in_x#set s; 1.)
+    | InsertExists2 in_x ->
+       Scanf.sscanf cmd "some %[^ ()] in ?%!"
+         (fun s -> in_x#set s; 1.)
+    | InsertForAll2 in_x ->
+       Scanf.sscanf cmd "every %[^ ()] in ?%!"
          (fun s -> in_x#set s; 1.)
     | InsertIf1 -> score_of_bool (cmd="if")
     | InsertIf2 -> score_of_bool (cmd="then")

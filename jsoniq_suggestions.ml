@@ -123,9 +123,11 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
         done)
       sem.Sem.annot#funcs;
     if Sem.TypSet.mem `Bool ctx_typs then (
-      add `Flower ~path:["iterations"] (InsertExists (new input ""));
-      add `Flower ~path:["iterations"] (InsertForAll (new input "")));
+      add `Flower ~path:["iterations"] (InsertExists1 (new input ""));
+      add `Flower ~path:["iterations"] (InsertForAll1 (new input "")));
     if Sem.TypSet.mem `Bool allowed_typs then (
+      add `Flower ~path:["iterations"] (InsertExists2 (new input ""));
+      add `Flower ~path:["iterations"] (InsertForAll2 (new input ""));
       add `Op ~path:["logic"] InsertOr;
       add `Op ~path:["logic"] InsertAnd;
       add `Op ~path:["logic"] InsertNot;

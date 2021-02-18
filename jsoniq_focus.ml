@@ -284,9 +284,9 @@ and focus_of_path_expr (ctx : expr_ctx) : path * expr -> focus = function
      focus_of_path_expr (ConcatX (ll_rr,ctx)) (path,x)
   | DOWN::path, Flower f -> focus_of_path_flower (Flower1 ctx) (path,f)
   | DOWN::RIGHT::path, Exists (x,e1,e2) -> focus_of_path_expr (Exists2 (x,e1,ctx)) (path,e2)
-  | DOWN::path, Exists (x,e1,e2) -> focus_of_path_expr (Exists1 (x,ctx,e1)) (path,e1)
+  | DOWN::path, Exists (x,e1,e2) -> focus_of_path_expr (Exists1 (x,ctx,e2)) (path,e1)
   | DOWN::RIGHT::path, ForAll (x,e1,e2) -> focus_of_path_expr (ForAll2 (x,e1,ctx)) (path,e2)
-  | DOWN::path, ForAll (x,e1,e2) -> focus_of_path_expr (ForAll1 (x,ctx,e1)) (path,e1)
+  | DOWN::path, ForAll (x,e1,e2) -> focus_of_path_expr (ForAll1 (x,ctx,e2)) (path,e1)
   | DOWN::RIGHT::RIGHT::path, If (e1,e2,e3) -> focus_of_path_expr (If3 (e1,e2,ctx)) (path,e3)
   | DOWN::RIGHT::path, If (e1,e2,e3) -> focus_of_path_expr (If2 (e1,ctx,e3)) (path,e2)
   | DOWN::path, If (e1,e2,e3) -> focus_of_path_expr (If1 (ctx,e2,e3)) (path,e1)
@@ -444,8 +444,10 @@ type transf =
   | InsertNull
   | InsertConcat1
   | InsertConcat2
-  | InsertExists of var input
-  | InsertForAll of var input
+  | InsertExists1 of var input
+  | InsertExists2 of var input
+  | InsertForAll1 of var input
+  | InsertForAll2 of var input
   | InsertIf1 | InsertIf2 | InsertIf3
   | InsertOr
   | InsertAnd
@@ -499,8 +501,8 @@ let rec reaching_expr : expr -> transf list = function
   | Empty -> [] (* the default value *)
   | Concat le -> reaching_list reaching_expr [InsertConcat1] le (* assuming |le| > 1 *)
   | Flower f -> reaching_flower f
-  | Exists (x,e1,e2) -> reaching_expr e1 @ InsertExists (new input x) :: reaching_expr e2 @ [FocusUp]
-  | ForAll (x,e1,e2) -> reaching_expr e1 @ InsertForAll (new input x) :: reaching_expr e2 @ [FocusUp]
+  | Exists (x,e1,e2) -> reaching_expr e1 @ InsertExists1 (new input x) :: reaching_expr e2 @ [FocusUp]
+  | ForAll (x,e1,e2) -> reaching_expr e1 @ InsertForAll1 (new input x) :: reaching_expr e2 @ [FocusUp]
   | If (e1,e2,e3) -> reaching_expr e1 @ InsertIf1 :: reaching_expr e2 @ FocusRight :: reaching_expr e3 @ [FocusUp]
   | Or le -> reaching_list reaching_expr [InsertOr] le
   | And le -> reaching_list reaching_expr [InsertAnd] le
@@ -735,10 +737,14 @@ and apply_transf_expr = function
   | InsertConcat2, Concat le, ctx -> Some (Empty, ConcatX (([],le), ctx))
   | InsertConcat2, e, ctx -> Some (Empty, ConcatX (([],[e]), ctx))
 
-  | InsertExists in_x, Empty, ctx -> Some (Empty, Exists1 (in_x#get,ctx,Empty))
-  | InsertExists in_x, e, ctx -> Some (Empty, Exists2 (in_x#get,e,ctx))
-  | InsertForAll in_x, Empty, ctx -> Some (Empty, ForAll1 (in_x#get,ctx,Empty))
-  | InsertForAll in_x, e, ctx -> Some (Empty, ForAll2 (in_x#get,e,ctx))
+  | InsertExists1 in_x, Empty, ctx -> Some (Empty, Exists1 (in_x#get,ctx,Empty))
+  | InsertExists1 in_x, e, ctx -> Some (Empty, Exists2 (in_x#get,e,ctx))
+  | InsertExists2 in_x, Empty, ctx -> None
+  | InsertExists2 in_x, e, ctx -> Some (Empty, Exists1 (in_x#get,ctx,e))
+  | InsertForAll1 in_x, Empty, ctx -> Some (Empty, ForAll1 (in_x#get,ctx,Empty))
+  | InsertForAll1 in_x, e, ctx -> Some (Empty, ForAll2 (in_x#get,e,ctx))
+  | InsertForAll2 in_x, Empty, ctx -> None
+  | InsertForAll2 in_x, e, ctx -> Some (Empty, ForAll1 (in_x#get,ctx,e))
 
   | InsertIf1, e, ctx -> Some (Empty, If2 (e,ctx,Empty))
   | InsertIf2, e, ctx -> Some (Empty, If1 (ctx,e,Empty))
