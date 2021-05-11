@@ -709,6 +709,18 @@ let _ =
 	      (0,0.) d in
 	  Seq.return (`Float (sum /. float count))));
   library#register
+    (new aggreg "reverse" "reverse" list_all_typs list_all_typs
+       (fun d -> Seq.from_list (Seq.to_rev_list d)));
+  library#register
+    (new aggreg "unique" "unique" list_all_typs list_all_typs
+       (fun d -> Seq.unique d));
+  library#register
+    (new aggreg "sort" "sort" list_all_typs list_all_typs
+       (fun d ->
+         Seq.from_list
+           (List.sort compare_item
+              (Seq.to_rev_list d))));
+  library#register
     (new aggreg "concat" "concat" [`Bool; `Int; `Float; `String] [`String]
 	 (fun d -> Seq.return (`String (string_of_data d))));
   library#register
