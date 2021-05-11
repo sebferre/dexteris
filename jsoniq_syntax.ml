@@ -209,7 +209,7 @@ and syn_expr library e ctx : syn =
        syn_Concat
 	 (List.map
 	    (fun (e,ll_rr) -> syn_expr library e (ConcatX (ll_rr,ctx)))
-	    (Focus.ctx_of_list le))
+	    (Focus.focus_list_of_list le))
     | Flower f ->
        syn_Flower (syn_flower library f (Flower1 ctx))
     | Exists (x,e1,e2) ->
@@ -228,12 +228,12 @@ and syn_expr library e ctx : syn =
        syn_Or
 	 (List.map
 	    (fun (e,ll_rr) -> syn_expr library e (OrX (ll_rr,ctx)))
-	    (Focus.ctx_of_list le))
+	    (Focus.focus_list_of_list le))
     | And le ->
        syn_And
 	 (List.map
 	    (fun (e,ll_rr) -> syn_expr library e (AndX (ll_rr,ctx)))
-	    (Focus.ctx_of_list le))
+	    (Focus.focus_list_of_list le))
     | Not e ->
        syn_Not (syn_expr library e (Not1 ctx))
     | Call (func,le) ->
@@ -241,7 +241,7 @@ and syn_expr library e ctx : syn =
 	 func
 	 (List.map
 	    (fun (e,ll_rr) -> syn_expr library e (CallX (func,ll_rr,ctx)))
-	    (Focus.ctx_of_list le))
+	    (Focus.focus_list_of_list le))
     | Map (e1,e2) ->
        syn_Map (syn_expr library e1 (Map1 (ctx,e2)))
 	       (syn_expr library e2 (Map2 (e1,ctx)))
@@ -266,7 +266,7 @@ and syn_expr library e ctx : syn =
 	     syn_pair
 	       (syn_expr library e1 (EObjectX1 (ll_rr,ctx,e2)))
 	       (syn_expr library e2 (EObjectX2 (ll_rr,e1,ctx))))
-	    (Focus.ctx_of_list pairs))
+	    (Focus.focus_list_of_list pairs))
     | Objectify e1 ->
        syn_Objectify (syn_expr library e1 (Objectify1 ctx))
     | Arrayify e1 ->
@@ -317,12 +317,12 @@ and syn_flower library f ctx : syn =
 		       syn_order
 			 (syn_expr library e (OrderBy1X (ll_rr,ctx,o,f1)))
 			 o)
-		      (Focus.ctx_of_list leo))
+		      (Focus.focus_list_of_list leo))
 		   (syn_flower library f1 (OrderBy2 (leo,ctx)))
     | FConcat lf ->
        syn_FConcat (List.map
 		      (fun (f,ll_rr) -> syn_flower library f (FConcatX (ll_rr,ctx)))
-		      (Focus.ctx_of_list lf))
+		      (Focus.focus_list_of_list lf))
     | FIf (f1,f2,f3) ->
        syn_FIf (syn_flower library f1 (FIf1 (ctx,f2,f3)))
 	       (syn_flower library f2 (FIf2 (f1,ctx,f3)))
@@ -597,7 +597,7 @@ and syn_flower_ctx library f ctx (xml_f : syn) : syn =
 		       (fun ((e,o),ll_rr) ->
 			syn_order (syn_expr library e (OrderBy1X (ll_rr,ctx,o,f)))
 				  o)
-		       (Focus.ctx_of_list leo))
+		       (Focus.focus_list_of_list leo))
 		    xml_f)
   | FConcatX (ll_rr,ctx) ->
      syn_flower_ctx library

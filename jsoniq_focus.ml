@@ -280,7 +280,7 @@ let rec focus_of_path_focus path : focus -> focus (* raises Invalid_path *) = fu
 and focus_of_path_expr (ctx : expr_ctx) : path * expr -> focus = function
   | [], e -> AtExpr (e,ctx)
   | DOWN::path, Concat le ->
-     let path, ll_rr, x = list_focus_of_path_list path le in
+     let path, (x, ll_rr) = list_focus_of_path_list path le in
      focus_of_path_expr (ConcatX (ll_rr,ctx)) (path,x)
   | DOWN::path, Flower f -> focus_of_path_flower (Flower1 ctx) (path,f)
   | DOWN::RIGHT::path, Exists (x,e1,e2) -> focus_of_path_expr (Exists2 (x,e1,ctx)) (path,e2)
@@ -291,14 +291,14 @@ and focus_of_path_expr (ctx : expr_ctx) : path * expr -> focus = function
   | DOWN::RIGHT::path, If (e1,e2,e3) -> focus_of_path_expr (If2 (e1,ctx,e3)) (path,e2)
   | DOWN::path, If (e1,e2,e3) -> focus_of_path_expr (If1 (ctx,e2,e3)) (path,e1)
   | DOWN::path, Or le ->
-     let path, ll_rr, x = list_focus_of_path_list path le in
+     let path, (x, ll_rr) = list_focus_of_path_list path le in
      focus_of_path_expr (OrX (ll_rr,ctx)) (path,x)
   | DOWN::path, And le ->
-     let path, ll_rr, x = list_focus_of_path_list path le in
+     let path, (x,ll_rr) = list_focus_of_path_list path le in
      focus_of_path_expr (AndX (ll_rr,ctx)) (path,x)
   | DOWN::path, Not e1 -> focus_of_path_expr (Not1 ctx) (path,e1)
   | DOWN::path, Call (f,le) ->
-     let path, ll_rr, x = list_focus_of_path_list path le in
+     let path, (x,ll_rr) = list_focus_of_path_list path le in
      focus_of_path_expr (CallX (f,ll_rr,ctx)) (path,x)
   | DOWN::RIGHT::path, Map (e1,e2) -> focus_of_path_expr (Map2 (e1,ctx)) (path,e2)
   | DOWN::path, Map (e1,e2) -> focus_of_path_expr (Map1 (ctx,e2)) (path,e1)
@@ -310,7 +310,7 @@ and focus_of_path_expr (ctx : expr_ctx) : path * expr -> focus = function
   | DOWN::path, ArrayLookup (e1,e2) -> focus_of_path_expr (ArrayLookup1 (ctx,e2)) (path,e1)
   | DOWN::path, ArrayUnboxing e1 -> focus_of_path_expr (ArrayUnboxing1 ctx) (path,e1)
   | DOWN::path, EObject pairs ->
-     let path, ll_rr, pair = list_focus_of_path_list path pairs in
+     let path, (pair, ll_rr) = list_focus_of_path_list path pairs in
      ( match path, pair with
        | DOWN::RIGHT::path, (e1,e2) -> focus_of_path_expr (EObjectX2 (ll_rr,e1,ctx)) (path,e2)
        | DOWN::path, (e1,e2) -> focus_of_path_expr (EObjectX1 (ll_rr,ctx,e2)) (path,e1)
@@ -335,10 +335,10 @@ and focus_of_path_flower (ctx : flower_ctx) : path * flower -> focus = function
   | DOWN::path, Where (e1,f) -> focus_of_path_expr (Where1 (ctx,f)) (path,e1)
   | DOWN::RIGHT::path, OrderBy (leo,f) -> focus_of_path_flower (OrderBy2 (leo,ctx)) (path,f)
   | DOWN::path, OrderBy (leo,f) ->
-     let path, ll_rr, (e,o) = list_focus_of_path_list path leo in
+     let path, ((e,o), ll_rr) = list_focus_of_path_list path leo in
      focus_of_path_expr (OrderBy1X (ll_rr,ctx,o,f)) (path,e)
   | DOWN::path, FConcat lf ->
-     let path, ll_rr, x = list_focus_of_path_list path lf in
+     let path, (x,ll_rr) = list_focus_of_path_list path lf in
      focus_of_path_flower (FConcatX (ll_rr,ctx)) (path,x)
   | DOWN::RIGHT::RIGHT::path, FIf (e1,e2,e3) -> focus_of_path_flower (FIf3 (e1,e2,ctx)) (path,e3)
   | DOWN::RIGHT::path, FIf (e1,e2,e3) -> focus_of_path_flower (FIf2 (e1,ctx,e3)) (path,e2)
