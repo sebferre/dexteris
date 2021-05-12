@@ -337,9 +337,9 @@ and syn_expr_ctx library e ctx (xml_e : syn) : syn =
      syn_expr_ctx library
        (Concat (Focus.list_of_ctx e ll_rr)) ctx
        (syn_Concat
-	  (Syntax.xml_list_ctx
-	     (fun e1 ll_rr1 -> syn_susp (syn_expr library e1 (ConcatX (ll_rr1,ctx))))
-	     e ll_rr xml_e))
+	  (Syntax.xml_list_focus
+	     (fun (e1,ll_rr1) -> syn_susp (syn_expr library e1 (ConcatX (ll_rr1,ctx))))
+	     (e,ll_rr) xml_e))
   | Exists1 (x,ctx,e2) ->
      syn_expr_ctx library
        (Exists (x,e,e2)) ctx
@@ -384,16 +384,16 @@ and syn_expr_ctx library e ctx (xml_e : syn) : syn =
      syn_expr_ctx library
        (Or (Focus.list_of_ctx e ll_rr)) ctx
        (syn_Or
-	  (Syntax.xml_list_ctx
-	     (fun e1 ll_rr1 -> syn_susp (syn_expr library e1 (OrX (ll_rr1,ctx))))
-	     e ll_rr xml_e))
+	  (Syntax.xml_list_focus
+	     (fun (e1,ll_rr1) -> syn_susp (syn_expr library e1 (OrX (ll_rr1,ctx))))
+	     (e,ll_rr) xml_e))
   | AndX (ll_rr,ctx) ->
      syn_expr_ctx library
        (And (Focus.list_of_ctx e ll_rr)) ctx
        (syn_And
-	  (Syntax.xml_list_ctx
-	     (fun e1 ll_rr1 -> syn_susp (syn_expr library e1 (AndX (ll_rr1,ctx))))
-	     e ll_rr xml_e))
+	  (Syntax.xml_list_focus
+	     (fun (e1,ll_rr1) -> syn_susp (syn_expr library e1 (AndX (ll_rr1,ctx))))
+	     (e,ll_rr) xml_e))
   | Not1 ctx ->
      syn_expr_ctx library
        (Not e) ctx
@@ -403,9 +403,9 @@ and syn_expr_ctx library e ctx (xml_e : syn) : syn =
        (Call (func, Focus.list_of_ctx e ll_rr)) ctx
        (syn_Call library
 	  func
-	  (Syntax.xml_list_ctx
-	     (fun e1 ll_rr1 -> syn_susp (syn_expr library e1 (CallX (func,ll_rr1,ctx))))
-	     e ll_rr xml_e))
+	  (Syntax.xml_list_focus
+	     (fun (e1,ll_rr1) -> syn_susp (syn_expr library e1 (CallX (func,ll_rr1,ctx))))
+	     (e,ll_rr) xml_e))
   | Map1 (ctx,e2) ->
      syn_expr_ctx library
        (Map (e,e2)) ctx
@@ -454,24 +454,24 @@ and syn_expr_ctx library e ctx (xml_e : syn) : syn =
      syn_expr_ctx library
        (EObject (Focus.list_of_ctx (e,e2) ll_rr)) ctx
        (syn_EObject
-	  (Syntax.xml_list_ctx
-	     (fun (e1,e2) ll_rr ->
+	  (Syntax.xml_list_focus
+	     (fun ((e1,e2), ll_rr) ->
 	      syn_susp (syn_pair
 			  (syn_expr library e1 (EObjectX1 (ll_rr,ctx,e2)))
 			  (syn_expr library e2 (EObjectX2 (ll_rr,e1,ctx)))))
-	     (e,e2) ll_rr
+	     ((e,e2), ll_rr)
 	     (syn_pair xml_e
 		       (syn_expr library e2 (EObjectX2 (ll_rr,e,ctx))))))
   | EObjectX2 (ll_rr,e1,ctx) ->
      syn_expr_ctx library
        (EObject (Focus.list_of_ctx (e1,e) ll_rr)) ctx
        (syn_EObject
-	  (Syntax.xml_list_ctx
-	     (fun (e1,e2) ll_rr ->
+	  (Syntax.xml_list_focus
+	     (fun ((e1,e2), ll_rr) ->
 	      syn_susp (syn_pair
 			  (syn_expr library e1 (EObjectX1 (ll_rr,ctx,e2)))
 			  (syn_expr library e2 (EObjectX2 (ll_rr,e1,ctx)))))
-	     (e1,e) ll_rr
+	     ((e1,e), ll_rr)
 	     (syn_pair (syn_expr library e1 (EObjectX1 (ll_rr,ctx,e)))
 		       xml_e)))
   | Objectify1 ctx ->
@@ -540,13 +540,13 @@ and syn_expr_ctx library e ctx (xml_e : syn) : syn =
   | OrderBy1X (ll_rr,ctx,o,f) ->
      syn_flower_ctx library
        (OrderBy (Focus.list_of_ctx (e,o) ll_rr, f)) ctx
-       (syn_OrderBy (Syntax.xml_list_ctx
-		       (fun (e,o) ll_rr ->
+       (syn_OrderBy (Syntax.xml_list_focus
+		       (fun ((e,o), ll_rr) ->
 			syn_susp
 			  (syn_order
 			     (syn_expr library e (OrderBy1X (ll_rr,ctx,o,f)))
 			     o))
-		       (e,o) ll_rr
+		       ((e,o), ll_rr)
 		       (syn_order xml_e o))
 		    (syn_susp (syn_flower library f (OrderBy2 (Focus.list_of_ctx (e,o) ll_rr, ctx)))))
 and syn_flower_ctx library f ctx (xml_f : syn) : syn =
@@ -603,9 +603,9 @@ and syn_flower_ctx library f ctx (xml_f : syn) : syn =
      syn_flower_ctx library
        (FConcat (Focus.list_of_ctx f ll_rr)) ctx
        (syn_FConcat
-	  (Syntax.xml_list_ctx
-	     (fun f1 ll_rr1 -> syn_susp (syn_flower library f1 (FConcatX (ll_rr1,ctx))))
-	     f ll_rr xml_f))
+	  (Syntax.xml_list_focus
+	     (fun (f1,ll_rr1) -> syn_susp (syn_flower library f1 (FConcatX (ll_rr1,ctx))))
+	     (f,ll_rr) xml_f))
   | FIf1 (ctx,f2,f3) ->
      syn_flower_ctx library
        (FIf (f,f2,f3)) ctx
