@@ -615,7 +615,7 @@ and eval_flower (library : #library) (funcs : funcs) (ctx : env Seq.t) : flower 
 	    dico_val#fold
 	      (fun env y y_vals ->
 	       (y, Seq.concat y_vals) :: env)
-	      env in
+	      (List.rev env) in (* solution environments are in reverse column order *)
 	  env::lenv)
 	 [] in
      let ctx = Seq.from_list lenv in
