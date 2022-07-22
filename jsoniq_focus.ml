@@ -472,6 +472,7 @@ type transf =
   | InsertContextEnv
   | InsertObject
   | InsertObjectField
+  | InsertEnvObject
   | InsertArray
   | InsertObjectify
   | InsertArrayify
@@ -525,6 +526,7 @@ let rec reaching_expr : expr -> transf list = function
   | ContextItem -> [InsertContextItem]
   | ContextEnv -> [InsertContextEnv]
   | EObject pairs -> InsertObject :: reaching_list reaching_pair [InsertObjectField] pairs
+  | EnvObject -> [InsertEnvObject]
   | Objectify e -> reaching_expr e @ [InsertObjectify]
   | Arrayify e -> reaching_expr e @ [InsertArrayify]
   | Let (Var x,e1,e2) -> reaching_expr e1 @ InsertLetVar1 (new input x) :: reaching_expr e2 @ [FocusUp]
@@ -743,8 +745,11 @@ and apply_transf_expr = function
   | InputString in_s, _, ctx -> Some (Item (`String in_s#get), ctx)
   | InputFileString in_file, _, ctx ->
      let filename, contents = in_file#get in
+     (*if Filename.check_suffix filename ".csv" then
+       Some (Empty, Return1 (For2 (Fields, Call ("parseCSV", [FileString (filename, contents)]), false, Flower1 (CallX ("printCSV", ([], []), ctx)))))
+     else*)
      Some (FileString (filename, contents), ctx)
-     
+
   | InsertNull, _, ctx -> Some (Item `Null, ctx)
 
   | InsertConcat1, e, EObjectX1 ((ll,rr), ctx, e2) -> Some (Empty, EObjectX1 (((e,e2)::ll,rr), ctx, Empty))
@@ -822,6 +827,7 @@ and apply_transf_expr = function
   | InsertObjectField, e1, EObjectX1 ((ll,rr), ctx, e2) -> Some (Empty, EObjectX1 (((e1,e2)::ll,rr), ctx, Empty))
   | InsertObjectField, e2, EObjectX2 ((ll,rr), e1, ctx) -> Some (Empty, EObjectX1 (((e1,e2)::ll,rr), ctx, Empty))
   | InsertObjectField, _, _ -> None
+  | InsertEnvObject, _, ctx -> Some (EnvObject, ctx)
   | InsertArray, Empty, ctx -> Some (Empty, Arrayify1 ctx)
   | InsertArray, _, _ -> None
   | InsertObjectify, e, ctx -> Some (Objectify e, ctx)

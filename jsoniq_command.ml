@@ -45,6 +45,7 @@ let command_of_suggestion library : Jsoniq_focus.transf -> string = function
   | InsertContextEnv -> ""
   | InsertObject -> "{"
   | InsertObjectField -> ":"
+  | InsertEnvObject -> "{*}"
   | InsertArray -> "["
   | InsertObjectify -> "{_}"
   | InsertArrayify -> "[_]"
@@ -187,6 +188,8 @@ let score_of_suggestion library (sugg : Jsoniq_focus.transf) (cmd : string) : fl
        else Scanf.sscanf cmd "{ %_[?] }%!" 1.
     | InsertObjectField ->
        Scanf.sscanf cmd "%_[?] : %_[?]%!" 1.
+    | InsertEnvObject ->
+       Scanf.sscanf cmd "{ * }%!" 1.
     | InsertArray ->
        if cmd="[" then 1.
        else if cmd<>"[]" then Scanf.sscanf cmd "[ %_[?] ]%!" 1.

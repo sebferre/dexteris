@@ -138,6 +138,8 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       add `Val ~path:["objects"] InsertObject;
     (*add `Val InsertContextEnv*));
     add `Val ~path:["objects"] InsertObjectField;
+    if extent.Sem.vars <> [] then (
+      add `Val ~path:["objects"] InsertEnvObject);
     if Sem.TypSet.mem `Object allowed_typs then (
       add `Op ~path:["objects"] InsertDot;
       add `Val ~path:["objects"] InsertObjectify);

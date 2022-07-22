@@ -137,6 +137,7 @@ type expr =
   | ContextItem
   | ContextEnv
   | EObject of (expr * expr) list
+  | EnvObject (* object from current env *)
   | Objectify of expr
   | Arrayify of expr
   | Let of binder * expr * expr
@@ -461,6 +462,20 @@ let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> res
 	       | li -> (key, `List li)::pairs )
 	  | _ -> raise (TypeError "string expected for object fields"))
 	 lkv [] in
+     Seq.return (`Assoc pairs, [])
+  | EnvObject ->
+     let pairs =
+       List.fold_left
+         (fun pairs (x,d) ->
+           if is_var_position x
+           then pairs
+           else
+             match Seq.to_list d with
+             | [] -> pairs
+             | [`Null] -> pairs
+             | [i] -> (x,i)::pairs
+             | li -> (x, `List li)::pairs)
+         [] env in
      Seq.return (`Assoc pairs, [])
   | Objectify e -> (* behaves like JSONiq/accumulates function *)
      let dico = new dico in

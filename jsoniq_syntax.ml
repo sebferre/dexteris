@@ -129,6 +129,8 @@ let syn_EObject xml_pairs : syn =
   | [] -> [Kwd "{ }"]
   | [xml_pair] -> [Quote ("{ ", xml_pair, " }")]
   | _ -> [Quote ("{", [Indent [Block xml_pairs]], "}")]
+let syn_EnvObject : syn =
+  [Kwd "{ * }"]
 let syn_Objectify xml1 : syn =
   [Quote ("{| ", xml1, " |}")]
 let syn_Arrayify xml1 : syn =
@@ -267,6 +269,7 @@ and syn_expr library e ctx : syn =
 	       (syn_expr library e1 (EObjectX1 (ll_rr,ctx,e2)))
 	       (syn_expr library e2 (EObjectX2 (ll_rr,e1,ctx))))
 	    (Focus.focus_list_of_list pairs))
+    | EnvObject -> syn_EnvObject
     | Objectify e1 ->
        syn_Objectify (syn_expr library e1 (Objectify1 ctx))
     | Arrayify e1 ->
@@ -668,6 +671,7 @@ let syn_transf (library : #library) : transf -> syn = function
   | InsertContextEnv -> syn_ContextEnv
   | InsertObject -> syn_EObject [syn_pair [ellipsis] [the_focus]]
   | InsertObjectField -> syn_pair [ellipsis] [ellipsis]
+  | InsertEnvObject -> syn_EnvObject
   | InsertArray -> syn_Arrayify [ellipsis]
   | InsertObjectify -> syn_Objectify [the_focus]
   | InsertArrayify -> syn_Arrayify [the_focus]
