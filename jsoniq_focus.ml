@@ -449,6 +449,7 @@ type transf =
   | InputFloat of float input
   | InputString of string input
   | InputFileString of (string * string) input
+  | InputFileTable of (string * string) input (* input file as table *)
   | InsertNull
   | InsertConcat1
   | InsertConcat2
@@ -745,10 +746,12 @@ and apply_transf_expr = function
   | InputString in_s, _, ctx -> Some (Item (`String in_s#get), ctx)
   | InputFileString in_file, _, ctx ->
      let filename, contents = in_file#get in
-     (*if Filename.check_suffix filename ".csv" then
-       Some (Empty, Return1 (For2 (Fields, Call ("parseCSV", [FileString (filename, contents)]), false, Flower1 (CallX ("printCSV", ([], []), ctx)))))
-     else*)
      Some (FileString (filename, contents), ctx)
+  | InputFileTable in_file, _, ctx ->
+     let filename, contents = in_file#get in
+     if filename = "" || Filename.check_suffix filename ".csv" then
+       Some (EnvObject, Return1 (For2 (Fields, Call ("parseCSV", [FileString (filename, contents)]), false, Flower1 (CallX ("printCSV", ([], []), ctx)))))
+     else None
 
   | InsertNull, _, ctx -> Some (Item `Null, ctx)
 

@@ -89,11 +89,11 @@ let expr_bind_in (x : var) e1 e = Flower (For (Var x,e1,false, flower_of_expr e)
 let rec sem_focus (foc : focus) : sem =
   let annot = new annot in
   match foc with
-  | AtExpr (e,ctx) ->
+  | AtExpr (e,ctx) -> (* TODO: get var name in ctx if any *)
      let e' = Let (Var field_focus, e, ContextEnv) in
      sem_expr_ctx annot e e' ctx
   | AtFlower (f,ctx) ->
-     let f' = Return (Let (Var field_focus, expr_of_flower f, ContextEnv)) in
+     let f' = Return (* ContextEnv *) (Let (Var field_focus, expr_of_flower f, ContextEnv)) in
      sem_flower_ctx annot f f' ctx
 and sem_expr_ctx annot e e' : expr_ctx -> sem = function
   | Root ->

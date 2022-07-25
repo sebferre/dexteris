@@ -642,6 +642,7 @@ let syn_transf (library : #library) : transf -> syn = function
   | InputFloat i -> [Kwd "a"; Kwd "float"; Input (`Float i)]
   | InputString i -> [Kwd "a"; Kwd "string"; Input (`String i)]
   | InputFileString i -> [Kwd "a"; Kwd "file"; Kwd "contents"; Input (`FileString i)]
+  | InputFileTable i -> [Kwd "tabular data (csv)"; Input (`FileString i)]
   | InsertNull -> [Kwd "null"]
   | InsertConcat1 -> syn_Concat [[the_focus]; [ellipsis]]
   | InsertConcat2 -> syn_Concat [[ellipsis]; [the_focus]]

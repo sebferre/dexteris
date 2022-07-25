@@ -85,8 +85,9 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       add `Val ~path:[] (InputFloat (new input 0.));
     if Sem.TypSet.mem `String ctx_typs then
       add `Val ~path:[] (InputString (new input ""));
-    if Sem.TypSet.mem `String ctx_typs then
+    if Sem.TypSet.mem `String ctx_typs then (
       add `Val ~path:[] (InputFileString (new input ("","")));
+      add `Val ~path:[] (InputFileTable (new input ("",""))));
     if Sem.TypSet.mem `Bool ctx_typs then (
       add `Val ~path:[] (InsertBool false);
       add `Val ~path:[] (InsertBool true)

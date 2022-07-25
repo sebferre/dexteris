@@ -14,6 +14,7 @@ let command_of_suggestion library : Jsoniq_focus.transf -> string = function
   | InputFloat in_f -> string_of_float in_f#get
   | InputString in_s -> Printf.sprintf "%S" in_s#get
   | InputFileString _ -> "" (* no command for that *)
+  | InputFileTable _ -> "" (* no command for that *)
   | InsertNull -> "null"
   | InsertConcat1 -> ";"
   | InsertConcat2 -> "; _"
@@ -131,6 +132,7 @@ let score_of_suggestion library (sugg : Jsoniq_focus.transf) (cmd : string) : fl
         | _ -> Scanf.sscanf cmd "%s"
                  (fun s -> in_s#set s; 0.1)) *)
     | InputFileString _ -> 0.
+    | InputFileTable _ -> 0.
     | InsertNull -> score_of_bool (cmd="null")
     | InsertConcat1 -> score_of_bool (cmd=";")
     | InsertConcat2 -> score_of_bool (cmd="; _")
