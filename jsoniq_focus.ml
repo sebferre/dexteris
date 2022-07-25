@@ -67,7 +67,24 @@ type focus =
 let is_empty_focus = function
   | AtExpr (Empty, _) -> true
   | _ -> false
-              
+
+let rec var_of_focus : focus -> var option = function
+  | AtExpr (e,ctx) -> var_of_expr_ctx ctx
+  | AtFlower (f,ctx) -> var_of_flower_ctx ctx
+and var_of_expr_ctx = function
+  | Exists1 (x,_,_) -> Some x
+  | ForAll1 (x,_,_) -> Some x
+  | If2 (_,ctx2,_) -> var_of_expr_ctx ctx2
+  | If3 (_,_,ctx2) -> var_of_expr_ctx ctx2
+  | Pred1 (ctx2,_) -> var_of_expr_ctx ctx2
+  | Let1 (Var x,_,_) -> Some x
+  | Let2 (_,_,ctx2) -> var_of_expr_ctx ctx2
+  | For1 (Var x,_,_,_) -> Some x
+  | FLet1 (Var x,_,_) -> Some x
+  | _ -> None
+and var_of_flower_ctx = function
+  | _ -> None
+       
 (* focus moves *)
 
 (* DERIVED *)

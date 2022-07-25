@@ -97,12 +97,12 @@ let w_commandline : Jsoniq_suggestions.suggestion Widget_commandline.widget =
     ~score_of_suggestion:(Jsoniq_command.score_of_suggestion Lis.library)
     ~command_of_suggestion:(Jsoniq_command.command_of_suggestion Lis.library)
 			     
-let w_results : (Jsoniq.var, Jsoniq.data) Widget_table.widget =
+let w_results : (Jsoniq.var, bool, Jsoniq.data) Widget_table.widget =
   new Widget_table.widget
       ~id:"lis-results"
-      ~html_of_column:(fun x ->
+      ~html_of_column:(fun (x,on_focus) ->
 		       let classe_opt =
-			 if x = Jsoniq_semantics.field_focus
+			 if on_focus
 			 then Some "highlighted"
 			 else None in
 		       None, classe_opt, None, html_of_var x)
@@ -159,8 +159,11 @@ let render_place place k =
      Jsutils.firebug "ext computed";
      let limit = 20 in (* TODO: add widget for that *)
      let visible_vars =
-       List.filter (* filtering out position vars for legibility *)
-	 (fun x -> not (Jsoniq.is_var_position x))
+       List.filter_map (* filtering out position vars for legibility *)
+	 (fun x ->
+           if Jsoniq.is_var_position x
+           then None
+           else Some (x, (x = ext.Jsoniq_semantics.focus_var)))
 	 ext.Jsoniq_semantics.vars in
      let l_bindings, _ = Seq.take limit ext.Jsoniq_semantics.bindings in
      Jsutils.firebug "results#set_contents";

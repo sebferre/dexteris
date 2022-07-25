@@ -30,6 +30,8 @@ let sem_to_expr sem =
   { sem with expr = expr_of_flower sem.expr }
  *)
 		  
+let field_focus = "@focus"
+
 class annot =
   object
     val mutable funcs : (string * var list) list = [] (* defined functions in scope *)
@@ -50,11 +52,13 @@ class annot =
 	typ_to_be_defined <- false
       )
     method allows_any_type : bool = not typ_to_be_defined
+
+    val mutable focus_var : var = field_focus
+    method set_focus_var (x : var) = focus_var <- x
+    method focus_var : var = focus_var
   end
 
 type sem = { annot : annot; expr : expr }
-
-let field_focus = "@focus"
 
 let expr_bind_in (x : var) e1 e = Flower (For (Var x,e1,false, flower_of_expr e))
 
@@ -88,12 +92,17 @@ let expr_bind_in (x : var) e1 e = Flower (For (Var x,e1,false, flower_of_expr e)
 	 
 let rec sem_focus (foc : focus) : sem =
   let annot = new annot in
+  let focus_var =
+    match var_of_focus foc with
+    | Some x -> x
+    | None -> field_focus in
+  annot#set_focus_var focus_var;
   match foc with
-  | AtExpr (e,ctx) -> (* TODO: get var name in ctx if any *)
-     let e' = Let (Var field_focus, e, ContextEnv) in
+  | AtExpr (e,ctx) ->
+     let e' = Let (Var focus_var, e, ContextEnv) in
      sem_expr_ctx annot e e' ctx
   | AtFlower (f,ctx) ->
-     let f' = Return (* ContextEnv *) (Let (Var field_focus, expr_of_flower f, ContextEnv)) in
+     let f' = Return (Let (Var focus_var, expr_of_flower f, ContextEnv)) in
      sem_flower_ctx annot f f' ctx
 and sem_expr_ctx annot e e' : expr_ctx -> sem = function
   | Root ->
@@ -275,13 +284,14 @@ and sem_flower_ctx annot f f' : flower_ctx -> sem = function
      let f = FIf (f1,f2,f) in
      sem_flower_ctx annot f (FIf (f1,Return Empty,f')) ctx
 
-type extent = { vars : var list; bindings : env Seq.t }
+type extent = { vars : var list; focus_var : var; bindings : env Seq.t }
 
 let extent (library : #Jsoniq.library) (sem : sem) : extent =
+  let focus_var = sem.annot#focus_var in
   let res = eval_expr library [] [] sem.expr in
   let bindings = Seq.map (fun (_,env) -> env) res in
   let vars =
     match Seq.hd_opt bindings with
     | None -> []
     | Some binding -> List.rev_map fst binding in
-  { vars; bindings }
+  { vars; focus_var; bindings }
