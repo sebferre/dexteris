@@ -64,8 +64,9 @@ let html_info_of_input (input : Jsoniq_syntax.input) : Html.input_info =
      Html.selectElt_info
        values
        (fun x k -> input#set x; k ())
-  | `FileString input ->
+  | `FileString (accept,input) ->
      Html.fileElt_info
+       accept
        (fun fname_contents k -> input#set fname_contents; k ())
 
 let html_of_suggestion ~input_dico sugg =

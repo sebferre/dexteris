@@ -11,7 +11,7 @@ type input = [ `Int of int Focus.input
 	     | `Ident of string Focus.input
 	     | `FuncSig of (string * string list) Focus.input
 	     | `Select of string list * string Focus.input
-	     | `FileString of (string * string) Focus.input ]
+	     | `FileString of string option (* accept *) * (string * string) Focus.input ]
 
 type syn = (word,input,focus) xml
 
@@ -641,8 +641,8 @@ let syn_transf (library : #library) : transf -> syn = function
   | InputRange (i1,i2) -> Kwd "a" :: Kwd "range" :: Kwd "from " :: library#syntax "range" [[Input (`Int i1)]; [Input (`Int i2)]]
   | InputFloat i -> [Kwd "a"; Kwd "float"; Input (`Float i)]
   | InputString i -> [Kwd "a"; Kwd "string"; Input (`String i)]
-  | InputFileString i -> [Kwd "a"; Kwd "file"; Kwd "contents"; Input (`FileString i)]
-  | InputFileTable i -> [Kwd "tabular data (csv)"; Input (`FileString i)]
+  | InputFileString i -> [Kwd "a"; Kwd "file"; Kwd "contents"; Input (`FileString (None, i))]
+  | InputFileTable i -> [Kwd "tabular data (csv)"; Input (`FileString (Some ".csv", i))]
   | InsertNull -> [Kwd "null"]
   | InsertConcat1 -> syn_Concat [[the_focus]; [ellipsis]]
   | InsertConcat2 -> syn_Concat [[ellipsis]; [the_focus]]
