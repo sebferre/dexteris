@@ -261,9 +261,9 @@ and sem_flower_ctx annot f f' : flower_ctx -> sem = function
   | GroupBy1 (lx,ctx) ->
      let f = GroupBy (lx,f) in
      sem_flower_ctx annot f (GroupBy (lx,f')) ctx
-  | Project1 (lx,ctx) ->
-     let f = Project (lx,f) in
-     sem_flower_ctx annot f (Project (lx,f')) ctx
+  | Hide1 (lx,ctx) ->
+     let f = Hide (lx,f) in
+     sem_flower_ctx annot f (Hide (lx,f')) ctx
   | Slice1 (o,l,ctx) ->
      let f = Slice (o,l,f) in
      sem_flower_ctx annot f (Slice (o,l,f')) ctx

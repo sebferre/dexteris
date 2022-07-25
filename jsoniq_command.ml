@@ -67,7 +67,7 @@ let command_of_suggestion library : Jsoniq_focus.transf -> string = function
   | InsertWhere1 -> "where"
   | InsertWhere2 -> "where ?"
   | InsertGroupBy (lx,in_x) -> Printf.sprintf "group by %s" in_x#get
-  | InsertProject (lx,in_x) -> Printf.sprintf "project on %s" in_x#get
+  | InsertHide (_lx,in_x) -> Printf.sprintf "hide %s" in_x#get
   | InsertSlice (in_offset,in_limit) ->
      let offset, limit = in_offset#get, in_limit#get in
      if offset = 0
@@ -252,8 +252,8 @@ let score_of_suggestion library (sugg : Jsoniq_focus.transf) (cmd : string) : fl
     | InsertGroupBy (lx,in_x) ->
        Scanf.sscanf cmd "group by %s"
          (fun s -> if List.mem s lx then (in_x#set s; 1.) else 0.)
-    | InsertProject (lx,in_x) ->
-       Scanf.sscanf cmd "project on %s"
+    | InsertHide (lx,in_x) ->
+       Scanf.sscanf cmd "hide %s"
          (fun s -> if List.mem s lx then (in_x#set s; 1.) else 0.)
     | InsertSlice (in_offset,in_limit) ->
        (try Scanf.sscanf cmd "limit %d%!"

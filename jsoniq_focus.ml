@@ -51,7 +51,7 @@ and flower_ctx =
   | Count1 of var * flower_ctx
   | Where2 of expr * flower_ctx
   | GroupBy1 of var list * flower_ctx
-  | Project1 of var list * flower_ctx
+  | Hide1 of var list * flower_ctx
   | Slice1 of int * int option * flower_ctx
   | OrderBy2 of (expr * order) list * flower_ctx
   | FConcatX of flower list_ctx * flower_ctx
@@ -137,7 +137,7 @@ and focus_flower_up (f : flower) : flower_ctx -> focus * path = function
   | Count1 (x,ctx) -> AtFlower (Count (x,f), ctx), down_rights 0
   | Where2 (e,ctx) -> AtFlower (Where (e,f), ctx), down_rights 1
   | GroupBy1 (lx,ctx) -> AtFlower (GroupBy (lx,f), ctx), down_rights 0
-  | Project1 (lx,ctx) -> AtFlower (Project (lx,f), ctx), down_rights 0
+  | Hide1 (lx,ctx) -> AtFlower (Hide (lx,f), ctx), down_rights 0
   | Slice1 (offset,limit,ctx) -> AtFlower (Slice (offset,limit,f), ctx), down_rights 0 
   | OrderBy2 (leo,ctx) -> AtFlower (OrderBy (leo,f), ctx), DOWN :: path_of_list_ctx (leo,[]) []
   | FConcatX (ll_rr,ctx) -> AtFlower (FConcat (list_of_ctx f ll_rr), ctx), down_rights (List.length (fst ll_rr))
@@ -353,7 +353,7 @@ and focus_of_path_flower (ctx : flower_ctx) : path * flower -> focus = function
   | DOWN::RIGHT::path, Where (e1,f) -> focus_of_path_flower (Where2 (e1,ctx)) (path,f)
   | DOWN::path, Where (e1,f) -> focus_of_path_expr (Where1 (ctx,f)) (path,e1)
   | DOWN::path, GroupBy (lx,f) -> focus_of_path_flower (GroupBy1 (lx,ctx)) (path,f)
-  | DOWN::path, Project (lx,f) -> focus_of_path_flower (Project1 (lx,ctx)) (path,f)
+  | DOWN::path, Hide (lx,f) -> focus_of_path_flower (Hide1 (lx,ctx)) (path,f)
   | DOWN::path, Slice (o,l,f) -> focus_of_path_flower (Slice1 (o,l,ctx)) (path,f)
   | DOWN::path, OrderBy (leo,f) ->
      (try
@@ -507,7 +507,7 @@ type transf =
   | InsertWhere1
   | InsertWhere2
   | InsertGroupBy of var list * var input
-  | InsertProject of var list * var input
+  | InsertHide of var list * var input
   | InsertSlice of int input * int input
   | InsertOrderBy1 of string input
   | InsertOrderBy2 of string input
@@ -560,7 +560,7 @@ and reaching_flower : flower -> transf list = function
   | Count (x,f) -> InsertCount1 (new input x) :: reaching_flower f @ [FocusUp]
   | Where (e,f) -> reaching_expr e @ InsertWhere1 :: reaching_flower f @ [FocusUp]
   | GroupBy (lx,f) -> List.map (fun x -> InsertGroupBy (lx, new input x)) lx @ reaching_flower f @ [FocusUp]
-  | Project (lx,f) -> List.map (fun x -> InsertProject (lx, new input x)) lx @ reaching_flower f @ [FocusUp]
+  | Hide (lx,f) -> List.map (fun x -> InsertHide ([], new input x)) lx @ reaching_flower f @ [FocusUp]
   | Slice (offset,limit,f) ->
      let l = match limit with None -> 0 | Some l -> l in
      InsertSlice (new input offset, new input l) :: reaching_flower f @ [FocusUp]
@@ -684,7 +684,7 @@ and delete_ctx_flower : flower_ctx -> focus option = function
   | Count1 (x,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
   | Where2 (e,ctx) -> Some (AtExpr (e, ctx_expr_of_flower ctx))
   | GroupBy1 (lx,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
-  | Project1 (lx,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
+  | Hide1 (lx,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
   | Slice1 (o,l,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
   | OrderBy2 (leo,ctx) -> Some (AtExpr (Empty, ctx_expr_of_flower ctx))
   | FConcatX (ll_rr,ctx) ->
@@ -896,9 +896,17 @@ and apply_transf_expr = function
   | InsertGroupBy (_, in_x), Flower (GroupBy (lx,f)), ctx -> Some (Flower (GroupBy (list_switch in_x#get lx,f)), ctx)						 
   | InsertGroupBy (_, in_x), e, ctx -> Some (e, Return1 (GroupBy1 ([in_x#get], ctx_flower_of_expr ctx)))
 
-  | InsertProject (_, in_x), e, Return1 (Project1 (lx,ctx)) -> Some (e, Return1 (Project1 (list_switch in_x#get lx,ctx)))					    
-  | InsertProject (_, in_x), Flower (Project (lx,f)), ctx -> Some (Flower (Project (list_switch in_x#get lx,f)), ctx)						 
-  | InsertProject (_, in_x), e, ctx -> Some (Flower (Project ([in_x#get], flower_of_expr e)), ctx)
+  | InsertHide (_, in_x), e, Return1 (Hide1 (lx,ctx)) ->
+     (match list_switch in_x#get lx with
+      | [] -> Some (e, Return1 ctx)
+      | new_lx -> Some (e, Return1 (Hide1 (new_lx, ctx))))
+  | InsertHide (_, in_x), Flower (Hide (lx,f)), ctx ->
+     (match list_switch in_x#get lx with
+      | [] -> Some (Flower f, ctx)
+      | new_lx -> Some (Flower (Hide (new_lx, f)), ctx))
+  | InsertHide (_, in_x), e, ctx ->
+     Some (e, Return1 (Hide1 ([in_x#get], ctx_flower_of_expr ctx)))
+  (*     Some (Flower (Hide ([in_x#get], flower_of_expr e)), ctx) *)
 (*  | InsertProject in_lx, e, Return1 (Project1 (_,ctx)) -> Some (e, Return1 (Project1 (in_lx#get, ctx)))
   | InsertProject in_lx, Flower (Project (_,f)), ctx -> Some (Flower (Project (in_lx#get, f)), ctx)						 
   | InsertProject in_lx, e, ctx -> Some (Flower (Project (in_lx#get, flower_of_expr e)), ctx) *)

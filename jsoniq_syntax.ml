@@ -171,11 +171,11 @@ let syn_GroupBy lx xml2 : syn =
   syn_GroupBy_raw
     [Enum (", ", List.map (fun x -> [Word (`Var x)]) lx)]
     xml2
-let syn_Project_raw xml1 xml2 : syn =
-  [Block [Kwd "project" :: Kwd "on" :: xml1;
+let syn_Hide_raw xml1 xml2 : syn =
+  [Block [Kwd "hide" :: xml1;
 	  xml2]]
-let syn_Project lx xml2 : syn =
-  syn_Project_raw
+let syn_Hide lx xml2 : syn =
+  syn_Hide_raw
     [Enum (", ", List.map (fun x -> [Word (`Var x)]) lx)]
     xml2
 let syn_Slice xml_offset xml_limit xml1 : syn =
@@ -308,9 +308,9 @@ and syn_flower library f ctx : syn =
     | GroupBy (lx,f1) ->
        syn_GroupBy lx
 		   (syn_flower library f1 (GroupBy1 (lx,ctx)))
-    | Project (lx,f1) ->
-       syn_Project lx
-		   (syn_flower library f1 (Project1 (lx,ctx)))
+    | Hide (lx,f1) ->
+       syn_Hide lx
+		   (syn_flower library f1 (Hide1 (lx,ctx)))
     | Slice (o,l,f1) ->
        syn_Slice [Word (`Int o)] [match l with None -> Kwd "none" | Some l -> Word (`Int l)]
 		 (syn_flower library f1 (Slice1 (o,l,ctx)))
@@ -585,10 +585,10 @@ and syn_flower_ctx library f ctx (xml_f : syn) : syn =
      syn_flower_ctx library
        (GroupBy (lx,f)) ctx
        (syn_GroupBy lx xml_f)
-  | Project1 (lx,ctx) ->
+  | Hide1 (lx,ctx) ->
      syn_flower_ctx library
-       (Project (lx,f)) ctx
-       (syn_Project lx xml_f)
+       (Hide (lx,f)) ctx
+       (syn_Hide lx xml_f)
   | Slice1 (o,l,ctx) ->
      syn_flower_ctx library
        (Slice (o,l,f)) ctx
@@ -695,8 +695,7 @@ let syn_transf (library : #library) : transf -> syn = function
   | InsertWhere1 -> syn_Where [the_focus] [ellipsis]
   | InsertWhere2 -> syn_Where [ellipsis] [the_focus]
   | InsertGroupBy (lx, in_x) -> syn_GroupBy_raw [Input (`Select (lx, in_x))] [the_focus]
-  (*  | InsertProject x -> syn_Project [x] [the_focus] *)
-  | InsertProject (lx, in_x) -> syn_Project_raw [Input (`Select (lx, in_x))] [the_focus]
+  | InsertHide (lx, in_x) -> syn_Hide_raw [Input (`Select (lx, in_x))] [the_focus]
   | InsertSlice (in_offset,in_limit) -> syn_Slice [Input (`Int in_offset)] [Input (`Int in_limit)] [the_focus]
   | InsertOrderBy1 in_o -> syn_OrderBy [syn_order_raw [the_focus] [Input (`Select (order_strings, in_o))]] [ellipsis]
   | InsertOrderBy2 in_o -> syn_OrderBy [syn_order_raw [ellipsis] [Input (`Select (order_strings, in_o))]] [the_focus]

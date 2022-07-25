@@ -151,7 +151,7 @@ type expr =
   | Count of var * flower
   | Where of expr * flower
   | GroupBy of var list * flower
-  | Project of var list * flower
+  | Hide of var list * flower
   | Slice of int * int option (* offset, limit? *) * flower
   | OrderBy of (expr * order) list * flower
   | FConcat of flower list
@@ -635,11 +635,11 @@ and eval_flower (library : #library) (funcs : funcs) (ctx : env Seq.t) : flower 
 	 [] in
      let ctx = Seq.from_list lenv in
      eval_flower library funcs ctx f
-  | Project (lx,f) ->
+  | Hide (lx,f) ->
      let ctx =
        ctx
        |> Seq.map
-	    (fun env -> List.filter (fun (y,_) -> List.mem y lx) env) in
+	    (fun env -> List.filter (fun (y,_) -> not (List.mem y lx)) env) in
      eval_flower library funcs ctx f
   | Slice (offset,limit,f) ->
      let ctx = Seq.slice ~offset ?limit ctx in
