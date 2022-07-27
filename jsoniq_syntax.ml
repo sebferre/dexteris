@@ -83,8 +83,20 @@ let syn_order_raw xml1 xml2 : syn =
 let syn_order xml1 o : syn =
   syn_order_raw xml1 [Word (`Order o)]
 
+let rec label_of_var x =
+  if x.[0] = '#'
+  then "rank of " ^ label_of_var (String.sub x 1 (String.length x - 1))
+  else
+    match x with
+    | "" -> "?"
+    | "$" -> "this"
+    | "$key" -> "the key"
+    | "$value" -> "the value"
+    | _ -> x
+  
+let syn_Var x : syn = [Word (`Var (label_of_var x))]
 let syn_binder : binder -> syn = function
-  | Var x -> [Word (`Var x)]
+  | Var x -> syn_Var x
   | Fields -> [Kwd "*"]
 		
 let syn_Call library name lxml : syn =
@@ -118,8 +130,6 @@ let syn_ArrayLookup xml1 xml2 : syn =
   xml1 @ Quote ("[[", xml2, "]]") :: []
 let syn_ArrayUnboxing xml1 : syn =
   xml1 @ Kwd "[]" :: []
-let syn_Var x : syn =
-  [Word (`Var x)]
 let syn_ContextItem : syn =
   [Word `ContextItem]
 let syn_ContextEnv : syn =
@@ -136,7 +146,7 @@ let syn_Objectify xml1 : syn =
 let syn_Arrayify xml1 : syn =
   [Quote ("[", xml1, "]")]
 let syn_DefFunc xml_func args xml0 xml1 xml2 : syn =
-  let xml_args = List.map (fun x -> [Word (`Var x)]) args in
+  let xml_args = List.map syn_Var args in
 (*  let xml_inputs = 
     if inputs = []
     then []
@@ -169,14 +179,14 @@ let syn_GroupBy_raw xml1 xml2 : syn =
 	  xml2]] 
 let syn_GroupBy lx xml2 : syn =
   syn_GroupBy_raw
-    [Enum (", ", List.map (fun x -> [Word (`Var x)]) lx)]
+    [Enum (", ", List.map syn_Var lx)]
     xml2
 let syn_Hide_raw xml1 xml2 : syn =
   [Block [Kwd "hide" :: xml1;
 	  xml2]]
 let syn_Hide lx xml2 : syn =
   syn_Hide_raw
-    [Enum (", ", List.map (fun x -> [Word (`Var x)]) lx)]
+    [Enum (", ", List.map syn_Var lx)]
     xml2
 let syn_Slice xml_offset xml_limit xml1 : syn =
   [Block [Kwd "offset" :: xml_offset @ Kwd "limit" :: xml_limit;
@@ -215,11 +225,11 @@ and syn_expr library e ctx : syn =
     | Flower f ->
        syn_Flower (syn_flower library f (Flower1 ctx))
     | Exists (x,e1,e2) ->
-       syn_Exists [Word (`Var x)]
+       syn_Exists (syn_Var x)
 		  (syn_expr library e1 (Exists1 (x,ctx,e2)))
 		  (syn_expr library e2 (Exists2 (x,e1,ctx)))
     | ForAll (x,e1,e2) ->
-       syn_ForAll [Word (`Var x)]
+       syn_ForAll (syn_Var x)
 		  (syn_expr library e1 (ForAll1 (x,ctx,e2)))
 		  (syn_expr library e2 (ForAll2 (x,e1,ctx)))
     | If (e1,e2,e3) ->
@@ -300,7 +310,7 @@ and syn_flower library f ctx : syn =
 	       (syn_expr library e1 (FLet1 (br,ctx,f1)))
 	       (syn_flower library f1 (FLet2 (br,e1,ctx)))
     | Count (x,f1) ->
-       syn_Count [Word (`Var x)]
+       syn_Count (syn_Var x)
 		 (syn_flower library f1 (Count1 (x,ctx)))
     | Where (e1,f1) ->
        syn_Where (syn_expr library e1 (Where1 (ctx,f1)))
@@ -346,23 +356,23 @@ and syn_expr_ctx library e ctx (xml_e : syn) : syn =
   | Exists1 (x,ctx,e2) ->
      syn_expr_ctx library
        (Exists (x,e,e2)) ctx
-       (syn_Exists [Word (`Var x)] xml_e
+       (syn_Exists (syn_Var x) xml_e
 		   (syn_susp (syn_expr library e2 (Exists2 (x,e,ctx)))))
   | Exists2 (x,e1,ctx) ->
      syn_expr_ctx library
        (Exists (x,e1,e)) ctx
-       (syn_Exists [Word (`Var x)]
+       (syn_Exists (syn_Var x)
 		   (syn_expr library e1 (Exists1 (x,ctx,e)))
 		   xml_e)
   | ForAll1 (x,ctx,e2) ->
      syn_expr_ctx library
        (ForAll (x,e,e2)) ctx
-       (syn_ForAll [Word (`Var x)] xml_e
+       (syn_ForAll (syn_Var x) xml_e
 		   (syn_susp (syn_expr library e2 (ForAll2 (x,e,ctx)))))
   | ForAll2 (x,e1,ctx) ->
      syn_expr_ctx library
        (ForAll (x,e1,e)) ctx
-       (syn_ForAll [Word (`Var x)]
+       (syn_ForAll (syn_Var x)
 		   (syn_expr library e1 (ForAll1 (x,ctx,e)))
 		   xml_e)
   | If1 (ctx,e2,e3) ->
@@ -575,7 +585,7 @@ and syn_flower_ctx library f ctx (xml_f : syn) : syn =
   | Count1 (x,ctx) ->
      syn_flower_ctx library
        (Count (x,f)) ctx
-       (syn_Count [Word (`Var x)] xml_f)
+       (syn_Count (syn_Var x) xml_f)
   | Where2 (e1,ctx) ->
      syn_flower_ctx library
        (Where (e1,f)) ctx

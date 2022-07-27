@@ -6,15 +6,6 @@ module Lis = Jsoniq_lis
 let make_lis (args : (string * string) list) = new Lis.lis
 
 (* rendering words and inputs into HTML *)
-
-let html_of_var v =
-  if v = "" then "?"
-  else if v = "$" then "this"
-  else if v = "#$" then "rank of this"
-  else if v.[0] = '#' then "rank of " ^ String.sub v 1 (String.length v - 1)
-  else if v = "$key" then "the key"
-  else if v = "$value" then "the value"
-  else v
 						   
 let html_of_word : Jsoniq_syntax.word -> Html.t = function
   | `Bool b -> Html.span ~classe:(if b then "word-true" else "word-false") (string_of_bool b)
@@ -22,7 +13,7 @@ let html_of_word : Jsoniq_syntax.word -> Html.t = function
   | `Float f -> Html.span ~classe:"word-number" (string_of_float f)
   | `String s -> Html.span ~classe:"word-string" (Jsutils.escapeHTML s)
   | `Filename fname -> Html.span ~classe:"word-filename" (Jsutils.escapeHTML ("<" ^ fname ^ ">"))
-  | `Var v -> Html.span ~classe:"word-var" (html_of_var v)
+  | `Var v -> Html.span ~classe:"word-var" (Jsutils.escapeHTML v)
   | `ContextItem -> "_"
   | `ContextEnv -> "*"
   | `Order o -> string_of_order o
@@ -105,7 +96,7 @@ let w_results : (Jsoniq.var, bool, Jsoniq.data) Widget_table.widget =
 			 if on_focus
 			 then Some "highlighted"
 			 else None in
-		       None, classe_opt, None, html_of_var x)
+		       None, classe_opt, None, Jsoniq_syntax.label_of_var x)
       ~html_of_cell:(fun d ->
 		     match Jsoniq_files.get_data_file_opt d with
 		     | Some (mime,contents) ->

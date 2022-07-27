@@ -41,7 +41,7 @@ let command_of_suggestion library : Jsoniq_focus.transf -> string = function
   | InsertField f -> "." ^ f
   | InsertArrayLookup -> "[["
   | InsertArrayUnboxing -> "[]"
-  | InsertVar v -> v
+  | InsertVar v -> Jsoniq_syntax.label_of_var v
   | InsertContextItem -> ""
   | InsertContextEnv -> ""
   | InsertObject -> "{"
@@ -182,7 +182,7 @@ let score_of_suggestion library (sugg : Jsoniq_focus.transf) (cmd : string) : fl
        if cmd="[]" then 1.
        else if cmd="unbox" then 0.9
        else 0.
-    | InsertVar v -> score_of_bool (cmd=v)
+    | InsertVar v -> score_of_bool (cmd = Jsoniq_syntax.label_of_var v)
     | InsertContextItem -> 0.
     | InsertContextEnv -> 0.
     | InsertObject ->
