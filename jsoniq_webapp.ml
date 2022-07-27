@@ -190,19 +190,29 @@ let render_place place k =
 
 let handle_document_keydown ev place k =
   let open Js_of_ocaml in
-  if not (Js.to_bool ev##.altKey) && not (Js.to_bool ev##.ctrlKey)
+  if not (Js.to_bool ev##.altKey) && Js.to_bool ev##.ctrlKey
   then
     let foc = place#focus in
     let push_in_history, new_foc_opt =
       match ev##.keyCode with
-      | 37 (* ArrowLeft *) -> false, Jsoniq_focus.focus_pred foc
-      | 38 (* ArrowUp *) -> false,
+      | 37 (* ArrowLeft *) ->
+         Dom.preventDefault ev;
+         false, Jsoniq_focus.focus_pred foc
+      | 38 (* ArrowUp *) ->
+         Dom.preventDefault ev;
+         false,
          ( match Jsoniq_focus.focus_up place#focus with
            | None -> None
            | Some (f,_) -> Some f )
-      | 39 (* ArrowRight *) -> false, Jsoniq_focus.focus_succ foc
-      | 40 (* ArrowDown *) -> false, Jsoniq_focus.focus_down foc
-      | 46 (* Delete *) -> true, Jsoniq_focus.delete foc
+      | 39 (* ArrowRight *) ->
+         Dom.preventDefault ev;
+         false, Jsoniq_focus.focus_succ foc
+      | 40 (* ArrowDown *) ->
+         Dom.preventDefault ev;
+         false, Jsoniq_focus.focus_down foc
+      | 46 (* Delete *) ->
+         Dom.preventDefault ev;
+         true, Jsoniq_focus.delete foc
       | _ -> true, None in
     match new_foc_opt with
     | None -> false
