@@ -164,6 +164,15 @@ let flower_of_expr : expr -> flower = function
 let expr_of_flower : flower -> expr = function
   | Return e -> e
   | f -> Flower f
+
+let concat : expr list -> expr = function
+  | [] -> Empty
+  | [e] -> e
+  | le -> Concat le
+let fconcat : flower list -> flower = function
+  | [] -> Return Empty
+  | [f] -> f
+  | lf -> FConcat lf
 		
 exception TypeError of string
 exception Unbound of var

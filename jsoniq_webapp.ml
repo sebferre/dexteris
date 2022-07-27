@@ -153,6 +153,13 @@ let render_place place k =
 	let p = new Jsoniq_lis.place place#lis foc in
 	k ~push_in_history:true p
      | None -> ());
+  w_focus#on_focus_delete_constr
+    (fun () ->
+     match Jsoniq_focus.delete_constr place#focus with
+     | Some foc ->
+	let p = new Jsoniq_lis.place place#lis foc in
+	k ~push_in_history:true p
+     | None -> ());
   Jsutils.firebug "place#eval";
   place#eval
     (fun ext ->
