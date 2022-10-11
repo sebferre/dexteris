@@ -314,6 +314,8 @@ class type library =
     method apply : string -> data list -> data
   end
 
+let env_add k d env = (k,d) :: List.remove_assoc k env
+  
 let env_add_fields (res : result) (env : env) : env =
   match Seq.hd_opt res with
   | None -> env
@@ -327,12 +329,12 @@ let env_add_fields (res : result) (env : env) : env =
 	     | `Null -> Seq.empty
 	     | `List li -> Seq.from_list li
 	     | _ -> Seq.return i in
-	   (k, d)::env)
+	   env_add k d env)
 	  env pairs
      | _ -> env
 
 let eval_binder (env : env) (res : result) : binder -> env = function
-  | Var v -> (v, data_of_result res)::env
+  | Var v -> env_add v (data_of_result res) env
   | Fields -> env_add_fields res env
 
 let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> result = function
@@ -349,7 +351,7 @@ let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> res
        |> Seq.fold_left
 	    (fun ok (pos,(i1,_)) ->
 	     ok
-	     || let env = (x, Seq.return i1)::(pos_x, Seq.return (`Int pos))::env in
+	     || let env = env_add x (Seq.return i1) (env_add pos_x (Seq.return (`Int pos)) env) in
 		is_true (eval_expr library funcs env e2))
 	    false in
      Seq.return (`Bool ok, [])
@@ -360,7 +362,7 @@ let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> res
        |> Seq.fold_left
 	    (fun ok (pos,(i1,_)) ->
 	     ok
-	     && let env = (x, Seq.return i1)::(pos_x, Seq.return (`Int pos))::env in
+	     && let env = env_add x (Seq.return i1) (env_add pos_x (Seq.return (`Int pos)) env) in
 		is_true (eval_expr library funcs env e2))
 	    true in
      Seq.return (`Bool ok, [])
@@ -403,14 +405,14 @@ let rec eval_expr (library : #library) (funcs : funcs) (env : env) : expr -> res
      Seq.with_position (eval_expr library funcs env e1)
      |> Seq.flat_map
 	  (fun (pos,(i,_)) ->
-	   let env = (var_context, Seq.return i) :: (pos_x, Seq.return (`Int pos)) :: env in
+	   let env = env_add var_context (Seq.return i) (env_add pos_x (Seq.return (`Int pos)) env) in
 	   eval_expr library funcs env e2)
   | Pred (e1,e2) ->
      let pos_x = var_position var_context in
      Seq.with_position (eval_expr library funcs env e1)
      |> Seq.flat_map
 	  (fun (pos,(i,_)) ->
-	   let env = (var_context, Seq.return i) :: (pos_x, Seq.return (`Int pos)) :: env in
+	   let env = env_add var_context (Seq.return i) (env_add pos_x (Seq.return (`Int pos)) env) in
 	   if is_true (eval_expr library funcs env e2)
 	   then Seq.return (i,[])
 	   else Seq.empty)
@@ -578,7 +580,7 @@ and eval_flower (library : #library) (funcs : funcs) (ctx : env Seq.t) : flower 
 	       Seq.with_position res
 	       |> Seq.flat_map
 		    (fun (pos,(i,_)) ->
-		     let env = (pos_br, Seq.return (`Int pos))::env in
+		     let env = env_add pos_br (Seq.return (`Int pos)) env in
 		     let env = eval_binder env (result_of_item i) br in
 		     Seq.return env))
      in
@@ -596,7 +598,7 @@ and eval_flower (library : #library) (funcs : funcs) (ctx : env Seq.t) : flower 
      let ctx =
        Seq.with_position ctx
        |> Seq.map
-	    (fun (pos,env) -> (x, Seq.return (`Int pos))::env)
+	    (fun (pos,env) -> env_add x (Seq.return (`Int pos)) env)
      in
      eval_flower library funcs ctx f
   | Where (e, f) ->
@@ -638,7 +640,7 @@ and eval_flower (library : #library) (funcs : funcs) (ctx : env Seq.t) : flower 
 	  let env = (* adding other variables *)
 	    dico_val#fold
 	      (fun env y y_vals ->
-	       (y, Seq.concat y_vals) :: env)
+	        env_add y (Seq.concat y_vals) env)
 	      (List.rev env) in (* solution environments are in reverse column order *)
 	  env::lenv)
 	 [] in
