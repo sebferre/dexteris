@@ -11,7 +11,7 @@ let html_of_word : Jsoniq_syntax.word -> Html.t = function
   | `Bool b -> Html.span ~classe:(if b then "word-true" else "word-false") (string_of_bool b)
   | `Int i -> Html.span ~classe:"word-number" (string_of_int i)
   | `Float f -> Html.span ~classe:"word-number" (string_of_float f)
-  | `String s -> Html.span ~classe:"word-string" (Jsutils.escapeHTML s)
+  | `String s -> Html.span ~classe:"word-string" (if s = "" then "∅" else Jsutils.escapeHTML s)
   | `Filename fname -> Html.span ~classe:"word-filename" (Jsutils.escapeHTML ("<" ^ fname ^ ">"))
   | `Var v -> Html.span ~classe:"word-var" (Jsutils.escapeHTML v)
   | `ContextItem -> "_"
