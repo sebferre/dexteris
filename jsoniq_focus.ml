@@ -490,8 +490,8 @@ type transf =
   | InsertVar of var
   | InsertContextItem
   | InsertContextEnv
-  | InsertObject
-  | InsertObjectField
+  | InsertObject of string input
+  | InsertObjectField of string input
   | InsertEnvObject
   | InsertArray
   | InsertObjectify
@@ -545,7 +545,7 @@ let rec reaching_expr : expr -> transf list = function
   | Var x -> [InsertVar x]
   | ContextItem -> [InsertContextItem]
   | ContextEnv -> [InsertContextEnv]
-  | EObject pairs -> InsertObject :: reaching_list reaching_pair [InsertObjectField] pairs
+  | EObject pairs -> InsertObject (new input "") :: reaching_list reaching_pair [InsertObjectField (new input "")] pairs
   | EnvObject -> [InsertEnvObject]
   | Objectify e -> reaching_expr e @ [InsertObjectify]
   | Arrayify e -> reaching_expr e @ [InsertArrayify]
@@ -577,7 +577,7 @@ and reaching_item : item -> transf list = function
   | `Float f -> [InputFloat (new input f)]
   | `String s -> [InputString (new input s)]
   | `Null -> [InsertNull]
-  | `Assoc pairs -> InsertObject :: reaching_list reaching_pair [InsertObjectField] (List.map (fun (k,i) -> S k, Item i) pairs)
+  | `Assoc pairs -> InsertObject (new input "") :: reaching_list reaching_pair [InsertObjectField (new input "")] (List.map (fun (k,i) -> S k, Item i) pairs)
   | `List li -> InsertArray :: reaching_list reaching_item [InsertConcat1] li
 and reaching_pair (e1, e2: expr * expr) : transf list =
   reaching_expr e1 @ FocusRight :: reaching_expr e2
@@ -895,10 +895,22 @@ and apply_transf_expr = function
   | InsertContextEnv, Empty, ctx -> Some (ContextEnv, ctx)
   | InsertContextEnv, _, _ -> None
 
-  | InsertObject, e, ctx -> Some (Empty, EObjectX1 (([],[]), ctx, e))
-  | InsertObjectField, e1, EObjectX1 ((ll,rr), ctx, e2) -> Some (Empty, EObjectX1 (((e1,e2)::ll,rr), ctx, Empty))
-  | InsertObjectField, e2, EObjectX2 ((ll,rr), e1, ctx) -> Some (Empty, EObjectX1 (((e1,e2)::ll,rr), ctx, Empty))
-  | InsertObjectField, _, _ -> None
+  | InsertObject in_field, e, ctx ->
+     let field = in_field#get in
+     if field = ""
+     then Some (Empty, EObjectX1 (([],[]), ctx, e))
+     else Some (e, EObjectX2 (([],[]), S field, ctx))
+  | InsertObjectField in_field, e1, EObjectX1 ((ll,rr), ctx, e2) ->
+     let field = in_field#get in
+     if field = ""
+     then Some (Empty, EObjectX1 (((e1,e2)::ll,rr), ctx, Empty))
+     else Some (Empty, EObjectX2 (((e1,e2)::ll,rr), S field, ctx))
+  | InsertObjectField in_field, e2, EObjectX2 ((ll,rr), e1, ctx) ->
+     let field = in_field#get in
+     if field = ""
+     then Some (Empty, EObjectX1 (((e1,e2)::ll,rr), ctx, Empty))
+     else Some (Empty, EObjectX2 (((e1,e2)::ll,rr), S field, ctx))
+  | InsertObjectField _, _, _ -> None
   | InsertEnvObject, _, ctx -> Some (EnvObject, ctx)
   | InsertArray, Empty, ctx -> Some (Empty, Arrayify1 ctx)
   | InsertArray, _, _ -> None

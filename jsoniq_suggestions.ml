@@ -136,9 +136,9 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     add `Op ~path:["logic"] InsertIf2;
     add `Op ~path:["logic"] InsertIf3;
     if Sem.TypSet.mem `Object ctx_typs then (
-      add `Val ~path:["objects"] InsertObject;
+      add `Val ~path:["objects"] (InsertObject (new input ""));
     (*add `Val InsertContextEnv*));
-    add `Val ~path:["objects"] InsertObjectField;
+    add `Val ~path:["objects"] (InsertObjectField (new input ""));
     if extent.Sem.vars <> [] then (
       add `Val ~path:["objects"] InsertEnvObject);
     if Sem.TypSet.mem `Object allowed_typs then (

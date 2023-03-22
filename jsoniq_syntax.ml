@@ -680,8 +680,8 @@ let syn_transf (library : #library) : transf -> syn = function
   | InsertVar x -> syn_Var x
   | InsertContextItem -> syn_ContextItem
   | InsertContextEnv -> syn_ContextEnv
-  | InsertObject -> syn_EObject [syn_pair [ellipsis] [the_focus]]
-  | InsertObjectField -> syn_pair [ellipsis] [ellipsis]
+  | InsertObject i -> syn_EObject [syn_pair [Input (`String i)] [the_focus]]
+  | InsertObjectField i -> syn_pair [Input (`String i)] [ellipsis]
   | InsertEnvObject -> syn_EnvObject
   | InsertArray -> syn_Arrayify [ellipsis]
   | InsertObjectify -> syn_Objectify [the_focus]

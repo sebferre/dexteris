@@ -44,8 +44,16 @@ let command_of_suggestion library : Jsoniq_focus.transf -> string = function
   | InsertVar v -> Jsoniq_syntax.label_of_var v
   | InsertContextItem -> ""
   | InsertContextEnv -> ""
-  | InsertObject -> "{"
-  | InsertObjectField -> ":"
+  | InsertObject in_field ->
+     let field = in_field#get in
+     if field = ""
+     then "{"
+     else "{ " ^ Printf.sprintf "%S" field ^ " :"
+  | InsertObjectField in_field ->
+     let field = in_field#get in
+     if field = ""
+     then ":"
+     else Printf.sprintf "%S" field ^ " :"
   | InsertEnvObject -> "{*}"
   | InsertArray -> "["
   | InsertObjectify -> "{_}"
@@ -185,11 +193,19 @@ let score_of_suggestion library (sugg : Jsoniq_focus.transf) (cmd : string) : fl
     | InsertVar v -> score_of_bool (cmd = Jsoniq_syntax.label_of_var v)
     | InsertContextItem -> 0.
     | InsertContextEnv -> 0.
-    | InsertObject ->
+    | InsertObject in_field ->
        if cmd="{" then 1.
-       else Scanf.sscanf cmd "{ %_[?] }%!" 1.
-    | InsertObjectField ->
-       Scanf.sscanf cmd "%_[?] : %_[?]%!" 1.
+       else
+         (try Scanf.sscanf cmd "{ %s : %_[?]%!" (fun s -> in_field#set s; 1.)
+          with _ ->
+            try Scanf.sscanf cmd "{ %S : %_[?]%!" (fun s -> in_field#set s; 1.)
+            with _ -> Scanf.sscanf cmd "{ %_[?] : %_[?]%!" 1.)
+    (* Scanf.sscanf cmd "{ %_[?] }%!" 1. *)
+    | InsertObjectField in_field ->
+       (try Scanf.sscanf cmd "%s : %_[?]%!" (fun s -> in_field#set s; 1.)
+        with _ ->
+          try Scanf.sscanf cmd "%S : %_[?]%!" (fun s -> in_field#set s; 1.)
+          with _ -> Scanf.sscanf cmd "%_[?] : %_[?]%!" 1.)
     | InsertEnvObject ->
        Scanf.sscanf cmd "{ * }%!" 1.
     | InsertArray ->
