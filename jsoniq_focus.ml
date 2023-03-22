@@ -69,6 +69,8 @@ let is_empty_focus = function
   | _ -> false
 
 let rec var_of_focus : focus -> var option = function
+  | AtExpr (Var x, _) -> Some x
+  | AtExpr (ContextItem, _) -> Some var_context
   | AtExpr (e,ctx) -> var_of_expr_ctx ctx
   | AtFlower (f,ctx) -> var_of_flower_ctx ctx
 and var_of_expr_ctx = function
