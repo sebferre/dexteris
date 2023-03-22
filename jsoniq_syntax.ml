@@ -60,7 +60,7 @@ let syn_data ~(limit : int) (d : data) : syn =
     | None -> []
     | Some _ -> [[Kwd "..."]] in
   match li with
-  | [] -> [Kwd "()"]
+  | [] -> []
   | [i] -> syn_item i
   | (`List _ | `Assoc _)::_ ->
      [Block (List.fold_right
