@@ -120,7 +120,7 @@ type expr =
   | FileString of string * string (* filename, contents *)
   | Empty
   | Concat of expr list
-  | Flower of flower
+  | Flower of flower (* USE function [flower] to build values *)
   | Exists of var * expr * expr
   | ForAll of var * expr * expr
   | If of expr * expr * expr
@@ -145,7 +145,7 @@ type expr =
 	       * expr (* body *) * expr (* remaining expression *)
 					    [@@deriving yojson]
  and flower =
-  | Return of expr
+  | Return of expr (* USE function [return] to build values *)
   | For of binder * expr * bool * flower (* optional flag *)
   | FLet of binder * expr * flower
   | Count of var * flower
@@ -158,10 +158,10 @@ type expr =
   | FIf of flower * flower * flower
 			       [@@deriving yojson]
 
-let flower_of_expr : expr -> flower = function
+let return : expr -> flower = function
   | Flower f -> f
   | e -> Return e
-let expr_of_flower : flower -> expr = function
+let flower : flower -> expr = function
   | Return e -> e
   | f -> Flower f
 
