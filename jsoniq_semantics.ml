@@ -17,7 +17,7 @@ type 'a sem = { expr : 'a;
 	      }
 
 let sem_bind_in x e1 sem =
-  { sem with env = x::sem.env; expr = Flower (For (x,e1,false, return sem.expr)) }
+  { sem with env = x::sem.env; expr = flower (For (x,e1,false, return sem.expr)) }
 let sem_map f sem =
   { sem with expr = f sem.expr }
 let sem_var x f sem =
@@ -60,7 +60,7 @@ class annot =
 
 type sem = { annot : annot; expr : expr }
 
-let expr_bind_in (x : var) e1 e = Flower (For (Var x,e1,false, return e))
+let expr_bind_in (x : var) e1 e = flower (For (Var x,e1,false, return e))
 
 (*let expr_for_inputs args inputs e =
   let inputs =
@@ -86,7 +86,7 @@ let expr_bind_in (x : var) e1 e = Flower (For (Var x,e1,false, return e))
 		 (fun arg d -> (arg, item_of_data d))
 		 args input)))
 	 inputs) in
-  Flower (For (Fields, e1_inputs, false, return e))
+  flower (For (Fields, e1_inputs, false, return e))
  *)
 
 	 
@@ -102,7 +102,7 @@ let rec sem_focus (foc : focus) : sem =
      let e' = Let (Var focus_var, e, ContextEnv) in
      sem_expr_ctx annot e e' ctx
   | AtFlower (f,ctx) ->
-     let f' = Return (Let (Var focus_var, flower f, ContextEnv)) in
+     let f' = return (Let (Var focus_var, flower f, ContextEnv)) in
      sem_flower_ctx annot f f' ctx
 and sem_expr_ctx annot e e' : expr_ctx -> sem = function
   | Root ->
@@ -218,13 +218,13 @@ and sem_expr_ctx annot e e' : expr_ctx -> sem = function
      annot#add_func name args;
      let e1 = e in
      let e = DefFunc (name,args,e0,e,e2) in
-     sem_expr_ctx annot e (DefFunc (name,args,e0,e1, Flower (For (Fields, e0, false, return e')))) ctx
+     sem_expr_ctx annot e (DefFunc (name,args,e0,e1, flower (For (Fields, e0, false, return e')))) ctx
   | DefFunc2 (name,args,e0,e1,ctx) ->
      annot#add_func name args;
      let e = DefFunc (name,args,e0,e1,e) in
      sem_expr_ctx annot e (DefFunc (name,args,e0,e1,e')) ctx
   | Return1 ctx ->
-     let f = Return e in
+     let f = return e in
      sem_flower_ctx annot f (return e') ctx
   | For1 (br,ctx,opt,f) ->
      annot#any_typ;
@@ -244,7 +244,7 @@ and sem_expr_ctx annot e e' : expr_ctx -> sem = function
      sem_flower_ctx annot f (return e') ctx
 and sem_flower_ctx annot f f' : flower_ctx -> sem = function
   | Flower1 ctx ->
-     let e = Flower f in
+     let e = flower f in
      sem_expr_ctx annot e (flower f') ctx
   | For2 (br,e1,opt,ctx) ->
      let f = For (br,e1,opt,f) in
@@ -279,10 +279,10 @@ and sem_flower_ctx annot f f' : flower_ctx -> sem = function
      sem_flower_ctx annot f f' ctx
   | FIf2 (f1,ctx,f3) ->
      let f = FIf (f1,f,f3) in
-     sem_flower_ctx annot f (FIf (f1,f',Return Empty)) ctx
+     sem_flower_ctx annot f (FIf (f1,f',return Empty)) ctx
   | FIf3 (f1,f2,ctx) ->
      let f = FIf (f1,f2,f) in
-     sem_flower_ctx annot f (FIf (f1,Return Empty,f')) ctx
+     sem_flower_ctx annot f (FIf (f1,return Empty,f')) ctx
 
 type extent = { vars : var list; focus_var : var; bindings : env Seq.t }
 

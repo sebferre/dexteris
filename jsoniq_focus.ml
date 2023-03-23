@@ -68,23 +68,29 @@ let return1 = function
 
 (* DERIVED *)
 type focus =
-  | AtExpr of expr * expr_ctx
-  | AtFlower of flower * flower_ctx
+  | AtExpr of expr * expr_ctx (* USE function [at_expr] to build values *)
+  | AtFlower of flower * flower_ctx (* USE functio [at_flower] to build values *)
 
 let at_expr (e : expr) (ctx : expr_ctx) : focus =
   match e, ctx with
-  | Flower (Return e), _ -> AtExpr (e,ctx)
   | Flower f, Return1 ctx -> AtFlower (f,ctx)
-  | e, Return1 (Flower1 ctx) -> AtExpr (e,ctx)
-  (*  | Flower f, _ -> AtFlower (f, flower1 ctx) *)
   | _ -> AtExpr (e,ctx)
 let at_flower (f : flower) (ctx : flower_ctx) : focus =
   match f, ctx with
-  | Return (Flower f), _ -> AtFlower (f,ctx)
   | Return e, Flower1 ctx -> AtExpr (e,ctx)
-  | f, Flower1 (Return1 ctx) -> AtFlower (f,ctx)
   | _ -> AtFlower (f,ctx)
-           
+
+(*
+let rec at_expr (e : expr) (ctx : expr_ctx) : focus =
+  match e with
+  | Flower f -> at_flower f (flower1 ctx)
+  | _ -> AtExpr (e, ctx)
+and at_flower (f : flower) (ctx : flower_ctx) : focus =
+  match f with
+  | Return e -> at_expr e (return1 ctx)
+  | _ -> AtFlower (f,ctx)
+ *)
+       
 let is_empty_focus = function
   | AtExpr (Empty, _) -> true
   | _ -> false
@@ -117,56 +123,64 @@ let rec focus_up : focus -> (focus * path) option = function
   | AtFlower (f, ctx) -> Some (focus_flower_up f ctx)
 and focus_expr_up (e : expr) : expr_ctx -> focus * path = function
   | Root -> assert false
-  | ConcatX (ll_rr,ctx) -> AtExpr (Concat (list_of_ctx e ll_rr), ctx),
+  | ConcatX (ll_rr,ctx) -> at_expr (Concat (list_of_ctx e ll_rr)) ctx,
 			   down_rights (List.length (fst ll_rr))
-  | Exists1 (x,ctx,e2) -> AtExpr (Exists (x,e,e2), ctx), down_rights 0
-  | Exists2 (x,e1,ctx) -> AtExpr (Exists (x,e1,e), ctx), down_rights 1
-  | ForAll1 (x,ctx,e2) -> AtExpr (ForAll (x,e,e2), ctx), down_rights 0
-  | ForAll2 (x,e1,ctx) -> AtExpr (ForAll (x,e1,e), ctx), down_rights 1
-  | If1 (ctx,e2,e3) -> AtExpr (If (e,e2,e3), ctx), down_rights 0
-  | If2 (e1,ctx,e3) -> AtExpr (If (e1,e,e3), ctx), down_rights 1
-  | If3 (e1,e2,ctx) -> AtExpr (If (e1,e2,e), ctx), down_rights 2
-  | OrX (ll_rr,ctx) -> AtExpr (Or (list_of_ctx e ll_rr), ctx), down_rights (List.length (fst ll_rr))
-  | AndX (ll_rr,ctx) -> AtExpr (And (list_of_ctx e ll_rr), ctx), down_rights (List.length (fst ll_rr))
-  | Not1 ctx -> AtExpr (Not e, ctx), down_rights 0
-  | CallX (func,ll_rr,ctx) -> AtExpr (Call (func, list_of_ctx e ll_rr), ctx), down_rights (List.length (fst ll_rr))
-  | Map1 (ctx,e2) -> AtExpr (Map (e,e2), ctx), down_rights 0
-  | Map2 (e1,ctx) -> AtExpr (Map (e1,e), ctx), down_rights 1
-  | Pred1 (ctx,e2) -> AtExpr (Pred (e,e2), ctx), down_rights 0
-  | Pred2 (e1,ctx) -> AtExpr (Pred (e1,e), ctx), down_rights 1
-  | Dot1 (ctx,e2) -> AtExpr (Dot (e,e2), ctx), down_rights 0
-  | Dot2 (e1,ctx) -> AtExpr (Dot (e1,e), ctx), down_rights 1
-  | ArrayLookup1 (ctx,e2) -> AtExpr (ArrayLookup (e,e2), ctx), down_rights 0
-  | ArrayLookup2 (e1,ctx) -> AtExpr (ArrayLookup (e1,e), ctx), down_rights 1
-  | ArrayUnboxing1 ctx -> AtExpr (ArrayUnboxing e, ctx), down_rights 0
-  | EObjectX1 (ll_rr,ctx,e2) -> AtExpr (EObject (list_of_ctx (e,e2) ll_rr), ctx), DOWN :: path_of_list_ctx ll_rr (path_of_list_ctx ll_rr [])
-  | EObjectX2 (ll_rr,e1,ctx) -> AtExpr (EObject (list_of_ctx (e1,e) ll_rr), ctx), DOWN :: path_of_list_ctx ll_rr (path_of_list_ctx ll_rr [RIGHT])
-  | Objectify1 ctx -> AtExpr (Objectify e, ctx), down_rights 0
-  | Arrayify1 ctx -> AtExpr (Arrayify e, ctx), down_rights 0
-  | Let1 (x,ctx,e2) -> AtExpr (Let (x,e,e2), ctx), down_rights 0
-  | Let2 (x,e1,ctx) -> AtExpr (Let (x,e1,e), ctx), down_rights 1
-  | DefFunc0 (name,args,ctx,e1,e2) -> AtExpr (DefFunc (name,args,e,e1,e2), ctx), down_rights 0
-  | DefFunc1 (name,args,e0,ctx,e2) -> AtExpr (DefFunc (name,args,e0,e,e2), ctx), down_rights 1
-  | DefFunc2 (name,args,e0,e1,ctx) -> AtExpr (DefFunc (name,args,e0,e1,e), ctx), down_rights 2
-  | Return1 ctx -> AtFlower (Return e, ctx), down_rights 0
-  | For1 (x,ctx,opt,f) -> AtFlower (For (x,e,opt,f), ctx), down_rights 0
-  | FLet1 (x,ctx,f) -> AtFlower (FLet (x,e,f), ctx), down_rights 0
-  | Where1 (ctx,f) -> AtFlower (Where (e,f), ctx), down_rights 0
-  | OrderBy1X (ll_rr,ctx,o,f) -> AtFlower (OrderBy (list_of_ctx (e,o) ll_rr, f), ctx), DOWN :: path_of_list_ctx ll_rr []
+  | Exists1 (x,ctx,e2) -> at_expr (Exists (x,e,e2)) ctx, down_rights 0
+  | Exists2 (x,e1,ctx) -> at_expr (Exists (x,e1,e)) ctx, down_rights 1
+  | ForAll1 (x,ctx,e2) -> at_expr (ForAll (x,e,e2)) ctx, down_rights 0
+  | ForAll2 (x,e1,ctx) -> at_expr (ForAll (x,e1,e)) ctx, down_rights 1
+  | If1 (ctx,e2,e3) -> at_expr (If (e,e2,e3)) ctx, down_rights 0
+  | If2 (e1,ctx,e3) -> at_expr (If (e1,e,e3)) ctx, down_rights 1
+  | If3 (e1,e2,ctx) -> at_expr (If (e1,e2,e)) ctx, down_rights 2
+  | OrX (ll_rr,ctx) -> at_expr (Or (list_of_ctx e ll_rr)) ctx,
+                       down_rights (List.length (fst ll_rr))
+  | AndX (ll_rr,ctx) -> at_expr (And (list_of_ctx e ll_rr)) ctx,
+                        down_rights (List.length (fst ll_rr))
+  | Not1 ctx -> at_expr (Not e) ctx, down_rights 0
+  | CallX (func,ll_rr,ctx) -> at_expr (Call (func, list_of_ctx e ll_rr)) ctx,
+                              down_rights (List.length (fst ll_rr))
+  | Map1 (ctx,e2) -> at_expr (Map (e,e2)) ctx, down_rights 0
+  | Map2 (e1,ctx) -> at_expr (Map (e1,e)) ctx, down_rights 1
+  | Pred1 (ctx,e2) -> at_expr (Pred (e,e2)) ctx, down_rights 0
+  | Pred2 (e1,ctx) -> at_expr (Pred (e1,e)) ctx, down_rights 1
+  | Dot1 (ctx,e2) -> at_expr (Dot (e,e2)) ctx, down_rights 0
+  | Dot2 (e1,ctx) -> at_expr (Dot (e1,e)) ctx, down_rights 1
+  | ArrayLookup1 (ctx,e2) -> at_expr (ArrayLookup (e,e2)) ctx, down_rights 0
+  | ArrayLookup2 (e1,ctx) -> at_expr (ArrayLookup (e1,e)) ctx, down_rights 1
+  | ArrayUnboxing1 ctx -> at_expr (ArrayUnboxing e) ctx, down_rights 0
+  | EObjectX1 (ll_rr,ctx,e2) -> at_expr (EObject (list_of_ctx (e,e2) ll_rr)) ctx,
+                                DOWN :: path_of_list_ctx ll_rr (path_of_list_ctx ll_rr [])
+  | EObjectX2 (ll_rr,e1,ctx) -> at_expr (EObject (list_of_ctx (e1,e) ll_rr)) ctx,
+                                DOWN :: path_of_list_ctx ll_rr (path_of_list_ctx ll_rr [RIGHT])
+  | Objectify1 ctx -> at_expr (Objectify e) ctx, down_rights 0
+  | Arrayify1 ctx -> at_expr (Arrayify e) ctx, down_rights 0
+  | Let1 (x,ctx,e2) -> at_expr (Let (x,e,e2)) ctx, down_rights 0
+  | Let2 (x,e1,ctx) -> at_expr (Let (x,e1,e)) ctx, down_rights 1
+  | DefFunc0 (name,args,ctx,e1,e2) -> at_expr (DefFunc (name,args,e,e1,e2)) ctx, down_rights 0
+  | DefFunc1 (name,args,e0,ctx,e2) -> at_expr (DefFunc (name,args,e0,e,e2)) ctx, down_rights 1
+  | DefFunc2 (name,args,e0,e1,ctx) -> at_expr (DefFunc (name,args,e0,e1,e)) ctx, down_rights 2
+  | Return1 ctx -> at_flower (return e) ctx, down_rights 0
+  | For1 (x,ctx,opt,f) -> at_flower (For (x,e,opt,f)) ctx, down_rights 0
+  | FLet1 (x,ctx,f) -> at_flower (FLet (x,e,f)) ctx, down_rights 0
+  | Where1 (ctx,f) -> at_flower (Where (e,f)) ctx, down_rights 0
+  | OrderBy1X (ll_rr,ctx,o,f) -> at_flower (OrderBy (list_of_ctx (e,o) ll_rr, f)) ctx,
+                                 DOWN :: path_of_list_ctx ll_rr []
 and focus_flower_up (f : flower) : flower_ctx -> focus * path = function
-  | Flower1 ctx -> AtExpr (Flower f, ctx), down_rights 0
-  | For2 (x,e,opt,ctx) -> AtFlower (For (x,e,opt,f), ctx), down_rights 1
-  | FLet2 (x,e,ctx) -> AtFlower (FLet (x,e,f), ctx), down_rights 1
-  | Count1 (x,ctx) -> AtFlower (Count (x,f), ctx), down_rights 0
-  | Where2 (e,ctx) -> AtFlower (Where (e,f), ctx), down_rights 1
-  | GroupBy1 (lx,ctx) -> AtFlower (GroupBy (lx,f), ctx), down_rights 0
-  | Hide1 (lx,ctx) -> AtFlower (Hide (lx,f), ctx), down_rights 0
-  | Slice1 (offset,limit,ctx) -> AtFlower (Slice (offset,limit,f), ctx), down_rights 0 
-  | OrderBy2 (leo,ctx) -> AtFlower (OrderBy (leo,f), ctx), DOWN :: path_of_list_ctx (leo,[]) []
-  | FConcatX (ll_rr,ctx) -> AtFlower (FConcat (list_of_ctx f ll_rr), ctx), down_rights (List.length (fst ll_rr))
-  | FIf1 (ctx,f2,f3) -> AtFlower (FIf (f,f2,f3), ctx), down_rights 0
-  | FIf2 (f1,ctx,f3) -> AtFlower (FIf (f1,f,f3), ctx), down_rights 1
-  | FIf3 (f1,f2,ctx) -> AtFlower (FIf (f1,f2,f), ctx), down_rights 2
+  | Flower1 ctx -> at_expr (flower f) ctx, down_rights 0
+  | For2 (x,e,opt,ctx) -> at_flower (For (x,e,opt,f)) ctx, down_rights 1
+  | FLet2 (x,e,ctx) -> at_flower (FLet (x,e,f)) ctx, down_rights 1
+  | Count1 (x,ctx) -> at_flower (Count (x,f)) ctx, down_rights 0
+  | Where2 (e,ctx) -> at_flower (Where (e,f)) ctx, down_rights 1
+  | GroupBy1 (lx,ctx) -> at_flower (GroupBy (lx,f)) ctx, down_rights 0
+  | Hide1 (lx,ctx) -> at_flower (Hide (lx,f)) ctx, down_rights 0
+  | Slice1 (offset,limit,ctx) -> at_flower (Slice (offset,limit,f)) ctx, down_rights 0 
+  | OrderBy2 (leo,ctx) -> at_flower (OrderBy (leo,f)) ctx,
+                          DOWN :: path_of_list_ctx (leo,[]) []
+  | FConcatX (ll_rr,ctx) -> at_flower (FConcat (list_of_ctx f ll_rr)) ctx,
+                            down_rights (List.length (fst ll_rr))
+  | FIf1 (ctx,f2,f3) -> at_flower (FIf (f,f2,f3)) ctx, down_rights 0
+  | FIf2 (f1,ctx,f3) -> at_flower (FIf (f1,f,f3)) ctx, down_rights 1
+  | FIf3 (f1,f2,ctx) -> at_flower (FIf (f1,f2,f)) ctx, down_rights 2
 
 (*
 (* DERIVED *)
@@ -318,11 +332,11 @@ let rec focus_of_path_focus path : focus -> focus (* raises Invalid_path *) = fu
   | AtExpr (e,ctx) -> focus_of_path_expr ctx (path,e)
   | AtFlower (f,ctx) -> focus_of_path_flower ctx (path,f)
 and focus_of_path_expr (ctx : expr_ctx) : path * expr -> focus = function
-  | [], e -> AtExpr (e,ctx)
+  | [], e -> at_expr e ctx
   | DOWN::path, Concat le ->
      let path, (x, ll_rr) = list_focus_of_path_list path le in
      focus_of_path_expr (ConcatX (ll_rr,ctx)) (path,x)
-  | DOWN::path, Flower f -> focus_of_path_flower (Flower1 ctx) (path,f)
+  | DOWN::path, Flower f -> focus_of_path_flower (flower1 ctx) (path,f)
   | DOWN::RIGHT::path, Exists (x,e1,e2) -> focus_of_path_expr (Exists2 (x,e1,ctx)) (path,e2)
   | DOWN::path, Exists (x,e1,e2) -> focus_of_path_expr (Exists1 (x,ctx,e2)) (path,e1)
   | DOWN::RIGHT::path, ForAll (x,e1,e2) -> focus_of_path_expr (ForAll2 (x,e1,ctx)) (path,e2)
@@ -366,8 +380,8 @@ and focus_of_path_expr (ctx : expr_ctx) : path * expr -> focus = function
   | DOWN::path, DefFunc (f,lx,e0,e1,e2) -> focus_of_path_expr (DefFunc0 (f,lx,ctx,e1,e2)) (path,e0)
   | path, _ -> raise (Invalid_path path)
 and focus_of_path_flower (ctx : flower_ctx) : path * flower -> focus = function
-  | [], f -> AtFlower (f,ctx)
-  | DOWN::path, Return e1 -> focus_of_path_expr (Return1 ctx) (path,e1)
+  | [], f -> at_flower f ctx
+  | DOWN::path, Return e1 -> focus_of_path_expr (return1 ctx) (path,e1)
   | DOWN::RIGHT::path, For (x,e1,b,f) -> focus_of_path_flower (For2 (x,e1,b,ctx)) (path,f)
   | DOWN::path, For (x,e1,b,f) -> focus_of_path_expr (For1 (x,ctx,b,f)) (path,e1)
   | DOWN::RIGHT::path, FLet (x,e1,f) -> focus_of_path_flower (FLet2 (x,e1,ctx)) (path,f)
@@ -706,13 +720,13 @@ let rec delete_constr (foc : focus) : focus option =
   | AtExpr (e,ctx) ->
      (match delete_constr_expr e with
       | None -> None
-      | Some (Flower f') -> Some (AtFlower (f', flower1 ctx))
-      | Some e' -> Some (AtExpr (e', ctx)))
+      | Some (Flower f') -> Some (at_flower f' (flower1 ctx))
+      | Some e' -> Some (at_expr e' ctx))
   | AtFlower (f,ctx) ->
      (match delete_constr_flower f with
       | None -> None
-      | Some (Return e') -> Some (AtExpr (e', return1 ctx))
-      | Some f' -> Some (AtFlower (f', ctx)))
+      | Some (Return e') -> Some (at_expr e' (return1 ctx))
+      | Some f' -> Some (at_flower f' ctx))
 and delete_constr_expr : expr -> expr option = function
   | S _ | Item _ | FileString _ -> Some Empty
   | Empty -> None
@@ -721,7 +735,7 @@ and delete_constr_expr : expr -> expr option = function
      (match delete_constr_flower f with
       | None -> None
       | Some (Return e') -> Some e'
-      | Some f' -> Some (Flower f'))
+      | Some f' -> Some (flower f'))
   | Exists (x,e1,e2) -> Some (Concat [e1; e2])
   | ForAll (x,e1,e2) -> Some (Concat [e1; e2])
   | If (e1,e2,e3) -> Some (Concat [e1; e2; e3])
@@ -747,15 +761,15 @@ and delete_constr_flower : flower -> flower option = function
      (match delete_constr_expr e with
       | None -> None
       | Some (Flower f') -> Some f'
-      | Some e' -> Some (Return e'))
-  | For (br,e,opt,f1) -> Some (Return (Concat [e; Flower f1]))
-  | FLet (br,e,f1) -> Some (Return (Concat [e; Flower f1]))
+      | Some e' -> Some (return e'))
+  | For (br,e,opt,f1) -> Some (return (Concat [e; flower f1]))
+  | FLet (br,e,f1) -> Some (return (Concat [e; flower f1]))
   | Count (x,f1) -> Some f1
-  | Where (e,f1) -> Some (Return (Concat [e; Flower f1]))
+  | Where (e,f1) -> Some (return (Concat [e; flower f1]))
   | GroupBy (lx,f1) -> Some f1
   | Hide (lx,f1) -> Some f1
   | Slice (offset,limit,f1) -> Some f1
-  | OrderBy (leo,f1) -> Some (Return (Concat (List.map fst leo @ [Flower f1])))
+  | OrderBy (leo,f1) -> Some (return (Concat (List.map fst leo @ [flower f1])))
   | FConcat _ -> None
   | FIf (f1,f2,f3) -> Some (FConcat [f1; f2; f3])
                       
@@ -772,19 +786,19 @@ let init_func_input args =
   let f =
     List.fold_right
       (fun arg f -> For (Var arg, Item `Null, false, f))
-      args (Return e) in
-  Flower f
+      args (return e) in
+  flower f
 
 let rec extend_func_input arg = function
   | EObject l ->
      EObject (l @ [S arg, Var arg])
-  | Flower f -> Flower (extend_func_input_flower arg f)
+  | Flower f -> flower (extend_func_input_flower arg f)
   | e -> e
 and extend_func_input_flower arg = function
   | For (Var x, e, opt, f) ->
      For (Var x, e, opt, extend_func_input_flower arg f)
   | Return e ->
-     For (Var arg, Item `Null, false, Return (extend_func_input arg e))
+     For (Var arg, Item `Null, false, return (extend_func_input arg e))
   | f -> f
   
     
@@ -800,8 +814,7 @@ let rec apply_transf (transf : transf) (foc : focus) : focus option =
        | AtFlower (f,ctx) -> flower f, return1 ctx in
      match apply_transf_expr (transf,e,ctx_e) with
      | None -> None
-     | Some (Flower f, Return1 ctx) -> Some (AtFlower (f,ctx))
-     | Some (e',ctx') -> Some (AtExpr (e',ctx'))
+     | Some (e',ctx') -> Some (at_expr e' ctx')
 and apply_transf_expr = function
   | (FocusUp | FocusRight | Delete), _, _ -> assert false
   | InsertBool b, _, ctx -> Some (Item (`Bool b), ctx)
@@ -815,7 +828,7 @@ and apply_transf_expr = function
   | InputFileTable in_file, _, ctx ->
      let filename, contents = in_file#get in
      if filename = "" || Filename.check_suffix filename ".csv" then
-       Some (EnvObject, Return1 (For2 (Fields, Call ("parseCSV", [FileString (filename, contents)]), false, Flower1 (CallX ("printCSV", ([], []), ctx)))))
+       Some (EnvObject, return1 (For2 (Fields, Call ("parseCSV", [FileString (filename, contents)]), false, flower1 (CallX ("printCSV", ([], []), ctx)))))
      else None
 
   | InsertNull, _, ctx -> Some (Item `Null, ctx)
@@ -933,50 +946,50 @@ and apply_transf_expr = function
      Some (e0, DefFunc0 (name, args, ctx, e1, e2))
   | InsertArg _, _, _ -> None
 
-  | InsertForVar1 (in_x,in_opt), e, ctx -> Some (Empty, Return1 (For2 (Var in_x#get, e, in_opt#get, flower1 ctx)))
+  | InsertForVar1 (in_x,in_opt), e, ctx -> Some (Empty, return1 (For2 (Var in_x#get, e, in_opt#get, flower1 ctx)))
   | InsertForVar2 (in_x,in_opt), e, ctx -> Some (Empty, For1 (Var in_x#get, flower1 ctx, in_opt#get, return e))
-  | InsertForFields1 (in_opt), e, ctx -> Some (Empty, Return1 (For2 (Fields, e, in_opt#get, flower1 ctx)))
+  | InsertForFields1 (in_opt), e, ctx -> Some (Empty, return1 (For2 (Fields, e, in_opt#get, flower1 ctx)))
 
-  | InsertLetVar1 in_x, e, Return1 ctx -> Some (Empty, Return1 (FLet2 (Var in_x#get, e, ctx)))
+  | InsertLetVar1 in_x, e, Return1 ctx -> Some (Empty, return1 (FLet2 (Var in_x#get, e, ctx)))
   | InsertLetVar2 in_x, e, Return1 ctx -> Some (Empty, FLet1 (Var in_x#get, ctx, return e))
-  | InsertLetFields1, e, Return1 ctx -> Some (Empty, Return1 (FLet2 (Fields, e, ctx)))
+  | InsertLetFields1, e, Return1 ctx -> Some (Empty, return1 (FLet2 (Fields, e, ctx)))
   | InsertLetVar1 in_x, e, ctx -> Some (Empty, Let2 (Var in_x#get, e, ctx))
   | InsertLetVar2 in_x, e, ctx -> Some (Empty, Let1 (Var in_x#get, ctx, e))
   | InsertLetFields1, e, ctx -> Some (Empty, Let2 (Fields, e, ctx))
 
-  | InsertCount1 in_x, e, Return1 ctx -> Some (e, Return1 (Count1 (in_x#get, ctx)))
+  | InsertCount1 in_x, e, Return1 ctx -> Some (e, return1 (Count1 (in_x#get, ctx)))
   | InsertCount1 _, _, _ -> None
 				     
   (* transformations below should only be suggested in for context *)
 
-  | InsertWhere1, e, ctx -> Some (Empty, Return1 (Where2 (e, flower1 ctx)))
+  | InsertWhere1, e, ctx -> Some (Empty, return1 (Where2 (e, flower1 ctx)))
   | InsertWhere2, e, ctx -> Some (Empty, Where1 (flower1 ctx, return e))
 
-  | InsertGroupBy (_, in_x), e, Return1 (GroupBy1 (lx,ctx)) -> Some (e, Return1 (GroupBy1 (list_switch in_x#get lx,ctx)))					    
-  | InsertGroupBy (_, in_x), Flower (GroupBy (lx,f)), ctx -> Some (Flower (GroupBy (list_switch in_x#get lx,f)), ctx)						 
-  | InsertGroupBy (_, in_x), e, ctx -> Some (e, Return1 (GroupBy1 ([in_x#get], flower1 ctx)))
+  | InsertGroupBy (_, in_x), e, Return1 (GroupBy1 (lx,ctx)) -> Some (e, return1 (GroupBy1 (list_switch in_x#get lx,ctx)))					    
+  | InsertGroupBy (_, in_x), Flower (GroupBy (lx,f)), ctx -> Some (flower (GroupBy (list_switch in_x#get lx,f)), ctx)						 
+  | InsertGroupBy (_, in_x), e, ctx -> Some (e, return1 (GroupBy1 ([in_x#get], flower1 ctx)))
 
   | InsertHide (_, in_x), e, Return1 (Hide1 (lx,ctx)) ->
      (match list_switch in_x#get lx with
-      | [] -> Some (e, Return1 ctx)
-      | new_lx -> Some (e, Return1 (Hide1 (new_lx, ctx))))
+      | [] -> Some (e, return1 ctx)
+      | new_lx -> Some (e, return1 (Hide1 (new_lx, ctx))))
   | InsertHide (_, in_x), Flower (Hide (lx,f)), ctx ->
      (match list_switch in_x#get lx with
-      | [] -> Some (Flower f, ctx)
-      | new_lx -> Some (Flower (Hide (new_lx, f)), ctx))
+      | [] -> Some (flower f, ctx)
+      | new_lx -> Some (flower (Hide (new_lx, f)), ctx))
   | InsertHide (_, in_x), e, ctx ->
-     Some (e, Return1 (Hide1 ([in_x#get], flower1 ctx)))
-  (*     Some (Flower (Hide ([in_x#get], return e)), ctx) *)
-(*  | InsertProject in_lx, e, Return1 (Project1 (_,ctx)) -> Some (e, Return1 (Project1 (in_lx#get, ctx)))
-  | InsertProject in_lx, Flower (Project (_,f)), ctx -> Some (Flower (Project (in_lx#get, f)), ctx)						 
-  | InsertProject in_lx, e, ctx -> Some (Flower (Project (in_lx#get, return e)), ctx) *)
+     Some (e, return1 (Hide1 ([in_x#get], flower1 ctx)))
+  (*     Some (flower (Hide ([in_x#get], return e)), ctx) *)
+(*  | InsertProject in_lx, e, return1 (Project1 (_,ctx)) -> Some (e, return1 (Project1 (in_lx#get, ctx)))
+  | InsertProject in_lx, Flower (Project (_,f)), ctx -> Some (flower (Project (in_lx#get, f)), ctx)						 
+  | InsertProject in_lx, e, ctx -> Some (flower (Project (in_lx#get, return e)), ctx) *)
 
   | InsertSlice (in_offset,in_limit), e, ctx ->
      let offset = in_offset#get in
      let limit = match in_limit#get with 0 -> None | l -> Some l in
-     Some (e, Return1 (Slice1 (offset, limit, flower1 ctx)))
+     Some (e, return1 (Slice1 (offset, limit, flower1 ctx)))
 
-  | InsertOrderBy1 in_o, e, Return1 (OrderBy2 (leo, ctx)) -> Some (Empty, Return1 (OrderBy2 (leo@[e, order_of_string in_o#get], ctx)))
-  | InsertOrderBy1 in_o, e, ctx -> Some (Empty, Return1 (OrderBy2 ([e, order_of_string in_o#get], flower1 ctx)))
+  | InsertOrderBy1 in_o, e, Return1 (OrderBy2 (leo, ctx)) -> Some (Empty, return1 (OrderBy2 (leo@[e, order_of_string in_o#get], ctx)))
+  | InsertOrderBy1 in_o, e, ctx -> Some (Empty, return1 (OrderBy2 ([e, order_of_string in_o#get], flower1 ctx)))
   | InsertOrderBy2 in_o, e, ctx -> Some (Empty, OrderBy1X (([],[]), flower1 ctx, order_of_string in_o#get, return e))
 
