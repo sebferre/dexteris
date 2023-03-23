@@ -103,7 +103,8 @@ let syn_Call library name lxml : syn =
   try library#syntax name lxml
   with _ -> syn_func name lxml
 let syn_Flower xml : syn =
-  [Kwd "collect"; Indent xml]
+  [Indent xml]
+(* [Kwd "collect"; Indent xml] *) (* no needed, focus skipped *)
 let syn_Concat lxml : syn =
   [Enum (seq_sep, lxml)]
 let syn_Exists xmlx xml1 xml2 : syn =
@@ -199,12 +200,18 @@ let syn_FIf xml1 xml2 xml3 : syn = syn_If xml1 xml2 xml3
 
 let syn_susp xml : syn = [Suspended xml]
 
+let syn_Focus (foc : focus) xml : syn =
+  match foc with
+  | AtExpr (Flower _, _) -> xml (* no focus on Flower, invalid focus *)
+  | AtFlower (Return _, _) -> xml (* no focus on Return, invalid focus *)
+  | _ -> [Focus (foc, xml)]
+                       
 class type library =
   object
     method syntax : string -> syn list -> syn
   end
 			   
-(* DERIVED *)			      
+(* DERIVED *)
 let rec syn_focus (library : #library) (foc : focus) : syn =
   match foc with
   | AtExpr (e,ctx) -> syn_expr_ctx library e ctx [Highlight (syn_expr library e ctx); ControlCurrentFocus]
@@ -294,7 +301,7 @@ and syn_expr library e ctx : syn =
 		   (syn_expr library e1 (DefFunc1 (name,args,e0,ctx,e2)))
 		   (syn_expr library e2 (DefFunc2 (name,args,e0,e1,ctx)))
   in
-  [Focus (AtExpr (e,ctx), xml)]
+  syn_Focus (AtExpr (e,ctx)) xml
 and syn_flower library f ctx : syn =
   let xml =
     match f with
@@ -341,9 +348,9 @@ and syn_flower library f ctx : syn =
 	       (syn_flower library f2 (FIf2 (f1,ctx,f3)))
 	       (syn_flower library f3 (FIf3 (f1,f2,ctx)))
   in
-  [Focus (AtFlower (f,ctx), xml)]
+  syn_Focus (AtFlower (f,ctx)) xml
 and syn_expr_ctx library e ctx (xml_e : syn) : syn =
-  let xml_e = [Focus (AtExpr (e,ctx), xml_e)] in
+  let xml_e = syn_Focus (AtExpr (e,ctx)) xml_e in
   match ctx with
   | Root -> xml_e
   | ConcatX (ll_rr,ctx) ->
@@ -563,8 +570,9 @@ and syn_expr_ctx library e ctx (xml_e : syn) : syn =
 		       (syn_order xml_e o))
 		    (syn_susp (syn_flower library f (OrderBy2 (Focus.list_of_ctx (e,o) ll_rr, ctx)))))
 and syn_flower_ctx library f ctx (xml_f : syn) : syn =
-  let xml_f = [Focus (AtFlower (f,ctx), xml_f)] in
+  let xml_f = syn_Focus (AtFlower (f,ctx)) xml_f in
   match ctx with
+  | Flower1 Root -> xml_f (* special case for root flower *)
   | Flower1 ctx ->
      syn_expr_ctx library
        (Flower f) ctx

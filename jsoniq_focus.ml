@@ -71,16 +71,6 @@ type focus =
   | AtExpr of expr * expr_ctx (* USE function [at_expr] to build values *)
   | AtFlower of flower * flower_ctx (* USE functio [at_flower] to build values *)
 
-let at_expr (e : expr) (ctx : expr_ctx) : focus =
-  match e, ctx with
-  | Flower f, Return1 ctx -> AtFlower (f,ctx)
-  | _ -> AtExpr (e,ctx)
-let at_flower (f : flower) (ctx : flower_ctx) : focus =
-  match f, ctx with
-  | Return e, Flower1 ctx -> AtExpr (e,ctx)
-  | _ -> AtFlower (f,ctx)
-
-(*
 let rec at_expr (e : expr) (ctx : expr_ctx) : focus =
   match e with
   | Flower f -> at_flower f (flower1 ctx)
@@ -89,7 +79,6 @@ and at_flower (f : flower) (ctx : flower_ctx) : focus =
   match f with
   | Return e -> at_expr e (return1 ctx)
   | _ -> AtFlower (f,ctx)
- *)
        
 let is_empty_focus = function
   | AtExpr (Empty, _) -> true
@@ -120,6 +109,7 @@ and var_of_flower_ctx = function
 let rec focus_up : focus -> (focus * path) option = function
   | AtExpr (e, Root) -> None
   | AtExpr (e, ctx) -> Some (focus_expr_up e ctx)
+  | AtFlower (f, Flower1 Root) -> None
   | AtFlower (f, ctx) -> Some (focus_flower_up f ctx)
 and focus_expr_up (e : expr) : expr_ctx -> focus * path = function
   | Root -> assert false
@@ -159,14 +149,14 @@ and focus_expr_up (e : expr) : expr_ctx -> focus * path = function
   | DefFunc0 (name,args,ctx,e1,e2) -> at_expr (DefFunc (name,args,e,e1,e2)) ctx, down_rights 0
   | DefFunc1 (name,args,e0,ctx,e2) -> at_expr (DefFunc (name,args,e0,e,e2)) ctx, down_rights 1
   | DefFunc2 (name,args,e0,e1,ctx) -> at_expr (DefFunc (name,args,e0,e1,e)) ctx, down_rights 2
-  | Return1 ctx -> at_flower (return e) ctx, down_rights 0
+  | Return1 ctx -> focus_flower_up (Return e) ctx (* skipping focus at Return *)
   | For1 (x,ctx,opt,f) -> at_flower (For (x,e,opt,f)) ctx, down_rights 0
   | FLet1 (x,ctx,f) -> at_flower (FLet (x,e,f)) ctx, down_rights 0
   | Where1 (ctx,f) -> at_flower (Where (e,f)) ctx, down_rights 0
   | OrderBy1X (ll_rr,ctx,o,f) -> at_flower (OrderBy (list_of_ctx (e,o) ll_rr, f)) ctx,
                                  DOWN :: path_of_list_ctx ll_rr []
 and focus_flower_up (f : flower) : flower_ctx -> focus * path = function
-  | Flower1 ctx -> at_expr (flower f) ctx, down_rights 0
+  | Flower1 ctx -> focus_expr_up (Flower f) ctx (* skipping focus at Flower *)
   | For2 (x,e,opt,ctx) -> at_flower (For (x,e,opt,f)) ctx, down_rights 1
   | FLet2 (x,e,ctx) -> at_flower (FLet (x,e,f)) ctx, down_rights 1
   | Count1 (x,ctx) -> at_flower (Count (x,f)) ctx, down_rights 0
@@ -332,11 +322,11 @@ let rec focus_of_path_focus path : focus -> focus (* raises Invalid_path *) = fu
   | AtExpr (e,ctx) -> focus_of_path_expr ctx (path,e)
   | AtFlower (f,ctx) -> focus_of_path_flower ctx (path,f)
 and focus_of_path_expr (ctx : expr_ctx) : path * expr -> focus = function
+  | path, Flower f -> focus_of_path_flower (flower1 ctx) (path,f) (* skipping Flower *)
   | [], e -> at_expr e ctx
   | DOWN::path, Concat le ->
      let path, (x, ll_rr) = list_focus_of_path_list path le in
      focus_of_path_expr (ConcatX (ll_rr,ctx)) (path,x)
-  | DOWN::path, Flower f -> focus_of_path_flower (flower1 ctx) (path,f)
   | DOWN::RIGHT::path, Exists (x,e1,e2) -> focus_of_path_expr (Exists2 (x,e1,ctx)) (path,e2)
   | DOWN::path, Exists (x,e1,e2) -> focus_of_path_expr (Exists1 (x,ctx,e2)) (path,e1)
   | DOWN::RIGHT::path, ForAll (x,e1,e2) -> focus_of_path_expr (ForAll2 (x,e1,ctx)) (path,e2)
@@ -380,8 +370,8 @@ and focus_of_path_expr (ctx : expr_ctx) : path * expr -> focus = function
   | DOWN::path, DefFunc (f,lx,e0,e1,e2) -> focus_of_path_expr (DefFunc0 (f,lx,ctx,e1,e2)) (path,e0)
   | path, _ -> raise (Invalid_path path)
 and focus_of_path_flower (ctx : flower_ctx) : path * flower -> focus = function
+  | path, Return e1 -> focus_of_path_expr (return1 ctx) (path,e1) (* skipping Return *)
   | [], f -> at_flower f ctx
-  | DOWN::path, Return e1 -> focus_of_path_expr (return1 ctx) (path,e1)
   | DOWN::RIGHT::path, For (x,e1,b,f) -> focus_of_path_flower (For2 (x,e1,b,ctx)) (path,f)
   | DOWN::path, For (x,e1,b,f) -> focus_of_path_expr (For1 (x,ctx,b,f)) (path,e1)
   | DOWN::RIGHT::path, FLet (x,e1,f) -> focus_of_path_flower (FLet2 (x,e1,ctx)) (path,f)
@@ -688,7 +678,7 @@ and delete_ctx_expr : expr_ctx -> focus option = function
   | DefFunc0 (f,lx,ctx,e1,e2) -> Some (at_expr e2 ctx)
   | DefFunc1 (f,lx,e0,ctx,e2) -> Some (at_expr e2 ctx)
   | DefFunc2 (f,lx,e0,e1,ctx) -> Some (at_expr e1 ctx)
-  | Return1 ctx -> delete_ctx_flower ctx
+  | Return1 ctx -> delete_ctx_flower ctx (* skipping Return *)
   | For1 (x,ctx,opt,f) -> Some (at_flower f ctx)
   | FLet1 (br,ctx,f) -> Some (at_flower f ctx)
   | Where1 (ctx,f) -> Some (at_flower f ctx)
@@ -699,7 +689,7 @@ and delete_ctx_expr : expr_ctx -> focus option = function
        | leo -> OrderBy (leo,f1) in
      Some (at_flower f ctx)
 and delete_ctx_flower : flower_ctx -> focus option = function
-  | Flower1 ctx -> delete_ctx_expr ctx
+  | Flower1 ctx -> delete_ctx_expr ctx (* skipping Flower *)
   | For2 (x,e,opt,ctx) -> Some (at_expr e (return1 ctx))
   | FLet2 (br,e,ctx) -> Some (at_expr e (return1 ctx))
   | Count1 (x,ctx) -> Some (at_expr Empty (return1 ctx))
