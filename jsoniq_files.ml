@@ -194,13 +194,13 @@ let json_seq_of_extent (ext : Semantics.extent) : Yojson.Basic.t Seq.t =
   let bindings = ext.Semantics.bindings in
   match Seq.take 2 bindings with
   | [ [(k,d)] ], None (* only one binding *)
-       when k = Semantics.field_focus ->
+       when k = ext.focus_var ->
      d
   | _ ->
      bindings
      |> Seq.map (* generating a sequence of JSON values *)
 	  (function
-	    | [(k,d)] when k = Semantics.field_focus ->
+	    | [(k,d)] when k = ext.focus_var ->
 	       json_of_data d
 	    | binding ->
 	       let pairs =

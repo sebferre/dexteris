@@ -12,7 +12,7 @@ let focus_types_lengths_fields (extent : Sem.extent) : Sem.TypSet.t * int Bintre
   List.fold_left
     (fun (typs,lens,fields,nbindings) binding ->
      try
-       let d0 = List.assoc Sem.field_focus binding in
+       let d0 = List.assoc extent.focus_var binding in
        let li, _ = Seq.take max_items_per_cell d0 in
        let typs, len, fields =
 	 List.fold_left
@@ -67,7 +67,7 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     add `Val InsertConcat2;
     List.iter
       (fun x ->
-       if x <> Sem.field_focus then
+       if x <> extent.focus_var then
 	 add `Val (InsertVar x))
       extent.Sem.vars;
     ignore
