@@ -725,7 +725,7 @@ let _ =
 	 (fun d -> Seq.return (`String (string_of_data d))));
   library#register
     (object
-	inherit classic "concatSep" 2 "concat_with_separator"
+        inherit mixfix "concatSep" 2 ["concat"; "with separator"]
 	method path = ["aggregation"]
 	inherit typecheck_simple ~single:false [| [`Bool; `Int; `Float; `String]; [`String] |] [`String]
 	method apply = function
