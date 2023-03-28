@@ -202,9 +202,9 @@ let score_of_suggestion library (sugg : Jsoniq_focus.transf) (cmd : string) : fl
             with _ -> Scanf.sscanf cmd "{ %_[?] : %_[?]%!" 1.)
     (* Scanf.sscanf cmd "{ %_[?] }%!" 1. *)
     | InsertObjectField in_field ->
-       (try Scanf.sscanf cmd "%s : %_[?]%!" (fun s -> in_field#set s; 1.)
+       (try Scanf.sscanf cmd "%S : %_[?]%!" (fun s -> in_field#set s; 1.)
         with _ ->
-          try Scanf.sscanf cmd "%S : %_[?]%!" (fun s -> in_field#set s; 1.)
+          try Scanf.sscanf cmd "%s : %_[?]%!" (fun s -> in_field#set s; 1.)
           with _ -> Scanf.sscanf cmd "%_[?] : %_[?]%!" 1.)
     | InsertEnvObject ->
        Scanf.sscanf cmd "{ * }%!" 1.
