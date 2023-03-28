@@ -15,6 +15,14 @@ type input = [ `Int of int Focus.input
 
 type syn = (word,input,focus) xml
 
+let show_whitechars : string -> string =
+  let re_space = Str.regexp_string " " in
+  let re_newline = Str.regexp_string "\n" in
+  fun s ->
+  s
+  |> Str.global_replace re_space "␣"
+  |> Str.global_replace re_newline "¶"
+
 
 let rec syn_list ~limit (f : 'a -> syn) (l : 'a list) : syn list =
   match l with
@@ -34,8 +42,8 @@ let rec syn_item : item -> syn = function
      if n > 200
      then
        let s_short = Js.to_string ((Js.string s)##substring 0 200) in
-       [Word (`String s_short); Kwd ("... (" ^ string_of_int n ^ " chars)")]
-     else [Word (`String s)]
+       [Word (`String (show_whitechars s_short)); Kwd ("... (" ^ string_of_int n ^ " chars)")]
+     else [Word (`String (show_whitechars s))]
   | `Null -> [Kwd "null"]
   | `Assoc pairs ->
      [Quote ("{",
@@ -219,7 +227,7 @@ let rec syn_focus (library : #library) (foc : focus) : syn =
 and syn_expr library e ctx : syn =
   let xml =
     match e with
-    | S s -> [Word (`String s)]
+    | S s -> [Word (`String (show_whitechars s))]
     | Item i -> syn_item i
     | FileString (fname,contents) ->
        [Kwd "file"; Word (`Filename fname)]
@@ -682,7 +690,7 @@ let syn_transf (library : #library) : transf -> syn = function
   | InsertMap -> syn_Map [the_focus] [ellipsis]
   | InsertPred -> syn_Pred [the_focus] [ellipsis]
   | InsertDot -> syn_Dot [the_focus] [ellipsis]
-  | InsertField k -> syn_Dot [the_focus] [Word (`String k)]
+  | InsertField k -> syn_Dot [the_focus] [Word (`String (show_whitechars k))]
   | InsertArrayLookup -> syn_ArrayLookup [the_focus] [ellipsis]
   | InsertArrayUnboxing -> syn_ArrayUnboxing [the_focus]
   | InsertVar x -> syn_Var x
