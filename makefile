@@ -10,6 +10,9 @@ all: $(JSONIQ) jsoniq_webapp.ml
 	ocamlfind ocamlc $(FLAGS) -package js_of_ocaml,js_of_ocaml-lwt -linkpkg -o html/script.byte $(LIB) $(CORE) $(WEBAPP) $(JSONIQ) jsoniq_webapp.ml
 	js_of_ocaml html/script.byte
 
+install:
+	cp -r html/* /local/ferre/web/ferre/dexteris
+
 clean:
 	rm -f *.cm[ioax]
 
