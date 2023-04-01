@@ -48,7 +48,7 @@ let rec objectify_data (d : data) : data =
 	   | _ -> `Assoc [("?",elt)])
        
 let data_of_json ?fname (contents : string) : data =
-  let str = Yojson.Basic.stream_from_string ?fname contents in
+  let str = Yojson.Safe.stream_from_string ?fname contents in
   objectify_data (Seq.from_stream str)
 
 let json_of_data (d : data) : string =
@@ -57,7 +57,7 @@ let json_of_data (d : data) : string =
     | [] -> `Null
     | [elt] -> elt
     | elts -> `List elts in
-  Yojson.Basic.to_string json
+  Yojson.Safe.to_string ~std:true json (* to output standard JSON, e.g. Intlit as number *)
 
 			 
 (* CSV *)
@@ -134,11 +134,14 @@ let csv_of_data (d : data) : string =
 	(function
 	  | `Bool b -> if b then "true" else "false"
 	  | `Int i -> string_of_int i
+          | `Intlit s -> s
 	  | `Float f -> string_of_float f
 	  | `String s -> s
 	  | `Null -> ""
 	  | `Assoc _ -> failwith "csv_of_data: unexpected value (object)"
-	  | `List _ -> failwith "csv_of_data: unexpected value (array)")
+	  | `List _ -> failwith "csv_of_data: unexpected value (array)"
+	  | `Tuple _ -> failwith "csv_of_data: unexpected value (tuple)"
+	  | `Variant _ -> failwith "csv_of_data: unexpected value (variant)")
 	li in
     Csv.output_record ch ls
   in
@@ -185,7 +188,7 @@ let csv_of_data (d : data) : string =
   | [elt] -> elt
   | _ -> `List (List.rev rev_elts)*)
 
-let json_seq_of_extent (ext : Semantics.extent) : Yojson.Basic.t Seq.t =
+let json_seq_of_extent (ext : Semantics.extent) : Yojson.Safe.t Seq.t =
   let json_of_data d =
     match Seq.to_list d with
     | [] -> `Null
@@ -216,7 +219,7 @@ let mime_contents_of_extent (ext : Semantics.extent) : string * string =
     json_seq
     |> Seq.iter
 	 (fun json ->
-	  Buffer.add_string buf (Yojson.Basic.to_string json);
+	  Buffer.add_string buf (Yojson.Safe.to_string json);
 	  Buffer.add_char buf '\n');
     Buffer.contents buf in
   let mime = "application/x-json-stream" in

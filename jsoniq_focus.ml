@@ -599,11 +599,15 @@ and reaching_data (d : data) : transf list =
 and reaching_item : item -> transf list = function
   | `Bool b -> [InsertBool b]
   | `Int n -> [InputInt (new input n)]
+  | `Intlit s -> [InputString (new input s)] (* bof *)
   | `Float f -> [InputFloat (new input f)]
   | `String s -> [InputString (new input s)]
   | `Null -> [InsertNull]
   | `Assoc pairs -> InsertObject (new input "") :: reaching_list reaching_pair [InsertObjectField (new input "")] (List.map (fun (k,i) -> S k, Item i) pairs)
   | `List li -> InsertArray :: reaching_list reaching_item [InsertConcat1] li
+  | `Tuple li -> reaching_item (`List li) (* Yojson encoding *)
+  | `Variant (c, None) -> reaching_item (`String c) (* Yojson encoding *)
+  | `Variant (c, Some i) -> reaching_item (`List [`String c; i]) (* Yojson encoding *)
 and reaching_pair (e1, e2: expr * expr) : transf list =
   reaching_expr e1 @ FocusRight :: reaching_expr e2
 

@@ -21,13 +21,16 @@ let focus_types_lengths_fields (extent : Sem.extent) : Sem.TypSet.t * int Bintre
 	      match i with
 	      | `Bool _ -> Sem.TypSet.add `Bool typs, fields
 	      | `Int _ -> Sem.TypSet.add `Int typs, fields
+              | `Intlit _ -> typs, fields
 	      | `Float _ -> Sem.TypSet.add `Float typs, fields
 	      | `String _ -> Sem.TypSet.add `String typs, fields
 	      | `Null -> typs, fields
 	      | `Assoc pairs ->
 		 Sem.TypSet.add `Object typs,
 		 List.fold_left (fun fields (k,_) -> Bintree.add k fields) fields pairs
-	      | `List _ -> Sem.TypSet.add `Array typs, fields in
+	      | `List _ -> Sem.TypSet.add `Array typs, fields
+              | `Tuple _ -> typs, fields (* TODO: add support for those? *)
+              | `Variant _ -> typs, fields in
 	    typs, len+1, fields)
 	   (typs,0,fields) li in
        typs, Bintree.add len lens, fields, nbindings+1

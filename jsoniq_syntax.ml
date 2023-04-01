@@ -35,6 +35,7 @@ let rec syn_list ~limit (f : 'a -> syn) (l : 'a list) : syn list =
 let rec syn_item : item -> syn = function
   | `Bool b -> [Word (`Bool b)]
   | `Int i -> [Word (`Int i)]
+  | `Intlit s -> [Word (`String s)]
   | `Float f -> [Word (`Float f)]
   | `String s ->
      let open Js_of_ocaml in
@@ -57,6 +58,18 @@ let rec syn_item : item -> syn = function
 	     [Enum (", ",
 		    syn_list ~limit:10 syn_item li)],
 	     "]")]
+  | `Tuple li ->
+     [Quote ("(",
+	     [Enum (", ",
+		    syn_list ~limit:10 syn_item li)],
+	     ")")]
+  | `Variant (c, i_opt) ->
+     [Quote ("<",
+             Kwd c ::
+               (match i_opt with
+                | None -> []
+                | Some i -> Kwd ":" :: syn_item i),
+             ">")]
 
 let seq_sep = "; "
        

@@ -83,6 +83,9 @@ and turtle_obj buf indent ln i =
   | `Int i ->
      Buffer.add_string buf (string_of_int i);
      true, ln
+  | `Intlit s ->
+     Buffer.add_string buf s;
+     true, ln
   | `Float f ->
      Buffer.add_string buf (string_of_float f);
      true, ln
@@ -121,6 +124,8 @@ and turtle_obj buf indent ln i =
 	 Buffer.add_string buf " ]";
 	 true, ln)
   | `List _ -> failwith "turtle_of_data: invalid object (array)"
+  | `Tuple _ -> failwith "turtle_of_data: invalid object (tuple)"
+  | `Variant _ -> failwith "turtle_of_data: invalid object (variant)"
        
 let turtle_of_data (d : data) : string =
   let buf = Buffer.create 1048576 in

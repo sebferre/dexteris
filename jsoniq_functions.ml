@@ -45,10 +45,13 @@ let string_of_atomic_item : item -> string option =
   | `Null -> Some ""
   | `Bool b -> Some (string_of_bool b)
   | `Int i -> Some (string_of_int i)
+  | `Intlit s -> Some s
   | `Float f -> Some (string_of_float f)
   | `String s -> Some s
   | `Assoc _ -> None
   | `List _ -> None
+  | `Tuple _ -> None
+  | `Variant _ -> None
 
 let item_of_item_list : item list -> item = function
   | [] -> `Null
@@ -477,7 +480,7 @@ let _ =
 	inherit typecheck_simple [|list_all_typs|] [`String]
 	method apply =
 	  bind_1item
-	    (fun i -> Seq.return (`String (Yojson.Basic.to_string i)))
+	    (fun i -> Seq.return (`String (Yojson.Safe.to_string ~std:true i)))
       end);
   library#register
     (object
@@ -489,6 +492,7 @@ let _ =
 	    (function
 	      | `Bool b -> Seq.return (`Bool b)
 	      | `Int n -> Seq.return (`Bool (n <> 0))
+              | `Intlit s -> Seq.return (`Bool true)
 	      | `Float f -> Seq.return (`Bool (f <> 0.))
 	      | `String s ->
 		 if s="true" || s="1" then Seq.return (`Bool true)
@@ -496,7 +500,9 @@ let _ =
 		 else Seq.empty
 	      | `Null -> Seq.return (`Bool false)
 	      | `List li -> Seq.return (`Bool (li<>[]))
-	      | `Assoc pairs -> Seq.return (`Bool (pairs<>[])))
+	      | `Assoc pairs -> Seq.return (`Bool (pairs<>[]))
+	      | `Tuple li -> Seq.return (`Bool (li<>[]))
+              | `Variant _ -> Seq.return (`Bool true))
       end);
   library#register
     (object

@@ -53,49 +53,15 @@ exception TODO
   | Object of (string * item) list
   | Array of item list*)
 
-type item = Yojson.Basic.t
-(* [`Null | `Bool of bool | `Int of int | `Float of float | `String of string | `Assoc of (string * item) list | `List of item list ] *)
+type item = Yojson.Safe.t
+(* Basic = [`Null | `Bool of bool | `Int of int | `Float of float | `String of string | `Assoc of (string * item) list | `List of item list ] *)
+(* Safe = Basic + [`Intlit of string | `Tuple of t list | `Variant of string * t option *)
 
-let item_to_yojson (i : item) = (i :> Yojson.Safe.t)
-				  
-let rec item_of_yojson : Yojson.Safe.t -> (item,string) Result.result =
-  let open Result in
-  function
-  | `Null ->  Ok `Null
-  | `Int i -> Ok (`Int i)
-  | `Float f -> Ok (`Float f)
-  | `Bool b -> Ok (`Bool b)
-  | `String s -> Ok (`String s)
-  | `Assoc pairs ->
-     Result.bind
-       (result_bind_list
-	  (fun (s,x) -> Result.bind (item_of_yojson x) (fun y -> Ok (s,y)))
-	  pairs)
-       (fun pairs -> Ok (`Assoc pairs))
-(*     
-	 Option.bind (assoc item json)
-		     (fun pairs -> Some (`Assoc pairs)) *)
-(*	 
-	 let json = `List (List.map (fun (s,x) -> `Tuple [`String s; x]) pairs) in
-	 Option.bind (list (tuple2 (string,item)) json)
-		     (fun pairs -> Some (`Assoc pairs)) *)
-  | `List lx ->
-     Result.bind
-       (result_bind_list item_of_yojson lx)
-       (fun ly -> Ok (`List ly))
-  | _ -> Error "Invalid serialization of item"
-		    
+(* for deriving yojson on items *)
+let item_to_yojson : item -> Yojson.Safe.t = fun i -> i
+let item_of_yojson : Yojson.Safe.t -> (item,string) Result.t = fun i -> Result.Ok i
+          
 type data = item Seq.t
-
-let data_to_yojson d =
-  `List (List.map item_to_yojson (Seq.to_list d))
-let data_of_yojson = function
-  | `List lx ->
-     Result.bind
-       (result_bind_list item_of_yojson lx)
-       (fun ly -> Result.Ok (Seq.from_list ly))
-  | _ -> Result.Error "Invalid serialization of data"
-
 		      
 type var = string [@@deriving yojson]
 type order = DESC | ASC [@@deriving yojson]
@@ -192,6 +158,7 @@ let item_as_string (i : item) : string =
   match i with
   | `Bool b -> string_of_bool b
   | `Int n -> string_of_int n
+  | `Intlit s -> s
   | `Float f -> string_of_float f
   | `String s -> s
   | _ -> raise (TypeError "invalid item as string")
@@ -204,6 +171,7 @@ let rec output_data out d =
 and output_item out = function
   | `Bool b -> output_string out (string_of_bool b)
   | `Int n -> output_string out (string_of_int n)
+  | `Intlit s -> output_string out s
   | `Float f -> output_string out (string_of_float f)
   | `String s -> output_char out '"';
 		output_string out (String.escaped s);
@@ -227,6 +195,24 @@ and output_item out = function
 	output_string out ", ")
      li;
      output_char out ']'
+  | `Tuple li ->
+     output_char out '(';
+     List.iter
+       (fun i ->
+	output_item out i;
+	output_string out ", ")
+     li;
+     output_char out ')'
+  | `Variant (c, i_opt) ->
+     output_char out '<';
+     output_string out c;
+     (match i_opt with
+      | None -> ()
+      | Some i ->
+         output_char out ':';
+         output_item out i);
+     output_char out '>'
+     
 	       
 let compare_item (i1 : item) (i2 : item) : int (* -1, 0, 1 *) =
   match i1, i2 with
@@ -235,6 +221,7 @@ let compare_item (i1 : item) (i2 : item) : int (* -1, 0, 1 *) =
   | _, `Null -> 1
   | `Bool b1, `Bool b2 -> compare b1 b2
   | `Int n1, `Int n2 -> compare n1 n2
+  | `Intlit s1, `Intlit s2 -> compare s1 s2
   | `Float f1, `Float f2 -> compare f1 f2
   | `Int n1, `Float f2 -> compare  (float n1) f2
   | `Float f1, `Int n2 -> compare f1 (float n2)
