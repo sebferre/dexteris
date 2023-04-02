@@ -39,7 +39,8 @@ let command_of_suggestion library : Jsoniq_focus.transf -> string = function
   | InsertPred -> "filter"
   | InsertDot -> "."
   | InsertField f -> "." ^ f
-  | InsertArrayLookup -> "[["
+  | InsertArrayLookup in_i_opt ->
+     "[[" ^ (match in_i_opt#get with None -> "" | Some i -> string_of_int i)
   | InsertArrayUnboxing -> "[]"
   | InsertVar v -> Jsoniq_syntax.label_of_var v
   | InsertContextItem -> ""
@@ -183,9 +184,11 @@ let score_of_suggestion library (sugg : Jsoniq_focus.transf) (cmd : string) : fl
     | InsertField f ->
        Scanf.sscanf cmd ". %s"
          (fun s -> if s=f then 1. else 0.)
-    | InsertArrayLookup ->
+    | InsertArrayLookup in_i_opt ->
        if cmd="[[" then 1.
-       else Scanf.sscanf cmd "[[%_[ ?]]]%!" 1.
+       else
+         (try Scanf.sscanf cmd "[[ %d" (fun i -> in_i_opt#set (Some i); 1.)
+          with _ -> Scanf.sscanf cmd "[[%_[ ?]" 1.)
     | InsertArrayUnboxing ->
        if cmd="[]" then 1.
        else if cmd="unbox" then 0.9

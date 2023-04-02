@@ -27,6 +27,15 @@ let html_info_of_input (input : Jsoniq_syntax.input) : Html.input_info =
   | `Int input ->
      Html.int_info input#get
        (fun i k -> input#set i; k ())
+  | `IntOption input ->
+     Html.string_info
+       (match input#get with None -> "" | Some i -> string_of_int i)
+       (fun s k ->
+         input#set
+           (if s = ""
+            then None
+            else Some (int_of_string s)); (* if this fails, input font turns red *)
+         k ())
   | `Float input ->
      Html.float_info input#get
        (fun f k -> input#set f; k ())

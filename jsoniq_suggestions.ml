@@ -148,7 +148,7 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       add `Val ~path:[(*"objects"*)] InsertDot;
       add `Val ~path:[(*"objects"*)] InsertObjectify);
     if Sem.TypSet.mem `Array allowed_typs then (
-      add `Val ~path:[(*"arrays"*)] InsertArrayLookup);
+      add `Val ~path:[(*"arrays"*)] (InsertArrayLookup (new input None)));
     if Sem.TypSet.mem `Array focus_typs then (
       add `Val ~path:[(*"arrays"*)] InsertArrayUnboxing);
     if Sem.TypSet.mem `Array ctx_typs then (

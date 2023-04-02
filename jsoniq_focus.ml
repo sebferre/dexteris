@@ -495,8 +495,8 @@ type transf =
   | InputFileString of (string * string) input
   | InputFileTable of (string * string) input (* input file as table *)
   | InsertNull
-  | InsertConcat1 (* TODO: string input *)
-  | InsertConcat2 (* TODO: string input *)
+  | InsertConcat1
+  | InsertConcat2
   | InsertExists1 of var input
   | InsertExists2 of var input
   | InsertForAll1 of var input
@@ -506,11 +506,11 @@ type transf =
   | InsertAnd
   | InsertNot
   | InsertFunc of string * int * int (* name, arity, focus position in [1,arity] *)
-  | InsertMap (* TODO: auto insert this *)
-  | InsertPred (* TODO: auto insert this *)
+  | InsertMap
+  | InsertPred
   | InsertDot
   | InsertField of string
-  | InsertArrayLookup (* TODO: int input *)
+  | InsertArrayLookup of int option input
   | InsertArrayUnboxing
   | InsertVar of var
   | InsertContextItem
@@ -565,7 +565,7 @@ let rec reaching_expr : expr -> transf list = function
   | Map (e1,e2) -> reaching_expr e1 @ InsertMap :: Delete :: reaching_expr e2 @ [FocusUp]
   | Pred (e1,e2) -> reaching_expr e1 @ InsertPred :: Delete :: reaching_expr e2 @ [FocusUp]
   | Dot (e1,e2) -> reaching_expr e1 @ InsertDot :: reaching_expr e2 @ [FocusUp]
-  | ArrayLookup (e1,e2) -> reaching_expr e1 @ InsertArrayLookup :: reaching_expr e2 @ [FocusUp]
+  | ArrayLookup (e1,e2) -> reaching_expr e1 @ InsertArrayLookup (new input None) :: reaching_expr e2 @ [FocusUp]
   | ArrayUnboxing e -> reaching_expr e @ [InsertArrayUnboxing]
   | Var x -> [InsertVar x]
   | ContextItem -> [InsertContextItem]
@@ -887,8 +887,10 @@ and apply_transf_expr = function
   | InsertDot, e, ctx -> Some (Empty, Dot2 (e, ctx))
   | InsertField k, e, Dot1 (ctx,_) -> Some (Dot (e, S k), ctx)
   | InsertField k, e, ctx -> Some (Dot (e, S k), ctx)
-  | InsertArrayLookup, e, ctx -> Some (Empty, ArrayLookup2 (e, ctx))
-
+  | InsertArrayLookup in_i_opt, e, ctx ->
+     (match in_i_opt#get with
+      | None -> Some (Empty, ArrayLookup2 (e, ctx))
+      | Some i -> Some (ArrayLookup (e, Item (`Int i)), ctx))
   | InsertArrayUnboxing, e, ctx -> Some (ArrayUnboxing e, ctx)
 
   | InsertVar x, Empty, ctx -> Some (Var x, ctx)

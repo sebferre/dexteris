@@ -6,6 +6,7 @@ open Jsoniq_focus
 (* syntax definition *)
 type word = [`Bool of bool | `Int of int | `Float of float | `String of string | `Filename of string | `Var of var | `Func of string | `ContextItem | `ContextEnv | `Order of order | `TheFocus | `Ellipsis ]
 type input = [ `Int of int Focus.input
+             | `IntOption of int option Focus.input 
 	     | `Float of float Focus.input
 	     | `String of string Focus.input
 	     | `Ident of string Focus.input
@@ -705,7 +706,7 @@ let syn_transf (library : #library) : transf -> syn = function
   | InsertPred -> syn_Pred [the_focus] [ellipsis]
   | InsertDot -> syn_Dot [the_focus] [ellipsis]
   | InsertField k -> syn_Dot [the_focus] [Word (`String (show_whitechars k))]
-  | InsertArrayLookup -> syn_ArrayLookup [the_focus] [ellipsis]
+  | InsertArrayLookup in_i_opt -> syn_ArrayLookup [the_focus] [Input (`IntOption in_i_opt)] (* [ellipsis] *)
   | InsertArrayUnboxing -> syn_ArrayUnboxing [the_focus]
   | InsertVar x -> syn_Var x
   | InsertContextItem -> syn_ContextItem
