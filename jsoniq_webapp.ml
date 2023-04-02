@@ -25,13 +25,13 @@ let html_info_of_input (input : Jsoniq_syntax.input) : Html.input_info =
   (* exceptions are captured by caller of updates *)
   match input with
   | `Int input ->
-     Html.int_info
+     Html.int_info input#get
        (fun i k -> input#set i; k ())
   | `Float input ->
-     Html.float_info
+     Html.float_info input#get
        (fun f k -> input#set f; k ())
   | `String input ->
-     Html.string_info
+     Html.string_info input#get
        (fun s k ->
 	let open Js_of_ocaml in
 	let s = Regexp.global_replace (Regexp.regexp_string "\\n") s "\n" in
@@ -40,10 +40,12 @@ let html_info_of_input (input : Jsoniq_syntax.input) : Html.input_info =
 	let s = Regexp.global_replace (Regexp.regexp_string "\\\\") s "\\" in
 	input#set s; k ())
   | `Ident input ->
-     Html.string_info
+     Html.string_info input#get
        (fun id k -> input#set id; k ())
   | `FuncSig input ->
+     let name, args = input#get in
      Html.string_info
+       (name ^ "(" ^ String.concat "," args ^ ")")
        (fun s k ->
 	let open Js_of_ocaml in
 	let ls = Regexp.split (Regexp.regexp "[(), ]+") s in

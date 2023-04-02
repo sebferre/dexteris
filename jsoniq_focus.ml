@@ -998,6 +998,7 @@ let prefill_transf (focus : focus) (t : transf) : transf =
   | InputInt _ ->
      (match e with
       | Item (`Int i) -> InputInt (new input i)
+      | Item (`Float f) -> InputInt (new input (int_of_float f))
       | _ -> t)
   | InputRange (_, _) ->
      (match e with
@@ -1007,6 +1008,7 @@ let prefill_transf (focus : focus) (t : transf) : transf =
   | InputFloat _ ->
      (match e with
       | Item (`Float f) -> InputFloat (new input f)
+      | Item (`Int i) -> InputFloat (new input (float_of_int i))
       | _ -> t)
   | InputString _ ->
      (match e with
