@@ -987,3 +987,30 @@ and apply_transf_expr = function
   | InsertOrderBy1 in_o, e, ctx -> Some (Empty, return1 (OrderBy2 ([e, order_of_string in_o#get], flower1 ctx)))
   | InsertOrderBy2 in_o, e, ctx -> Some (Empty, OrderBy1X (([],[]), flower1 ctx, order_of_string in_o#get, return e))
 
+
+let prefill_transf (focus : focus) (t : transf) : transf =
+  let e =
+    match focus with
+    | AtExpr (e,ctx) -> e
+    | AtFlower (f,ctx) -> flower f
+  in
+  match t with
+  | InputInt _ ->
+     (match e with
+      | Item (`Int i) -> InputInt (new input i)
+      | _ -> t)
+  | InputRange (_, _) ->
+     (match e with
+      | Call ("range", [Item (`Int a); Item (`Int b)]) -> InputRange (new input a, new input b)
+      | Item (`Int i) -> InputRange (new input i, new input i)
+      | _ -> t)
+  | InputFloat _ ->
+     (match e with
+      | Item (`Float f) -> InputFloat (new input f)
+      | _ -> t)
+  | InputString _ ->
+     (match e with
+      | S s -> InputString (new input s)
+      | Item (`String s) -> InputString (new input s)
+      | _ -> t)
+  | _ -> t

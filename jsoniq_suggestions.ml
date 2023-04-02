@@ -81,13 +81,13 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
 	  i+1)
 	 fields 0);
     if Sem.TypSet.mem `Int ctx_typs then
-      add `Val ~path:[] (InputInt (new input 0));
+      add `Val ~path:[] (prefill_transf foc (InputInt (new input 0)));
     if Sem.TypSet.mem `Int ctx_typs then
-      add `Val ~path:[] (InputRange (new input 0, new input 10));
+      add `Val ~path:[] (prefill_transf foc (InputRange (new input 0, new input 10)));
     if Sem.TypSet.mem `Float ctx_typs then
-      add `Val ~path:[] (InputFloat (new input 0.));
+      add `Val ~path:[] (prefill_transf foc (InputFloat (new input 0.)));
     if Sem.TypSet.mem `String ctx_typs then
-      add `Val ~path:[] (InputString (new input ""));
+      add `Val ~path:[] (prefill_transf foc (InputString (new input "")));
     if Sem.TypSet.mem `String ctx_typs then (
       add `Val ~path:[] (InputFileString (new input ("","")));
       add `Val ~path:[] (InputFileTable (new input ("",""))));
