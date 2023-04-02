@@ -103,14 +103,14 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     if multiple_bindings then
       add `Flower (InsertCount1 (new input ""));
     if multiple_items then (
-      add `Flower ~path:["iterations"] InsertMap;
-      add `Flower ~path:["iterations"] InsertPred);
+      add `Flower ~path:[(*"iterations"*)] InsertMap;
+      add `Flower ~path:[(*"iterations"*)] InsertPred);
     if multiple_items then (
-      add `Flower ~path:["iterations"] (InsertForVar1 (new input "", new input false));
+      add `Flower ~path:[(*"iterations"*)] (InsertForVar1 (new input "", new input false));
       if Sem.TypSet.mem `Object focus_typs then
-	add `Flower ~path:["iterations"] (InsertForFields1 (new input false)));
+	add `Flower ~path:[(*"iterations"*)] (InsertForFields1 (new input false)));
 
-    add `Flower ~path:["iterations"] (InsertForVar2 (new input "", new input false));
+    add `Flower ~path:[(*"iterations"*)] (InsertForVar2 (new input "", new input false));
     Jsoniq_functions.library#iter
       (fun func ->
         let name = func#name in
@@ -127,11 +127,11 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
         done)
       sem.Sem.annot#funcs;
     if Sem.TypSet.mem `Bool ctx_typs then (
-      add `Flower ~path:["iterations"] (InsertExists1 (new input ""));
-      add `Flower ~path:["iterations"] (InsertForAll1 (new input "")));
+      add `Flower ~path:[(*"iterations"*)] (InsertExists1 (new input ""));
+      add `Flower ~path:[(*"iterations"*)] (InsertForAll1 (new input "")));
     if Sem.TypSet.mem `Bool allowed_typs then (
-      add `Flower ~path:["iterations"] (InsertExists2 (new input ""));
-      add `Flower ~path:["iterations"] (InsertForAll2 (new input ""));
+      add `Flower ~path:[(*"iterations"*)] (InsertExists2 (new input ""));
+      add `Flower ~path:[(*"iterations"*)] (InsertForAll2 (new input ""));
       add `Op ~path:["logic"] InsertOr;
       add `Op ~path:["logic"] InsertAnd;
       add `Op ~path:["logic"] InsertNot;
@@ -139,21 +139,21 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
     add `Op ~path:["logic"] InsertIf2;
     add `Op ~path:["logic"] InsertIf3;
     if Sem.TypSet.mem `Object ctx_typs then (
-      add `Val ~path:["objects"] (InsertObject (new input ""));
+      add `Val ~path:[(*"objects"*)] (InsertObject (new input ""));
     (*add `Val InsertContextEnv*));
-    add `Val ~path:["objects"] (InsertObjectField (new input ""));
+    add `Val ~path:[(*"objects"*)] (InsertObjectField (new input ""));
     if extent.Sem.vars <> [] then (
-      add `Val ~path:["objects"] InsertEnvObject);
+      add `Val ~path:[(*"objects"*)] InsertEnvObject);
     if Sem.TypSet.mem `Object allowed_typs then (
-      add `Op ~path:["objects"] InsertDot;
-      add `Val ~path:["objects"] InsertObjectify);
+      add `Val ~path:[(*"objects"*)] InsertDot;
+      add `Val ~path:[(*"objects"*)] InsertObjectify);
     if Sem.TypSet.mem `Array allowed_typs then (
-      add `Op ~path:["arrays"] InsertArrayLookup);
+      add `Val ~path:[(*"arrays"*)] InsertArrayLookup);
     if Sem.TypSet.mem `Array focus_typs then (
-      add `Val ~path:["arrays"] InsertArrayUnboxing);
+      add `Val ~path:[(*"arrays"*)] InsertArrayUnboxing);
     if Sem.TypSet.mem `Array ctx_typs then (
       (*add `Val ~path:["arrays"] InsertArray;*)
-      add `Val ~path:["arrays"] InsertArrayify);
+      add `Val ~path:[(*"arrays"*)] InsertArrayify);
     add `Flower ~path:[] InsertWhere2;
     if multiple_bindings then (
       if Sem.TypSet.mem `Bool focus_typs then
@@ -161,16 +161,16 @@ let suggestions (foc : focus) (sem : Sem.sem) (extent : Sem.extent) : suggestion
       let group_by_vars = (* TODO: suggest only variables not yet grouped *)
 	List.filter ((<>) Sem.field_focus) extent.Sem.vars in
       if group_by_vars <> [] then
-	add `Flower ~path:["modifiers"] (InsertGroupBy (group_by_vars, new input (List.hd group_by_vars))); 
-      add `Flower ~path:["modifiers"] (InsertSlice (new input 0, new input 0));
-      add `Flower ~path:["modifiers"] (InsertOrderBy1 (new input (string_of_order ASC))));
+	add `Flower ~path:[(*"modifiers"*)] (InsertGroupBy (group_by_vars, new input (List.hd group_by_vars))); 
+      add `Flower ~path:[(*"modifiers"*)] (InsertSlice (new input 0, new input 0));
+      add `Flower ~path:[(*"modifiers"*)] (InsertOrderBy1 (new input (string_of_order ASC))));
     let hide_vars =
       List.filter ((<>) Sem.field_focus) extent.Sem.vars in
     if hide_vars <> [] then
-      add `Flower ~path:["modifiers"] (InsertHide (hide_vars, new input (List.hd hide_vars)));
-    add `Flower ~path:["modifiers"] (InsertOrderBy2 (new input (string_of_order ASC)));
-    add `Flower ~path:["functions"] (InsertDefFunc1 (new input ("",[])));
-    add `Flower ~path:["functions"] (InsertDefFunc2 (new input ("",[])));
-    add `Flower ~path:["functions"] (InsertArg (new input "x"));
+      add `Flower ~path:[(*"modifiers"*)] (InsertHide (hide_vars, new input (List.hd hide_vars)));
+    add `Flower ~path:[(*"modifiers"*)] (InsertOrderBy2 (new input (string_of_order ASC)));
+    add `Flower ~path:["function definition"] (InsertDefFunc1 (new input ("",[])));
+    add `Flower ~path:["function definition"] (InsertDefFunc2 (new input ("",[])));
+    add `Flower ~path:["function definition"] (InsertArg (new input "x"));
   in
   [!forest_op; !forest_val; !forest_flower]
