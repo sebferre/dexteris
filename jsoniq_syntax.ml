@@ -669,6 +669,7 @@ and syn_flower_ctx library f ctx (xml_f : syn) : syn =
 
 let the_focus = Word `TheFocus
 let ellipsis = Word `Ellipsis
+let syn_this = syn_Var var_context
        
 let syn_transf (library : #library) : transf -> syn = function
   | FocusUp -> [Kwd "(focus up)"]

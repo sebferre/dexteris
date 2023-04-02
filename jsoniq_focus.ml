@@ -495,8 +495,8 @@ type transf =
   | InputFileString of (string * string) input
   | InputFileTable of (string * string) input (* input file as table *)
   | InsertNull
-  | InsertConcat1
-  | InsertConcat2
+  | InsertConcat1 (* TODO: string input *)
+  | InsertConcat2 (* TODO: string input *)
   | InsertExists1 of var input
   | InsertExists2 of var input
   | InsertForAll1 of var input
@@ -506,11 +506,11 @@ type transf =
   | InsertAnd
   | InsertNot
   | InsertFunc of string * int * int (* name, arity, focus position in [1,arity] *)
-  | InsertMap
-  | InsertPred
+  | InsertMap (* TODO: auto insert this *)
+  | InsertPred (* TODO: auto insert this *)
   | InsertDot
   | InsertField of string
-  | InsertArrayLookup
+  | InsertArrayLookup (* TODO: int input *)
   | InsertArrayUnboxing
   | InsertVar of var
   | InsertContextItem
@@ -562,8 +562,8 @@ let rec reaching_expr : expr -> transf list = function
   | And le -> reaching_list reaching_expr [InsertAnd] le
   | Not e -> reaching_expr e @ [InsertNot]
   | Call (func,le) -> InsertFunc (func, List.length le, 1) :: reaching_list reaching_expr [FocusRight] le
-  | Map (e1,e2) -> reaching_expr e1 @ InsertMap :: reaching_expr e2 @ [FocusUp]
-  | Pred (e1,e2) -> reaching_expr e1 @ InsertPred :: reaching_expr e2 @ [FocusUp]
+  | Map (e1,e2) -> reaching_expr e1 @ InsertMap :: Delete :: reaching_expr e2 @ [FocusUp]
+  | Pred (e1,e2) -> reaching_expr e1 @ InsertPred :: Delete :: reaching_expr e2 @ [FocusUp]
   | Dot (e1,e2) -> reaching_expr e1 @ InsertDot :: reaching_expr e2 @ [FocusUp]
   | ArrayLookup (e1,e2) -> reaching_expr e1 @ InsertArrayLookup :: reaching_expr e2 @ [FocusUp]
   | ArrayUnboxing e -> reaching_expr e @ [InsertArrayUnboxing]
@@ -882,8 +882,8 @@ and apply_transf_expr = function
                             make_list (pos-2) Empty @ e :: make_list (arity-pos) Empty),
                            ctx))
     
-  | InsertMap, e, ctx -> Some (Empty, Map2 (e, ctx))
-  | InsertPred, e, ctx -> Some (Empty, Pred2 (e, ctx))
+  | InsertMap, e, ctx -> Some (Var var_context, Map2 (e, ctx))
+  | InsertPred, e, ctx -> Some (Var var_context, Pred2 (e, ctx))
   | InsertDot, e, ctx -> Some (Empty, Dot2 (e, ctx))
   | InsertField k, e, Dot1 (ctx,_) -> Some (Dot (e, S k), ctx)
   | InsertField k, e, ctx -> Some (Dot (e, S k), ctx)
