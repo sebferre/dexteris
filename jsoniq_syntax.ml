@@ -33,7 +33,7 @@ let rec syn_list ~limit (f : 'a -> syn) (l : 'a list) : syn list =
      then [ [Kwd "..."] ]
      else f x :: syn_list ~limit:(limit-1) f r
 			      
-let rec syn_item : item -> syn = function
+let rec syn_item ?(string_preprocess : string -> string = fun s -> s) : item -> syn = function
   | `Bool b -> [Word (`Bool b)]
   | `Int i -> [Word (`Int i)]
   | `Intlit s -> [Word (`String s)]
@@ -44,32 +44,32 @@ let rec syn_item : item -> syn = function
      if n > 200
      then
        let s_short = Js.to_string ((Js.string s)##substring 0 200) in
-       [Word (`String (show_whitechars s_short)); Kwd ("... (" ^ string_of_int n ^ " chars)")]
-     else [Word (`String (show_whitechars s))]
+       [Word (`String (string_preprocess s_short)); Kwd ("... (" ^ string_of_int n ^ " chars)")]
+     else [Word (`String (string_preprocess s))]
   | `Null -> [Kwd "null"]
   | `Assoc pairs ->
      [Quote ("{",
 	     [Enum (", ",
 		    syn_list ~limit:20
-		      (fun (k,i) -> Kwd k :: Kwd ":" :: syn_item i)
+		      (fun (k,i) -> Kwd k :: Kwd ":" :: syn_item ~string_preprocess i)
 		      pairs)],
 	     "}")]
   | `List li ->
      [Quote ("[",
 	     [Enum (", ",
-		    syn_list ~limit:10 syn_item li)],
+		    syn_list ~limit:10 (syn_item ~string_preprocess) li)],
 	     "]")]
   | `Tuple li ->
      [Quote ("(",
 	     [Enum (", ",
-		    syn_list ~limit:10 syn_item li)],
+		    syn_list ~limit:10 (syn_item ~string_preprocess) li)],
 	     ")")]
   | `Variant (c, i_opt) ->
      [Quote ("<",
              Kwd c ::
                (match i_opt with
                 | None -> []
-                | Some i -> Kwd ":" :: syn_item i),
+                | Some i -> Kwd ":" :: syn_item ~string_preprocess i),
              ">")]
 
 let seq_sep = "; "
@@ -242,7 +242,7 @@ and syn_expr library e ctx : syn =
   let xml =
     match e with
     | S s -> [Word (`String (show_whitechars s))]
-    | Item i -> syn_item i
+    | Item i -> syn_item ~string_preprocess:show_whitechars i
     | FileString (fname,contents) ->
        [Kwd "file"; Word (`Filename fname)]
     | Empty -> [Kwd "()"]
